@@ -1,0 +1,29 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(
+    ellipse 120% 80% at 50% 50%,
+    #1a1d3a 0%,
+    #0f1320 40%,
+    #0a0c14 100%
+  );
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+#app canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
