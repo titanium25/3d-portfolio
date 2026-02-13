@@ -47,6 +47,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
 
   // Track wave → gameplay camera transition
   let wasWaving = false;
+  let wasIntroActive = true; // intro starts active
   let postWaveElapsed = POST_WAVE_DURATION; // Start "complete" so no transition on init
   let postWaveStartPos = new THREE.Vector3();
   let postWaveStartLookAt = new THREE.Vector3();
@@ -59,9 +60,15 @@ export async function initApp(container: HTMLElement): Promise<void> {
 
     const introActive = intro.update(deltaSec);
 
+    // When intro just ended: dog goes behind character in idle
+    if (wasIntroActive && !introActive) {
+      dog.resetToIdleBehindPlayer();
+    }
+    wasIntroActive = introActive;
+
     if (introActive) {
       character.updateMixer(deltaSec);
-      dog.updateMixer(deltaSec);
+      dog.updateIdleOnly(deltaSec);
     } else if (!isTransitionOpen()) {
       character.update(deltaSec, stops);
       dog.update(deltaSec, stops);
