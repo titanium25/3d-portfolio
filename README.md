@@ -1,47 +1,144 @@
 # 3D Portfolio
 
-## Idea
+## Overview
 
-An interactive 3D portfolio where visitors explore your work by navigating a character across a map. Instead of scrolling through a traditional site, users drive a vehicle through a stylized landscape, discovering projects at designated stops along the way.
+An interactive 3D portfolio where visitors explore your work by navigating a character across a map. Instead of scrolling through a traditional site, users control a character through a stylized landscape, discovering projects at designated stops along the way.
 
-The experience feels like a small open-world game: you land on a 3D polygon map viewed from above with a slight angle, move around with the keyboard, and trigger content when you reach each stop.
+The experience feels like a small open-world game: you land on a 3D hexagonal map viewed from above with a slight angle, move around with the keyboard, and trigger content when you reach each stop. A loyal dog companion follows alongside you on your journey.
 
-## Core Concept
+## Core Features
 
-- **Map**: A 3D polygon ground plane (e.g., hexagon or irregular shape) that acts as the playable area
-- **Stops**: 3D markers placed on the map, each representing a project or section of your portfolio
-- **Vehicle**: A player-controlled object (car, ball, or character) that moves across the map
-- **Interaction**: When the vehicle touches a stop, a popup or overlay shows the related content (project details, links, images, etc.)
+- **Map**: A hexagonal 3D ground plane that acts as the playable area with boundary collision
+- **Stops**: Animated 3D markers placed on the map, each representing a project or section of your portfolio
+  - Floating animation with pulsing ring indicators
+  - Orbiting particle effects
+  - Dynamic lighting that intensifies as you approach
+  - Proximity UI that shows when you're nearby
+- **Player Character**: A fully animated 3D character controlled via keyboard
+  - Smooth acceleration/deceleration physics
+  - Multiple animations: idle, walk, run, and wave
+  - Realistic turning with visual lean into curves
+  - Collision detection with stops and map boundaries
+- **Dog Companion**: An AI-controlled dog that follows the player
+  - Realistic follow behavior with delayed reactions
+  - Independent path finding and movement
+  - Multiple animations synchronized with behavior
+  - Procedural idle animations (tail wagging, breathing, head bobbing)
+  - Smart collision avoidance with player and stops
+- **Cinematic Intro Sequence**: Terminal-style opening with retro aesthetic
+  - Camera closeup on character
+  - Typing animation with CRT scanlines
+  - Smooth pullback transition to gameplay
+  - Character wave animation
+- **Interaction System**: Proximity-based interactions with cinematic transitions
+  - Press **E** when near a stop to view project details
+  - Smooth camera zoom to stop position
+  - Styled modal overlay with project information
+  - Background blur effect
+  - Press **ESC** or click outside to close
 
-## POC Scope
+## Controls
 
-The current proof of concept validates the core loop:
+- **WASD** or **Arrow Keys**: Move character
+- **Shift**: Run (faster movement)
+- **E**: Interact with nearby stops
+- **ESC**: Close project overlay
 
-1. User lands on a page with a 3D scene (top-down angled view)
-2. User moves a ball with keyboard (WASD or arrow keys)
-3. The ball has realistic movement: acceleration and deceleration, so it speeds up when holding keys and slows down when releasing
-4. The ball stays within map boundaries (hexagonal play area)
-5. The ball collides with stop markers (basic 3D shapes)
-6. Touching a stop opens a simple popup with portfolio data (title, description)
+## Current Implementation
 
-The POC intentionally uses basic shapes (ball, boxes, cylinders) instead of polished 3D models to keep the focus on mechanics and interaction flow.
+The project has evolved from a simple proof of concept to a fully-featured 3D experience:
 
-## Future Direction
+✅ Animated 3D character with realistic movement physics  
+✅ Dog companion with advanced AI follow behavior  
+✅ Cinematic intro sequence with camera animations  
+✅ Proximity-based interaction system  
+✅ Dynamic lighting and visual effects  
+✅ Collision detection and boundary enforcement  
+✅ Character animation state machine (idle/walk/run)  
+✅ Smooth camera following with lerp  
+✅ Hexagonal map with boundary checking
 
-- Replace the ball with a car or character model
-- Replace stop markers with more distinctive 3D assets
-- Add richer UX: modals, animations, project links and media
-- Improve the map (terrain, styling, multiple areas)
-- Optional: mobile touch controls
+## Future Enhancements
+
+- Add map view (M key) to see all stops at once
+- Mobile touch controls for broader accessibility
+- Multiple map areas or levels to explore
+- Sound effects and background music
+- Additional character animations and interactions
+- Project categories and filtering
+- Save/load system for progress tracking
+- Analytics integration
 
 ## Tech Stack
 
-- **Three.js** for 3D rendering
-- **Vite** for build and dev
-- **TypeScript**
+- **Three.js** (v0.160.0) - 3D rendering engine and scene management
+- **TypeScript** (v5.0.0) - Type-safe development
+- **Vite** (v5.0.0) - Build tool and lightning-fast dev server
+- **GLTFLoader** - Loading 3D character models and animations
+
+### Architecture
+
+The project uses a clean, modular architecture:
+
+- **Character System**: Object-oriented design with `BaseCharacter` abstract class
+  - `PlayerCharacter` - Keyboard-controlled player
+  - `DogCompanion` - AI-controlled follower with procedural animations
+- **Scene Management**: Modular scene setup with lighting, shadows, and post-processing
+- **Collision System**: Efficient proximity and collision detection
+- **UI System**: Cinematic transitions, proximity indicators, and loading screens
+- **Animation System**: State machine with smooth blending between animations
 
 ## Running the Project
 
-- `npm install` – install dependencies
-- `npm run dev` – start dev server
-- `npm run build` – production build
+```bash
+npm install        # Install dependencies
+npm run dev        # Start dev server (http://localhost:5173)
+npm run build      # Production build
+npm run preview    # Preview production build
+```
+
+## Project Structure
+
+```
+src/
+├── scene/
+│   ├── characters/        # Character classes and types
+│   │   ├── BaseCharacter.ts      # Abstract base class
+│   │   ├── PlayerCharacter.ts    # Player implementation
+│   │   └── DogCompanion.ts       # Dog follower AI
+│   ├── createScene.ts     # Scene, camera, renderer setup
+│   ├── createGround.ts    # Ground plane creation
+│   ├── createStops.ts     # Portfolio stop markers
+│   ├── introSequence.ts   # Opening cinematic
+│   └── bounds.ts          # Hexagonal boundary checking
+├── controls/
+│   └── keyboardController.ts  # Input handling
+├── collision/
+│   ├── checkCollisions.ts     # Proximity detection
+│   └── stopCollision.ts       # Stop collision checking
+├── ui/
+│   ├── transition.ts      # Cinematic transitions
+│   ├── proximityUI.ts     # Proximity indicators
+│   └── loadingScreen.ts   # Loading management
+├── App.ts                 # Main application logic
+└── main.ts               # Entry point
+```
+
+## Development
+
+For detailed development documentation, including how to add new portfolio stops, customize character behavior, and modify animations, see [CLAUDE.md](./CLAUDE.md).
+
+## Models
+
+Character models are stored in `/public/models/` and loaded via GLTF:
+
+- Player character animations (idle, walk, run, wave)
+- Dog companion animations (idle, walk, run, sit)
+
+## Performance
+
+- Shadow mapping with PCF soft shadows
+- Optimized animation blending
+- Efficient collision detection
+- Smooth camera interpolation (lerp)
+- Delta-time based animation updates

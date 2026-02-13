@@ -1,3 +1,8 @@
+---
+description:
+alwaysApply: true
+---
+
 # CLAUDE.md - 3D Portfolio Project Guide
 
 ## Project Overview
@@ -8,8 +13,22 @@ This is an interactive 3D portfolio experience built with Three.js, TypeScript, 
 
 - **Map**: A hexagonal 3D ground plane that acts as the playable area
 - **Stops**: 3D markers placed on the map, each representing a project or section
-- **Character**: A player-controlled 3D character (loaded from GLTF models) that moves across the map
+- **Player Character**: A keyboard-controlled 3D character (loaded from GLTF models) that moves across the map
+- **Dog Companion**: An AI-controlled dog that follows the player with realistic behavior and animations
 - **Interaction**: When the character approaches a stop, proximity UI appears. Pressing E opens a cinematic transition with project details
+
+## What's New
+
+**Character System Overhaul** ✨
+
+The character system has been completely refactored with an object-oriented architecture:
+
+- **BaseCharacter**: Abstract base class providing physics, animation, and rendering for all characters
+- **PlayerCharacter**: Keyboard-controlled player (formerly `CharacterController`)
+- **DogCompanion**: New AI-controlled dog companion with realistic follow behavior and procedural animations
+- **Extensible Design**: Easy to create new character types (NPCs, pets, enemies) by extending `BaseCharacter`
+
+This architecture enables multiple characters to coexist in the scene with different behaviors while sharing common physics and animation logic.
 
 ## Tech Stack
 
@@ -27,15 +46,20 @@ src/
 ├── styles.css              # Global styles
 │
 ├── scene/                  # 3D scene management
+│   ├── characters/         # Character system (OOP architecture)
+│   │   ├── BaseCharacter.ts      # Abstract base class for all characters
+│   │   ├── PlayerCharacter.ts    # Keyboard-controlled player
+│   │   ├── DogCompanion.ts       # AI-controlled dog companion
+│   │   ├── types.ts              # Character-related type definitions
+│   │   └── index.ts              # Barrel exports
 │   ├── createScene.ts      # Scene, camera, renderer, lighting setup
 │   ├── createGround.ts     # Ground plane creation
 │   ├── createStops.ts      # Portfolio stop markers creation
-│   ├── CharacterController.ts  # Character movement and animation
 │   ├── introSequence.ts    # Opening cinematic sequence
 │   ├── environment.ts      # Environment map loading
 │   ├── postProcessing.ts   # Post-processing effects
 │   ├── bounds.ts           # Map boundary checking (hexagonal)
-│   └── types.ts            # TypeScript interfaces
+│   └── types.ts            # Scene-level TypeScript interfaces
 │
 ├── controls/               # Input handling
 │   └── keyboardController.ts  # Keyboard input management
@@ -57,12 +81,14 @@ src/
 
 The main application orchestrator that:
 
-- Initializes the 3D scene, character, and stops
+- Initializes the 3D scene, player character, dog companion, and stops
 - Manages the animation loop
 - Handles camera following (smooth lerp)
 - Coordinates intro sequence
 - Manages proximity detection and interactions
 - Controls transition overlays
+- Tracks asset loading progress with elegant progress indicator
+- Coordinates dog behavior with intro sequence
 
 **Key Constants:**
 
@@ -70,43 +96,207 @@ The main application orchestrator that:
 - `CAMERA_DISTANCE`: 5 (camera Z offset from character)
 - `CAMERA_OFFSET_X`: 3 (camera X offset from character)
 - `CAMERA_LERP`: 0.045 (camera smoothing factor)
+- `POST_WAVE_DURATION`: 3.0 (camera transition after wave animation)
 
-### CharacterController (`src/scene/CharacterController.ts`)
+**Asset Loading:**
 
-Manages the 3D character:
+- Player assets: 5 (idle model + idle anim + walk + run + wave)
+- Dog assets: 2 (model + walk animation)
+- Total: 7 assets with progress tracking
+- Assets load in parallel with intro sequence for smooth experience
 
-- Loads GLTF models for idle, walk, run, and wave animations
-- Handles character movement with acceleration/deceleration
-- Manages animation blending and transitions
-- Enforces map boundaries and stop collision
-- Rotates character to face movement direction
+**Character Coordination:**
+
+- Both player and dog visible during intro
+- Dog shows procedural idle during intro (tail wag, breathing)
+- After intro ends, dog resets to idle position behind player
+- Dog follows player once gameplay starts
+
+### Character System (`src/scene/characters/`)
+
+The character system uses an object-oriented architecture with a base class and specialized implementations:
+
+#### BaseCharacter (`BaseCharacter.ts`)
+
+Abstract base class providing core functionality for all characters:
+
+**Physics & Movement:**
+
+- Velocity-based steering physics with acceleration/deceleration
+- Arcing turns with automatic speed reduction on sharp turns
+- Position updates with map bounds and stop collision checking
+- Configurable steering parameters (steer rate, brake intensity, etc.)
+
+**Visual Effects:**
+
+- Automatic rotation to face velocity direction
+- Dynamic lean into turns for realistic movement feel
+- Smooth interpolation for all rotations
+
+**Animation System:**
+
+- State machine for idle → walk → run transitions
+- Smooth cross-fading between animation states
+- Speed-adaptive animation playback rates
+- Animation mixer management
+
+**GLTF Loading Utilities:**
+
+- Static helper methods for loading character models
+- Automatic model scaling to target height
+- Material setup (shadows, PBR properties)
+- Animation clip loading and registration
+
+**Subclass Requirements:**
+Each character subclass must implement `getMovementInput()` to provide movement intent (direction, max speed, has input).
+
+#### PlayerCharacter (`PlayerCharacter.ts`)
+
+The player-controlled character with keyboard input:
 
 **Movement Constants:**
 
 - `PLAYER_RADIUS`: 0.5 (collision radius)
-- `PLAYER_WALK_SPEED`: 0.06
-- `PLAYER_RUN_SPEED`: 0.15 (when Shift is held)
+- `PLAYER_WALK_SPEED`: 0.04
+- `PLAYER_RUN_SPEED`: 0.1 (when Shift is held)
 - `PLAYER_ACCELERATION`: 0.012
-- `PLAYER_DECELERATION`: 0.92 (friction factor)
+- `PLAYER_DECELERATION`: 0.88 (friction factor)
+
+**Features:**
+
+- WASD/Arrow key movement input
+- Shift-to-run mechanic
+- Wave animation (used during intro sequence)
+- Collision with stops and map boundaries
 
 **Character Models:**
 
-- `/models/Meshy_AI_Animation_Idle_11_withSkin.glb`
-- `/models/Meshy_AI_Animation_Walking_withSkin.glb`
-- `/models/Meshy_AI_Animation_Running_withSkin.glb`
-- `/models/Meshy_AI_Animation_Wave_One_Hand_withSkin.glb`
+- `/models/Meshy_AI_Animation_Idle_11_withSkin.glb` (idle + animation)
+- `/models/Meshy_AI_Animation_Walking_withSkin.glb` (walk animation)
+- `/models/Meshy_AI_Animation_Running_withSkin.glb` (run animation)
+- `/models/Meshy_AI_Animation_Wave_One_Hand_withSkin.glb` (wave animation)
+
+#### DogCompanion (`DogCompanion.ts`)
+
+AI-controlled dog that follows the player with realistic behavior:
+
+**Movement Constants:**
+
+- `DOG_RADIUS`: 0.25 (collision radius)
+- `DOG_WALK_SPEED`: 0.016 (relaxed trot)
+- `DOG_RUN_SPEED`: 0.065 (can keep up with player)
+- `DOG_ACCELERATION`: 0.004 (gentle acceleration)
+- `DOG_DECELERATION`: 0.91
+
+**Follow Behavior:**
+
+- Position history tracking for smooth delayed following
+- State machine: resting → following → settling
+- Realistic reaction delays (doesn't follow tiny movements)
+- Commit distance/time before dog decides to follow
+- Smart positioning behind player when idle
+- Matches player sprint speed when necessary
+- Teleports if too far behind (post-transition)
+
+**Advanced Features:**
+
+- **Procedural Idle Animations:** When resting, the dog shows lifelike behavior:
+  - Tail wagging (staggered across tail bones)
+  - Breathing motion (spine expansion/contraction)
+  - Head bobbing (slow gentle nods)
+  - Rest-pose blending (slerp to bind pose)
+- **Procedural Running Gait:** When sprinting, layered on top of walk animation:
+  - Vertical bounce (gallop hop with double-bounce per cycle)
+  - Spine flex (compression/extension like real galloping)
+  - Head pump (bobs down on landing)
+  - Tail streaming (extends behind with minimal wag)
+  - Speed-adaptive intensity
+- **Collision Avoidance:**
+  - Walks freely through stops (doesn't block them)
+  - Maintains minimum separation from player
+  - Respects map boundaries
+
+**Configuration:**
+
+- `FOLLOW_OFFSET_BEHIND`: 2.2 (stays behind player)
+- `FOLLOW_OFFSET_SIDE`: -0.5 (slight lateral offset)
+- `COMMIT_DISTANCE`: 2.2 (how far player must move)
+- `COMMIT_TIME`: 1.0 seconds (or sustained movement)
+- `REACTION_DELAY`: 0.45 seconds (delay before getting up)
+- `CATCH_UP_RADIUS`: 3.5 (starts sprinting when this far)
+
+**Character Model:**
+
+- `/models/Meshy_AI_model_Animation_Walking_withSkin_DOG.glb` (model + walk animation)
+
+**Bone Discovery:**
+The dog automatically discovers skeleton bones by name patterns:
+
+- Tail bones: `/tail/i`, `/queue/i`
+- Spine bones: `/spine/i`, `/body/i`, `/torso/i`
+- Head bones: `/head/i`, `/skull/i`
+
+**API Methods:**
+
+- `update()`: Main update loop (physics + animations)
+- `updateIdleOnly()`: Update only procedural idle (used during intro)
+- `snapToPlayer()`: Instantly reposition behind player
+- `resetToIdleBehindPlayer()`: Reset to idle state after intro
+
+#### Character Types (`types.ts`)
+
+TypeScript interfaces for the character system:
+
+**MovementInput:**
+Produced each frame by `getMovementInput()` in character subclasses:
+
+```typescript
+interface MovementInput {
+  dirX: number; // Normalized direction X (-1 to 1)
+  dirZ: number; // Normalized direction Z (-1 to 1)
+  maxSpeed: number; // Target speed for this frame
+  hasInput: boolean; // Whether active input exists
+}
+```
+
+**CharacterConfig:**
+Core physics configuration passed to BaseCharacter constructor:
+
+```typescript
+interface CharacterConfig {
+  radius: number; // Collision/bounds-checking radius
+  walkSpeed: number; // Normal walk speed
+  runSpeed: number; // Sprint speed
+  acceleration: number; // Per-frame velocity increase
+  deceleration: number; // Per-frame velocity decay (0-1)
+}
+```
+
+**How It Works:**
+
+1. Each frame, subclass returns `MovementInput` from `getMovementInput()`
+2. `BaseCharacter.updateVelocity()` processes the input using physics config
+3. Player reads keyboard, dog calculates follow vector, AI could use pathfinding
+4. This design makes it easy to create new character types with different input strategies
 
 ### IntroSequence (`src/scene/introSequence.ts`)
 
 Handles the opening cinematic:
 
-1. **Closeup**: Camera focuses on character
+1. **Closeup**: Camera focuses on player character
 2. **Text phases**: Terminal-style text appears with typing animation
 3. **Pullback**: Camera smoothly transitions to gameplay position
 4. **Hint**: Control legend appears
 5. **Complete**: Character waves, overlay fades out
 
 The intro uses a retro terminal aesthetic with green text, CRT scanlines, and typing effects.
+
+**Character Coordination:**
+
+- Player character performs wave animation at the end
+- Dog companion shows procedural idle during intro (tail wag, breathing)
+- After intro ends, dog resets to idle position behind player
+- Both characters visible throughout intro sequence
 
 ### createStops (`src/scene/createStops.ts`)
 
@@ -161,11 +351,42 @@ Hexagonal boundary system:
 
 ## Controls
 
-- **WASD** or **Arrow Keys**: Move character
-- **Shift**: Run (faster movement)
+- **WASD** or **Arrow Keys**: Move player character
+- **Shift**: Run (faster movement) - dog will match your speed
 - **E**: Interact with nearby stops
 - **ESC**: Close transition overlay
 - **M**: (Planned) Open map
+
+## Character System Overview
+
+The project uses an object-oriented character system with a base class that provides shared functionality:
+
+### BaseCharacter (Abstract Base Class)
+
+All characters inherit from `BaseCharacter`, which provides:
+
+- **Physics Engine**: Velocity-based steering with acceleration, deceleration, and arcing turns
+- **Animation System**: State machine with smooth cross-fading (idle/walk/run)
+- **Visual Effects**: Auto-rotation to face movement direction, lean into turns
+- **Collision Detection**: Map boundaries and stop collision
+- **GLTF Loading**: Utilities for loading models and animations
+
+### Character Types
+
+1. **PlayerCharacter**: Keyboard-controlled player
+   - Input from WASD/Arrow keys
+   - Shift-to-run mechanic
+   - Wave animation for intro sequence
+2. **DogCompanion**: AI-controlled follower
+   - Realistic follow behavior with delayed reactions
+   - State machine: resting → following → settling
+   - Procedural idle animations (tail wag, breathing, head bob)
+   - Procedural running gait (gallop bounce, spine flex, head pump)
+   - Matches player sprint speed
+3. **Future Characters**: The system is extensible
+   - Create new character types by extending `BaseCharacter`
+   - Implement custom `getMovementInput()` for AI behavior
+   - Add character-specific animations and features
 
 ## Development Workflow
 
@@ -203,9 +424,104 @@ const STOPS_CONFIG: Array<{
 
 ### Modifying Character Models
 
+**For Player Character:**
+
 1. Place GLTF files in `/public/models/`
-2. Update paths in `CharacterController.create()` method
+2. Update paths in `PlayerCharacter.create()` method in `src/scene/characters/PlayerCharacter.ts`
 3. Ensure animations are named correctly (first animation in file is used)
+4. Model will be auto-scaled to 0.4 units height
+
+**For Dog Companion:**
+
+1. Place GLTF files in `/public/models/`
+2. Update path in `DogCompanion.create()` method in `src/scene/characters/DogCompanion.ts`
+3. Adjust `DOG_MODEL_HEIGHT` constant if needed (currently 0.38)
+4. Ensure skeleton has recognizable bone names (tail, spine, head) for procedural animations
+
+**Creating New Character Types:**
+
+The character system is designed to be extensible. Here's how to create a new character type:
+
+1. **Create a new class** in `src/scene/characters/YourCharacter.ts`:
+
+```typescript
+export class YourCharacter extends BaseCharacter {
+  private constructor(group: THREE.Group) {
+    super(group, {
+      radius: 0.3,
+      walkSpeed: 0.05,
+      runSpeed: 0.12,
+      acceleration: 0.01,
+      deceleration: 0.9,
+    });
+  }
+
+  // Define movement behavior (AI, pathfinding, scripted, etc.)
+  protected getMovementInput(): MovementInput {
+    // Your logic here - return direction and speed
+    return { dirX: 0, dirZ: 0, maxSpeed: 0, hasInput: false };
+  }
+
+  // Optional: Override updateAnimations for custom animations
+  protected override updateAnimations(
+    deltaSec: number,
+    input: MovementInput,
+  ): void {
+    super.updateAnimations(deltaSec, input);
+    // Add character-specific animation logic
+  }
+
+  // Factory method
+  static async create(
+    scene: Scene,
+    onAssetLoaded?: () => void,
+  ): Promise<YourCharacter> {
+    const group = new THREE.Group();
+    group.rotation.order = "YZX";
+    scene.add(group);
+
+    const character = new YourCharacter(group);
+    const loader = new GLTFLoader();
+
+    // Load models and animations using BaseCharacter utilities
+    const model = await BaseCharacter.loadCharacterModel(
+      loader,
+      "/models/your_model.glb",
+      0.5,
+    );
+    BaseCharacter.setupModelMaterials(model);
+    group.add(model);
+
+    // Set up animation mixer and actions...
+    return character;
+  }
+}
+```
+
+2. **Export from** `src/scene/characters/index.ts`:
+
+```typescript
+export { YourCharacter } from "./YourCharacter";
+```
+
+3. **Instantiate in** `App.ts`:
+
+```typescript
+const yourCharacter = await YourCharacter.create(scene, assetLoaded);
+```
+
+4. **Update in animation loop**:
+
+```typescript
+yourCharacter.update(deltaSec, stops);
+```
+
+**Example Use Cases:**
+
+- **Bug/Insect Character**: Wanders randomly, avoids player
+- **Cat Companion**: Similar to dog but with different follow distance and idle behavior
+- **NPC Character**: Scripted patrol path with dialogue triggers
+- **Bird Character**: Flies above ground, different physics constants
 
 ### Adjusting Camera Behavior
 
@@ -228,9 +544,30 @@ Edit `src/scene/introSequence.ts`:
 
 ### Animation System
 
+**Standard Animation System (Player & Dog Walk):**
+
 - Uses Three.js `AnimationMixer` for character animations
-- Smooth blending between idle/walk/run/wave states
+- Smooth blending between animation states
 - Animation actions fade in/out for smooth transitions
+- Speed-adaptive playback rates (walk/run timescale)
+
+**Procedural Animation System (Dog Idle & Run Gait):**
+
+- **Two-pass approach:**
+  1. Slerp bones toward rest pose (blend factor)
+  2. Apply procedural effects on top
+- **Idle animations:** Direct bone quaternion manipulation for:
+  - Tail wag (staggered phase per bone)
+  - Breathing (spine oscillation)
+  - Head bob (slow nod)
+- **Run gait animations:** Layered effects during sprint:
+  - Vertical bounce (group position Y)
+  - Spine flex (compression/extension)
+  - Head pump (synced with stride)
+  - Tail streaming (extends behind)
+- **Bone discovery:** Automatic detection via regex patterns
+- **Blend factors:** Smooth transitions (exponential interpolation)
+- **Performance:** Reusable quaternions/eulers to avoid allocations
 
 ### Lighting
 
@@ -259,31 +596,40 @@ Environment map loading handled in `src/scene/environment.ts`:
 
 - Shadow maps enabled with `PCFSoftShadowMap`
 - Shadow map resolution: 2048x2048
-- Character and stops cast shadows
+- Characters (player and dog) and stops cast shadows
 - Ground receives shadows
+- Character models automatically configured for shadows in `setupModelMaterials()`
 
 ## Performance Considerations
 
 - Character animations use efficient GLTF clips
 - Post-processing effects are optimized
-- Shadow maps use reasonable resolution
+- Shadow maps use reasonable resolution (2048x2048)
 - Particle counts are limited (8 per stop)
-- Camera lerp prevents jittery movement
+- Camera lerp prevents jittery movement (0.045 factor)
+- Dog procedural animations use reusable quaternions (no per-frame allocations)
+- Asset loading happens in parallel with intro sequence
+- Elegant progress indicator shows loading status
+- Bone discovery happens once at initialization
 
 ## Future Enhancements
 
 Based on the README and codebase:
 
-- [ ] Replace basic shapes with polished 3D models
+- [ ] Replace basic stop shapes with polished 3D models
 - [ ] Add richer project content (images, links, videos)
 - [ ] Implement map view (M key)
 - [ ] Mobile touch controls
 - [ ] Multiple map areas/levels
 - [ ] Sound effects and background music
-- [ ] More character animations
+- [ ] More character animations (sit, jump, dance)
+- [ ] More dog animations and behaviors (sit on command, fetch, play)
+- [ ] Additional companion types (cat, bird, etc.) using BaseCharacter
 - [ ] Project categories/filtering
 - [ ] Save/load system for progress
 - [ ] Analytics tracking
+- [ ] NPC characters with dialogue
+- [ ] Day/night cycle with different lighting
 
 ## Common Tasks
 
@@ -297,12 +643,29 @@ Edit `src/scene/bounds.ts`:
 
 ### Adjusting Movement Speed
 
-Edit `src/scene/CharacterController.ts`:
+**Player Movement:**
+Edit `src/scene/characters/PlayerCharacter.ts`:
 
-- `PLAYER_WALK_SPEED`: Normal movement speed
-- `PLAYER_RUN_SPEED`: Running speed (Shift key)
-- `PLAYER_ACCELERATION`: How quickly speed builds up
-- `PLAYER_DECELERATION`: Friction when releasing keys
+- `PLAYER_WALK_SPEED`: Normal movement speed (currently 0.04)
+- `PLAYER_RUN_SPEED`: Running speed when Shift held (currently 0.1)
+- `PLAYER_ACCELERATION`: How quickly speed builds up (currently 0.012)
+- `PLAYER_DECELERATION`: Friction when releasing keys (currently 0.88)
+
+**Dog Movement:**
+Edit `src/scene/characters/DogCompanion.ts`:
+
+- `DOG_WALK_SPEED`: Dog's relaxed trot speed (currently 0.016)
+- `DOG_RUN_SPEED`: Dog's sprint speed (currently 0.065)
+- `DOG_ACCELERATION`: Dog's acceleration rate (currently 0.004)
+- `DOG_DECELERATION`: Dog's friction (currently 0.91)
+
+**Follow Behavior Tuning:**
+Also in `DogCompanion.ts`:
+
+- `FOLLOW_OFFSET_BEHIND`: Distance behind player (currently 2.2)
+- `COMMIT_DISTANCE`: How far player must move before dog follows (currently 2.2)
+- `REACTION_DELAY`: Delay before dog starts moving (currently 0.45s)
+- `CATCH_UP_RADIUS`: Distance at which dog starts sprinting (currently 3.5)
 
 ### Customizing Stop Appearance
 
@@ -328,12 +691,22 @@ Edit `src/ui/transition.ts`:
 - Check that model files exist in `/public/models/`
 - Verify file paths match exactly (case-sensitive)
 - Check browser console for loading errors
+- Ensure `assetLoaded()` callback is being called
+- Check progress indicator for asset loading status
 
 ### Character Falls Through Ground
 
 - Verify ground is created before character
-- Check character Y position initialization
-- Ensure collision detection is working
+- Check character Y position initialization (should be 0)
+- Model auto-positioning sets feet at y = 0 in `loadCharacterModel()`
+
+### Dog Not Following Player
+
+- Check that dog is created with correct player group reference
+- Verify `COMMIT_DISTANCE` and `COMMIT_TIME` values aren't too high
+- Check console for bone discovery messages
+- Ensure dog's `update()` is being called in animation loop
+- Try `dog.snapToPlayer()` to reset position if stuck
 
 ### Stops Not Interacting
 
@@ -362,6 +735,12 @@ Edit `src/ui/transition.ts`:
 - Three.js objects use `THREE.*` namespace
 - Async/await for asset loading
 - RequestAnimationFrame for animation loop
+- Object-oriented design with inheritance (BaseCharacter)
+- Factory pattern for character creation (static `create()` methods)
+- Template method pattern (BaseCharacter defines algorithm, subclasses implement steps)
+- Configuration constants at file top
+- Protected methods for overridable behavior
+- Readonly properties for immutable config
 
 ## Dependencies
 
