@@ -13,9 +13,10 @@ import { checkProximityAndInteract } from "./collision/checkCollisions";
 import { openTransition, isTransitionOpen } from "./ui/transition";
 import { updateProximityUI, hideProximity } from "./ui/proximityUI";
 import {
-  showLoadingScreen,
+  createProgressIndicator,
+  setTotalAssets,
   assetLoaded,
-  hideLoadingScreen,
+  hideProgressIndicator,
 } from "./ui/loadingScreen";
 import type { Stop } from "./scene/types";
 
@@ -28,20 +29,30 @@ const CAMERA_LERP = 0.045;
 const POST_WAVE_DURATION = 3.0; // seconds for the transition
 
 export async function initApp(container: HTMLElement): Promise<void> {
-  showLoadingScreen();
+  // Calculate total assets: Player (5) + Dog (2) = 7
+  const PLAYER_ASSETS = 5; // idle model + idle anim + walk + run + wave
+  const DOG_ASSETS = 2; // model + walk animation
+  const TOTAL_ASSETS = PLAYER_ASSETS + DOG_ASSETS;
+
+  // Set total and create elegant progress indicator
+  setTotalAssets(TOTAL_ASSETS);
+  createProgressIndicator();
 
   const { scene, camera, composer } = createScene(container);
   createGround(scene);
+  
+  // Start loading assets
   const character = await PlayerCharacter.create(scene, assetLoaded);
   const dog = await DogCompanion.create(scene, character.group, assetLoaded);
   const stops = createStops(scene);
 
   initKeyboard();
 
-  // Create intro before hiding loading screen so overlay is ready
+  // Create intro sequence - starts immediately, no waiting!
   const intro = new IntroSequence(camera, scene, character);
 
-  await hideLoadingScreen();
+  // Hide progress indicator when loading completes
+  await hideProgressIndicator();
   let lastEPressed = false;
   let lastTime = performance.now();
 
