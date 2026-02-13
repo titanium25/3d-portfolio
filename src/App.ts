@@ -41,18 +41,25 @@ export async function initApp(container: HTMLElement): Promise<void> {
   const { scene, camera, composer } = createScene(container);
   createGround(scene);
   
-  // Start loading assets
+  // Load character first (needed for intro sequence)
   const character = await PlayerCharacter.create(scene, assetLoaded);
-  const dog = await DogCompanion.create(scene, character.group, assetLoaded);
-  const stops = createStops(scene);
-
-  initKeyboard();
-
-  // Create intro sequence - starts immediately, no waiting!
+  
+  // Start intro sequence immediately - user sees content right away!
   const intro = new IntroSequence(camera, scene, character);
+  console.log("🎬 Intro started!");
+  
+  // Load remaining assets in parallel with intro
+  let dog: DogCompanion | null = null;
+  let allAssetsLoaded = false;
+  
+  (async () => {
+    dog = await DogCompanion.create(scene, character.group, assetLoaded);
+    allAssetsLoaded = true;
+    console.log("📦 All assets loaded!");
+  })();
 
-  // Hide progress indicator when loading completes
-  await hideProgressIndicator();
+  const stops = createStops(scene);
+  initKeyboard();
   let lastEPressed = false;
   let lastTime = performance.now();
 
@@ -62,6 +69,9 @@ export async function initApp(container: HTMLElement): Promise<void> {
   let postWaveElapsed = POST_WAVE_DURATION; // Start "complete" so no transition on init
   let postWaveStartPos = new THREE.Vector3();
   let postWaveStartLookAt = new THREE.Vector3();
+  
+  // Track when to hide progress indicator
+  let progressHidden = false;
 
   function animate(time: number): void {
     requestAnimationFrame((t) => animate(t));
@@ -71,18 +81,25 @@ export async function initApp(container: HTMLElement): Promise<void> {
 
     const introActive = intro.update(deltaSec);
 
+    // Hide progress indicator when BOTH intro is done AND all assets are loaded
+    if (!progressHidden && !introActive && allAssetsLoaded) {
+      console.log("🎉 Everything ready! Hiding progress indicator...");
+      hideProgressIndicator();
+      progressHidden = true;
+    }
+
     // When intro just ended: dog goes behind character in idle
-    if (wasIntroActive && !introActive) {
+    if (wasIntroActive && !introActive && dog) {
       dog.resetToIdleBehindPlayer();
     }
     wasIntroActive = introActive;
 
     if (introActive) {
       character.updateMixer(deltaSec);
-      dog.updateIdleOnly(deltaSec);
+      if (dog) dog.updateIdleOnly(deltaSec);
     } else if (!isTransitionOpen()) {
       character.update(deltaSec, stops);
-      dog.update(deltaSec, stops);
+      if (dog) dog.update(deltaSec, stops);
     }
 
     updateStopAnimations(stops, time * 0.001);
