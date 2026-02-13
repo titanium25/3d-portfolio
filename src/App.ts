@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { createScene } from "./scene/createScene";
 import { createGround } from "./scene/createGround";
-import { CharacterController } from "./scene/CharacterController";
+import { PlayerCharacter } from "./scene/characters";
 import { IntroSequence } from "./scene/introSequence";
 import {
   createStops,
@@ -32,7 +32,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
 
   const { scene, camera, composer } = createScene(container);
   createGround(scene);
-  const character = await CharacterController.create(scene, assetLoaded);
+  const character = await PlayerCharacter.create(scene, assetLoaded);
   const stops = createStops(scene);
 
   initKeyboard();

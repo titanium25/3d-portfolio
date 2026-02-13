@@ -1,0 +1,427 @@
+import * as THREE from "three";
+import {
+  GLTFLoader,
+  type GLTF,
+} from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { AnimationAction } from "three";
+import type { Stop } from "../types";
+import { isInsideMap } from "../bounds";
+import { getCollidingStop } from "../../collision/stopCollision";
+import type { MovementInput, CharacterConfig } from "./types";
+
+// ── Steering defaults ────────────────────────────────────────────────
+const DEFAULT_SPEED_REDUCE_LERP = 0.12;
+const DEFAULT_STOP_THRESHOLD = 0.003;
+const DEFAULT_STEER_RATE_SLOW = 14;
+const DEFAULT_STEER_RATE_FAST = 7;
+const DEFAULT_SHARP_TURN_BRAKE = 0.35;
+const DEFAULT_STEER_SPEED_THRESHOLD = 0.008;
+
+// ── Visual defaults ──────────────────────────────────────────────────
+const DEFAULT_TURN_VISUAL_SLOW = 14;
+const DEFAULT_TURN_VISUAL_FAST = 7;
+const DEFAULT_LEAN_MAX = 0.12;
+const DEFAULT_LEAN_SENSITIVITY = 0.012;
+const DEFAULT_LEAN_SMOOTH = 6;
+
+/**
+ * Abstract base class for every character in the scene.
+ *
+ * Provides:
+ *  - Velocity / steering physics (acceleration, deceleration, arcing turns)
+ *  - Position update with optional map-bounds and stop-collision checks
+ *  - Visual rotation (face velocity direction) and lean into turns
+ *  - Animation state-machine (idle → walk → run) with cross-fade
+ *  - GLTF model-loading utilities for subclass factories
+ *
+ * Subclasses implement `getMovementInput()` to supply the per-frame
+ * movement intent – keyboard for the player, follow-target for a pet,
+ * AI for a bug, etc.
+ */
+export abstract class BaseCharacter {
+  // ── Public state ───────────────────────────────────────────────────
+  readonly group: THREE.Group;
+
+  // ── Core physics config (immutable after construction) ─────────────
+  readonly radius: number;
+  readonly walkSpeed: number;
+  readonly runSpeed: number;
+  readonly acceleration: number;
+  readonly deceleration: number;
+
+  // ── Steering tuning (override in subclass constructor if needed) ───
+  protected speedReduceLerp = DEFAULT_SPEED_REDUCE_LERP;
+  protected stopThreshold = DEFAULT_STOP_THRESHOLD;
+  protected steerRateSlow = DEFAULT_STEER_RATE_SLOW;
+  protected steerRateFast = DEFAULT_STEER_RATE_FAST;
+  protected sharpTurnBrake = DEFAULT_SHARP_TURN_BRAKE;
+  protected steerSpeedThreshold = DEFAULT_STEER_SPEED_THRESHOLD;
+
+  // ── Visual tuning ─────────────────────────────────────────────────
+  protected turnVisualSlow = DEFAULT_TURN_VISUAL_SLOW;
+  protected turnVisualFast = DEFAULT_TURN_VISUAL_FAST;
+  protected leanMax = DEFAULT_LEAN_MAX;
+  protected leanSensitivity = DEFAULT_LEAN_SENSITIVITY;
+  protected leanSmooth = DEFAULT_LEAN_SMOOTH;
+
+  // ── Behaviour flags ────────────────────────────────────────────────
+  protected collidesWithStops = true;
+  protected respectsMapBounds = true;
+
+  // ── Animation state ────────────────────────────────────────────────
+  protected mixer: THREE.AnimationMixer | null = null;
+  protected activeAction: AnimationAction | null = null;
+  protected idleAction: AnimationAction | null = null;
+  protected walkAction: AnimationAction | null = null;
+  protected runAction: AnimationAction | null = null;
+
+  // ── Physics state ──────────────────────────────────────────────────
+  protected velocityX = 0;
+  protected velocityZ = 0;
+  protected targetRotationY = 0;
+  protected currentLean = 0;
+
+  // ──────────────────────────────────────────────────────────────────
+  //  Construction
+  // ──────────────────────────────────────────────────────────────────
+
+  protected constructor(group: THREE.Group, config: CharacterConfig) {
+    this.group = group;
+    this.radius = config.radius;
+    this.walkSpeed = config.walkSpeed;
+    this.runSpeed = config.runSpeed;
+    this.acceleration = config.acceleration;
+    this.deceleration = config.deceleration;
+  }
+
+  // ──────────────────────────────────────────────────────────────────
+  //  Abstract – subclasses MUST implement
+  // ──────────────────────────────────────────────────────────────────
+
+  /** Return the movement intent for the current frame. */
+  protected abstract getMovementInput(): MovementInput;
+
+  // ──────────────────────────────────────────────────────────────────
+  //  Public API
+  // ──────────────────────────────────────────────────────────────────
+
+  /** Convenience getter – world position of this character. */
+  get position(): THREE.Vector3 {
+    return this.group.position;
+  }
+
+  /** Current speed (magnitude of velocity). */
+  get speed(): number {
+    return Math.hypot(this.velocityX, this.velocityZ);
+  }
+
+  /** Tick the animation mixer without running full physics (e.g. during cinematics). */
+  updateMixer(deltaSec: number): void {
+    this.mixer?.update(deltaSec);
+  }
+
+  /**
+   * Main per-frame update – template method.
+   * Runs physics → position → visuals → animation.
+   */
+  update(deltaSec: number, stops: Stop[]): void {
+    const input = this.getMovementInput();
+    this.updateVelocity(deltaSec, input);
+    this.updatePosition(stops);
+    this.updateRotationAndLean(deltaSec);
+    this.updateAnimations(deltaSec, input);
+  }
+
+  // ──────────────────────────────────────────────────────────────────
+  //  Physics internals (protected – overridable by subclasses)
+  // ──────────────────────────────────────────────────────────────────
+
+  /** Shortest signed angle from `from` to `to` (handles 0↔2π wrap). */
+  protected shortestAngleDist(from: number, to: number): number {
+    const TWO_PI = Math.PI * 2;
+    return ((((to - from) % TWO_PI) + Math.PI * 3) % TWO_PI) - Math.PI;
+  }
+
+  /** Speed threshold at which the run animation kicks in. */
+  protected get runAnimThreshold(): number {
+    return (this.walkSpeed + this.runSpeed) * 0.45;
+  }
+
+  /** Update velocity using the steering model. */
+  protected updateVelocity(deltaSec: number, input: MovementInput): void {
+    const { dirX, dirZ, maxSpeed, hasInput } = input;
+    const currentSpeed = Math.hypot(this.velocityX, this.velocityZ);
+
+    if (hasInput) {
+      if (currentSpeed > this.steerSpeedThreshold) {
+        // ── Steering model: rotate velocity toward input direction ──
+        const velAngle = Math.atan2(this.velocityX, this.velocityZ);
+        const inputAngle = Math.atan2(dirX, dirZ);
+        const angleDiff = this.shortestAngleDist(velAngle, inputAngle);
+        const turnSharpness = Math.abs(angleDiff) / Math.PI;
+
+        const speedRatio = Math.min(1, currentSpeed / this.runSpeed);
+        const steerRate =
+          this.steerRateSlow +
+          (this.steerRateFast - this.steerRateSlow) * speedRatio;
+
+        const maxSteer = steerRate * deltaSec;
+        const steerAmount =
+          Math.abs(angleDiff) < maxSteer
+            ? angleDiff
+            : Math.sign(angleDiff) * maxSteer;
+        const newVelAngle = velAngle + steerAmount;
+
+        let newSpeed = currentSpeed;
+        if (turnSharpness > 0.25) {
+          const brakeIntensity = ((turnSharpness - 0.25) / 0.75) * speedRatio;
+          newSpeed *= 1.0 - this.sharpTurnBrake * brakeIntensity;
+        }
+
+        if (newSpeed < maxSpeed) {
+          newSpeed = Math.min(maxSpeed, newSpeed + this.acceleration);
+        } else if (newSpeed > maxSpeed) {
+          newSpeed += (maxSpeed - newSpeed) * this.speedReduceLerp;
+        }
+
+        this.velocityX = Math.sin(newVelAngle) * newSpeed;
+        this.velocityZ = Math.cos(newVelAngle) * newSpeed;
+      } else {
+        // ── Direct acceleration from standstill ──
+        this.velocityX += dirX * this.acceleration;
+        this.velocityZ += dirZ * this.acceleration;
+
+        const newSpeed = Math.hypot(this.velocityX, this.velocityZ);
+        if (newSpeed > maxSpeed) {
+          const s = maxSpeed / newSpeed;
+          this.velocityX *= s;
+          this.velocityZ *= s;
+        }
+      }
+    } else {
+      // ── Deceleration (momentum) ──
+      this.velocityX *= this.deceleration;
+      this.velocityZ *= this.deceleration;
+
+      if (Math.hypot(this.velocityX, this.velocityZ) < this.stopThreshold) {
+        this.velocityX = 0;
+        this.velocityZ = 0;
+      }
+    }
+  }
+
+  /** Apply position change with optional bounds / stop collision. */
+  protected updatePosition(stops: Stop[]): void {
+    const newX = this.group.position.x + this.velocityX;
+    const newZ = this.group.position.z + this.velocityZ;
+
+    let finalX = this.group.position.x;
+    let finalZ = this.group.position.z;
+
+    const checkBounds = this.respectsMapBounds;
+    const checkStops = this.collidesWithStops;
+
+    const canMoveX =
+      (!checkBounds ||
+        isInsideMap(newX, this.group.position.z, this.radius)) &&
+      (!checkStops ||
+        !getCollidingStop(newX, this.group.position.z, stops, this.radius));
+    const canMoveZ =
+      (!checkBounds ||
+        isInsideMap(this.group.position.x, newZ, this.radius)) &&
+      (!checkStops ||
+        !getCollidingStop(this.group.position.x, newZ, stops, this.radius));
+
+    if (canMoveX) finalX = newX;
+    else this.velocityX = 0;
+
+    if (canMoveZ) finalZ = newZ;
+    else this.velocityZ = 0;
+
+    if (
+      (checkBounds && !isInsideMap(finalX, finalZ, this.radius)) ||
+      (checkStops && getCollidingStop(finalX, finalZ, stops, this.radius))
+    ) {
+      finalX = this.group.position.x;
+      finalZ = this.group.position.z;
+      this.velocityX = 0;
+      this.velocityZ = 0;
+    }
+
+    this.group.position.x = finalX;
+    this.group.position.z = finalZ;
+  }
+
+  /** Update visual rotation (face velocity direction) and body lean. */
+  protected updateRotationAndLean(deltaSec: number): void {
+    const updatedSpeed = Math.hypot(this.velocityX, this.velocityZ);
+
+    if (updatedSpeed > this.stopThreshold) {
+      this.targetRotationY =
+        Math.atan2(-this.velocityX, -this.velocityZ) + Math.PI;
+    }
+
+    const speedRatio = Math.min(1, updatedSpeed / this.runSpeed);
+    const visualTurnRate =
+      this.turnVisualSlow +
+      (this.turnVisualFast - this.turnVisualSlow) * speedRatio;
+    const rotLerp = 1 - Math.exp(-visualTurnRate * deltaSec);
+
+    const rotDiff = this.shortestAngleDist(
+      this.group.rotation.y,
+      this.targetRotationY,
+    );
+    this.group.rotation.y += rotDiff * rotLerp;
+
+    // ── Lean into turns ──
+    const angularVel = deltaSec > 0 ? rotDiff / deltaSec : 0;
+    const targetLean = Math.max(
+      -this.leanMax,
+      Math.min(this.leanMax, angularVel * this.leanSensitivity * speedRatio),
+    );
+    const leanLerp = 1 - Math.exp(-this.leanSmooth * deltaSec);
+    this.currentLean += (targetLean - this.currentLean) * leanLerp;
+    this.group.rotation.z = this.currentLean;
+  }
+
+  /**
+   * Update animation state (idle / walk / run).
+   * Override in subclass for character-specific animations (e.g. wave, sit).
+   */
+  protected updateAnimations(deltaSec: number, input: MovementInput): void {
+    if (!this.mixer) return;
+    this.mixer.update(deltaSec);
+
+    const updatedSpeed = Math.hypot(this.velocityX, this.velocityZ);
+    this.selectLocomotionAnimation(updatedSpeed, input.hasInput);
+  }
+
+  /** Pick idle / walk / run based on current speed. */
+  protected selectLocomotionAnimation(
+    speed: number,
+    hasInput: boolean,
+  ): void {
+    if (hasInput || speed > this.stopThreshold) {
+      if (speed > this.runAnimThreshold && this.runAction) {
+        if (this.activeAction !== this.runAction) {
+          this.switchAction(this.runAction, 0.2);
+        }
+        this.runAction.setEffectiveTimeScale(
+          Math.max(0.6, speed / this.runSpeed),
+        );
+      } else if (this.walkAction) {
+        if (this.activeAction !== this.walkAction) {
+          const fadeTime = this.activeAction === this.runAction ? 0.3 : 0.15;
+          this.switchAction(this.walkAction, fadeTime);
+        }
+        this.walkAction.setEffectiveTimeScale(
+          Math.max(0.4, Math.min(1.5, speed / this.walkSpeed)),
+        );
+      }
+    } else {
+      if (this.idleAction && this.activeAction !== this.idleAction) {
+        const fadeTime = this.activeAction === this.runAction ? 0.3 : 0.2;
+        this.switchAction(this.idleAction, fadeTime);
+      }
+    }
+  }
+
+  /** Cross-fade to a new animation action. */
+  protected switchAction(
+    newAction: AnimationAction | null,
+    fadeTime = 0.15,
+  ): void {
+    if (!newAction || newAction === this.activeAction) return;
+    if (this.activeAction) {
+      this.activeAction.fadeOut(fadeTime);
+    }
+    newAction.reset().setEffectiveWeight(1).fadeIn(fadeTime).play();
+    this.activeAction = newAction;
+  }
+
+  // ──────────────────────────────────────────────────────────────────
+  //  Model-loading utilities (protected static – for subclass factories)
+  // ──────────────────────────────────────────────────────────────────
+
+  /**
+   * Load a GLTF model, scale it to `targetHeight`, and position feet at y = 0.
+   */
+  protected static async loadCharacterModel(
+    loader: GLTFLoader,
+    url: string,
+    targetHeight: number,
+  ): Promise<THREE.Object3D> {
+    const gltf = await new Promise<GLTF>((resolve, reject) =>
+      loader.load(url, resolve, undefined, reject),
+    );
+
+    const model = gltf.scene;
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scale = targetHeight / maxDim;
+    model.scale.setScalar(scale);
+
+    box.setFromObject(model);
+    model.position.y = -box.min.y;
+
+    return model;
+  }
+
+  /** Configure shadow casting and PBR material defaults on a model. */
+  protected static setupModelMaterials(model: THREE.Object3D): void {
+    model.traverse((child: THREE.Object3D) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+
+        const materials = Array.isArray(mesh.material)
+          ? mesh.material
+          : [mesh.material];
+        for (const mat of materials) {
+          mat.depthWrite = true;
+          mat.depthTest = true;
+          mat.transparent = false;
+          mat.side = THREE.FrontSide;
+          const stdMat = mat as THREE.MeshStandardMaterial;
+          if (stdMat.alphaMap || stdMat.map?.format === THREE.RGBAFormat) {
+            mat.alphaTest = 0.5;
+          }
+          if (stdMat.isMeshStandardMaterial) {
+            stdMat.roughness = Math.max(stdMat.roughness || 0.5, 0.8);
+            stdMat.metalness = Math.min(stdMat.metalness || 0.5, 0.1);
+            stdMat.envMapIntensity = 0.3;
+          }
+        }
+      }
+    });
+  }
+
+  /** Load a single animation clip and register it on the mixer. */
+  protected static async loadAnimationClip(
+    mixer: THREE.AnimationMixer,
+    model: THREE.Object3D,
+    loader: GLTFLoader,
+    url: string,
+    name: string,
+  ): Promise<AnimationAction | null> {
+    try {
+      const gltf = await new Promise<GLTF>((resolve, reject) =>
+        loader.load(url, resolve, undefined, reject),
+      );
+      if (gltf.animations.length > 0) {
+        const clip = gltf.animations[0];
+        const action = mixer.clipAction(clip, model);
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        console.log(
+          `Loaded ${name}: "${clip.name}" (${clip.duration.toFixed(2)}s)`,
+        );
+        return action;
+      }
+    } catch (e) {
+      console.warn(`Failed to load ${name} from ${url}:`, e);
+    }
+    return null;
+  }
+}

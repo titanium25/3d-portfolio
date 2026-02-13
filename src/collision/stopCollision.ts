@@ -1,24 +1,25 @@
 import * as THREE from 'three';
 import type { Stop } from '../scene/types';
-import { PLAYER_RADIUS } from '../scene/CharacterController';
 
 const STOP_COLLISION_RADIUS = 0.85;
 
 export function wouldCollideWithStop(
   newX: number,
   newZ: number,
-  stops: Stop[]
+  stops: Stop[],
+  characterRadius = 0.5,
 ): boolean {
-  return getCollidingStop(newX, newZ, stops) !== null;
+  return getCollidingStop(newX, newZ, stops, characterRadius) !== null;
 }
 
 export function getCollidingStop(
   newX: number,
   newZ: number,
-  stops: Stop[]
+  stops: Stop[],
+  characterRadius = 0.5,
 ): Stop | null {
   const pos = new THREE.Vector3(newX, 0, newZ);
-  const threshold = PLAYER_RADIUS + STOP_COLLISION_RADIUS;
+  const threshold = characterRadius + STOP_COLLISION_RADIUS;
 
   for (const stop of stops) {
     const worldPos = new THREE.Vector3();

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { PerspectiveCamera, Scene } from "three";
-import type { CharacterController } from "./CharacterController";
+import type { PlayerCharacter } from "./characters";
 
 export interface IntroState {
   phase:
@@ -23,14 +23,14 @@ export class IntroSequence {
   private hintContainer: HTMLElement;
   private camera: PerspectiveCamera;
   private scene: Scene;
-  private character: CharacterController;
+  private character: PlayerCharacter;
   private closeupLight: THREE.SpotLight | null = null;
   private isComplete = false;
 
   constructor(
     camera: PerspectiveCamera,
     scene: Scene,
-    character: CharacterController,
+    character: PlayerCharacter,
   ) {
     this.camera = camera;
     this.scene = scene;
