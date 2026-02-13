@@ -1,14 +1,20 @@
-import * as THREE from 'three';
-import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import type { AnimationAction } from 'three';
-import type { Scene } from 'three';
-import type { Stop } from './types';
-import { getInputDirection, isKeyPressed } from '../controls/keyboardController';
-import { isInsideMap } from './bounds';
-import { getCollidingStop } from '../collision/stopCollision';
+import * as THREE from "three";
+import {
+  GLTFLoader,
+  type GLTF,
+} from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { AnimationAction } from "three";
+import type { Scene } from "three";
+import type { Stop } from "./types";
+import {
+  getInputDirection,
+  isKeyPressed,
+} from "../controls/keyboardController";
+import { isInsideMap } from "./bounds";
+import { getCollidingStop } from "../collision/stopCollision";
 
 export const PLAYER_RADIUS = 0.5;
-export const PLAYER_WALK_SPEED = 0.06; // Reduced walking speed
+export const PLAYER_WALK_SPEED = 0.04; // Reduced walking speed
 export const PLAYER_RUN_SPEED = 0.15; // Running speed (faster than original)
 export const PLAYER_ACCELERATION = 0.012;
 export const PLAYER_DECELERATION = 0.92;
@@ -57,15 +63,26 @@ export class CharacterController {
     }
   }
 
+  isWaving(): boolean {
+    return (
+      this.activeAction === this.waveAction &&
+      this.waveAction !== null &&
+      this.waveAction.isRunning()
+    );
+  }
+
   updateMixer(deltaSec: number): void {
     if (this.mixer) {
       this.mixer.update(deltaSec);
     }
   }
 
-  static async create(scene: Scene, onAssetLoaded?: () => void): Promise<CharacterController> {
+  static async create(
+    scene: Scene,
+    onAssetLoaded?: () => void,
+  ): Promise<CharacterController> {
     const group = new THREE.Group();
-    group.position.set(0, PLAYER_RADIUS, 0);
+    group.position.set(0, 0, 0);
     scene.add(group);
 
     const controller = new CharacterController(group);
@@ -74,7 +91,12 @@ export class CharacterController {
 
     try {
       const idleGltf = await new Promise<GLTF>((resolve, reject) =>
-        loader.load('/models/Meshy_AI_Animation_Idle_11_withSkin.glb', resolve, undefined, reject)
+        loader.load(
+          "/models/Meshy_AI_Animation_Idle_11_withSkin.glb",
+          resolve,
+          undefined,
+          reject,
+        ),
       );
 
       const model = idleGltf.scene;
@@ -96,7 +118,9 @@ export class CharacterController {
           mesh.receiveShadow = true;
 
           // Fix depth/transparency glitches (back limbs showing through body)
-          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          const materials = Array.isArray(mesh.material)
+            ? mesh.material
+            : [mesh.material];
           for (const mat of materials) {
             mat.depthWrite = true;
             mat.depthTest = true;
@@ -123,16 +147,21 @@ export class CharacterController {
       const mixer = new THREE.AnimationMixer(model);
       controller.mixer = mixer;
 
-      const loadAnimation = async (url: string, name: string): Promise<AnimationAction | null> => {
+      const loadAnimation = async (
+        url: string,
+        name: string,
+      ): Promise<AnimationAction | null> => {
         try {
           const gltf = await new Promise<GLTF>((resolve, reject) =>
-            loader.load(url, resolve, undefined, reject)
+            loader.load(url, resolve, undefined, reject),
           );
           if (gltf.animations.length > 0) {
             const clip = gltf.animations[0];
             const action = mixer.clipAction(clip, model);
             action.setLoop(THREE.LoopRepeat, Infinity);
-            console.log(`Loaded ${name}: "${clip.name}" (${clip.duration.toFixed(2)}s)`);
+            console.log(
+              `Loaded ${name}: "${clip.name}" (${clip.duration.toFixed(2)}s)`,
+            );
             return action;
           }
         } catch (e) {
@@ -142,26 +171,26 @@ export class CharacterController {
       };
 
       controller.idleAction = await loadAnimation(
-        '/models/Meshy_AI_Animation_Idle_11_withSkin.glb',
-        'idle'
+        "/models/Meshy_AI_Animation_Idle_11_withSkin.glb",
+        "idle",
       );
       onAssetLoaded?.();
 
       controller.walkAction = await loadAnimation(
-        '/models/Meshy_AI_Animation_Walking_withSkin.glb',
-        'walk'
+        "/models/Meshy_AI_Animation_Walking_withSkin.glb",
+        "walk",
       );
       onAssetLoaded?.();
 
       controller.runAction = await loadAnimation(
-        '/models/Meshy_AI_Animation_Running_withSkin.glb',
-        'run'
+        "/models/Meshy_AI_Animation_Running_withSkin.glb",
+        "run",
       );
       onAssetLoaded?.();
 
       controller.waveAction = await loadAnimation(
-        '/models/Meshy_AI_Animation_Wave_One_Hand_withSkin.glb',
-        'wave'
+        "/models/Meshy_AI_Animation_Wave_One_Hand_withSkin.glb",
+        "wave",
       );
       onAssetLoaded?.();
 
@@ -172,14 +201,14 @@ export class CharacterController {
 
       return controller;
     } catch (error) {
-      console.error('Failed to load character:', error);
+      console.error("Failed to load character:", error);
       throw error;
     }
   }
 
   update(deltaSec: number, stops: Stop[]): void {
     const dir = getInputDirection();
-    const isRunning = isKeyPressed('ShiftLeft') || isKeyPressed('ShiftRight');
+    const isRunning = isKeyPressed("ShiftLeft") || isKeyPressed("ShiftRight");
     const maxSpeed = isRunning ? PLAYER_RUN_SPEED : PLAYER_WALK_SPEED;
 
     if (dir.x !== 0 || dir.z !== 0) {
@@ -217,7 +246,10 @@ export class CharacterController {
     if (canMoveZ) finalZ = newZ;
     else this.velocityZ = 0;
 
-    if (!isInsideMap(finalX, finalZ, PLAYER_RADIUS) || getCollidingStop(finalX, finalZ, stops)) {
+    if (
+      !isInsideMap(finalX, finalZ, PLAYER_RADIUS) ||
+      getCollidingStop(finalX, finalZ, stops)
+    ) {
       finalX = this.group.position.x;
       finalZ = this.group.position.z;
       this.velocityX = 0;
@@ -228,24 +260,36 @@ export class CharacterController {
     this.group.position.z = finalZ;
 
     if (this.velocityX !== 0 || this.velocityZ !== 0) {
-      this.targetRotationY = Math.atan2(-this.velocityX, -this.velocityZ) + Math.PI;
+      this.targetRotationY =
+        Math.atan2(-this.velocityX, -this.velocityZ) + Math.PI;
     }
     const rotLerp = 1 - Math.exp(-this.ROTATION_LERP * deltaSec);
-    this.group.rotation.y += (this.targetRotationY - this.group.rotation.y) * rotLerp;
+    this.group.rotation.y +=
+      (this.targetRotationY - this.group.rotation.y) * rotLerp;
 
     if (this.mixer) {
       this.mixer.update(deltaSec);
 
-      if (this.activeAction === this.waveAction && this.waveAction) {
+      // Allow movement input to interrupt wave animation
+      if (dir.x !== 0 || dir.z !== 0) {
+        // User is providing input - switch to walk or run animation based on SHIFT
+        if (
+          isRunning &&
+          this.runAction &&
+          this.activeAction !== this.runAction
+        ) {
+          this.switchAction(this.runAction);
+        } else if (
+          !isRunning &&
+          this.walkAction &&
+          this.activeAction !== this.walkAction
+        ) {
+          this.switchAction(this.walkAction);
+        }
+      } else if (this.activeAction === this.waveAction && this.waveAction) {
+        // Wave animation is playing and no input - wait for it to finish
         if (!this.waveAction.isRunning()) {
           this.switchAction(this.idleAction);
-        }
-      } else if (dir.x !== 0 || dir.z !== 0) {
-        // User is providing input - switch to walk or run animation based on SHIFT
-        if (isRunning && this.runAction && this.activeAction !== this.runAction) {
-          this.switchAction(this.runAction);
-        } else if (!isRunning && this.walkAction && this.activeAction !== this.walkAction) {
-          this.switchAction(this.walkAction);
         }
       } else {
         // No input - switch to idle animation immediately with faster transition
