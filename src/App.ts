@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { createScene } from "./scene/createScene";
 import { createGround } from "./scene/createGround";
-import { PlayerCharacter } from "./scene/characters";
+import { PlayerCharacter, DogCompanion } from "./scene/characters";
 import { IntroSequence } from "./scene/introSequence";
 import {
   createStops,
@@ -33,6 +33,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
   const { scene, camera, composer } = createScene(container);
   createGround(scene);
   const character = await PlayerCharacter.create(scene, assetLoaded);
+  const dog = await DogCompanion.create(scene, character.group, assetLoaded);
   const stops = createStops(scene);
 
   initKeyboard();
@@ -60,8 +61,10 @@ export async function initApp(container: HTMLElement): Promise<void> {
 
     if (introActive) {
       character.updateMixer(deltaSec);
+      dog.updateMixer(deltaSec);
     } else if (!isTransitionOpen()) {
       character.update(deltaSec, stops);
+      dog.update(deltaSec, stops);
     }
 
     updateStopAnimations(stops, time * 0.001);

@@ -7,4 +7,5 @@ export {
   PLAYER_ACCELERATION,
   PLAYER_DECELERATION,
 } from "./PlayerCharacter";
+export { DogCompanion } from "./DogCompanion";
 export type { MovementInput, CharacterConfig } from "./types";
