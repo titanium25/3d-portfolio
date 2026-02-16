@@ -217,6 +217,10 @@ export function createGround(scene: Scene): THREE.Group {
    * --------------------------------------------------------- */
 
   const bodyShape = createHexShape(SIZE);
+  // Cut out the inner area so the baseMat top face doesn't z-fight
+  // with the inner plate, road, and panel lines sitting just above Y = 0.
+  bodyShape.holes.push(createHexPath(INNER_RADIUS));
+
   const bodyGeom = new THREE.ExtrudeGeometry(bodyShape, {
     depth: PLATFORM_DEPTH,
     bevelEnabled: true,
@@ -265,7 +269,7 @@ export function createGround(scene: Scene): THREE.Group {
   const innerShape = createHexShape(SIZE * INNER_SCALE);
   const innerGeom = new THREE.ShapeGeometry(innerShape);
   innerGeom.rotateX(-Math.PI / 2);
-  innerGeom.translate(0, 0.002, 0); // avoid z-fighting with body top cap
+  innerGeom.translate(0, 0.01, 0); // above any residual body bevel
   innerGeom.computeVertexNormals();
 
   const innerMesh = new THREE.Mesh(innerGeom, floorMat);
@@ -281,12 +285,12 @@ export function createGround(scene: Scene): THREE.Group {
   roadGeom.rotateX(-Math.PI / 2);
 
   const roadMesh = new THREE.Mesh(roadGeom, roadMat);
-  roadMesh.position.y = 0.005;
+  roadMesh.position.y = 0.015;
   roadMesh.receiveShadow = true;
   group.add(roadMesh);
 
   // Road edge accent lines + center dashes (single LineSegments object)
-  const roadMarkY = 0.007;
+  const roadMarkY = 0.018;
   const halfW = ROAD_WIDTH / 2;
   const halfL = ROAD_LENGTH / 2;
   const roadMarkPts: THREE.Vector3[] = [];
@@ -343,7 +347,7 @@ export function createGround(scene: Scene): THREE.Group {
    *    Radial spokes + concentric rings = tech floor panels.
    * --------------------------------------------------------- */
 
-  const panelY = 0.004; // just above inner plate surface
+  const panelY = 0.012; // just above inner plate surface
   const panelLineMat = new THREE.LineBasicMaterial({
     color: COL_ACCENT,
     transparent: true,
