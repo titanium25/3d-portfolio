@@ -865,15 +865,8 @@ export class DogCompanion extends BaseCharacter {
       group.add(model);
       onAssetLoaded?.();
 
-      // Store model reference and its base Y for animation Y-lock
+      // Store model reference (grounding offset recomputed after first anim frame)
       companion.characterModel = model;
-      companion.modelBaseY = model.position.y;
-
-      // Capture root bone bind-pose Y before any animation plays
-      companion.initRootBoneLock(model);
-
-      // Store ground-level Y for run bounce reference
-      companion.baseY = group.position.y;
 
       // Discover skeleton bones for procedural idle & run gait
       companion.discoverBones(model);
@@ -900,6 +893,22 @@ export class DogCompanion extends BaseCharacter {
         companion.activeAction = companion.walkAction;
         companion.idleBlend = 1; // begin fully in procedural idle
       }
+
+      // Apply one animation frame so bones settle into their actual pose.
+      // The bind-pose bounding box can differ from the animated pose, causing
+      // the model to float if we compute grounding before the first frame.
+      mixer.update(0);
+
+      // Recompute grounding from the animation-pose bounding box
+      const box = new THREE.Box3().setFromObject(model);
+      model.position.y = -box.min.y;
+      companion.modelBaseY = model.position.y;
+
+      // Capture root bone Y after animation frame (matches player init order)
+      companion.initRootBoneLock(model);
+
+      // Store ground-level Y for run bounce reference
+      companion.baseY = group.position.y;
 
       return companion;
     } catch (error) {
