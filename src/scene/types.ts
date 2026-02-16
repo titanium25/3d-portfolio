@@ -4,6 +4,9 @@ export interface StopData {
   id: string;
   title: string;
   description: string;
+  subtitle?: string;
+  bullets?: string[];
+  links?: { label: string; url: string }[];
 }
 
 export interface Stop {

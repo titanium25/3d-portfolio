@@ -9,6 +9,12 @@ import {
   updateStopAnimations,
   updateStopLighting,
 } from "./scene/createStops";
+import {
+  createTimelineStops,
+  updateTimelineAnimations,
+  updateTimelineLighting,
+  markStopCompleted,
+} from "./scene/timeline";
 import { initKeyboard, isKeyPressed } from "./controls/keyboardController";
 import { checkProximityAndInteract } from "./collision/checkCollisions";
 import { openTransition, isTransitionOpen } from "./ui/transition";
@@ -30,10 +36,11 @@ const CAMERA_LERP = 0.045;
 const POST_WAVE_DURATION = 3.0; // seconds for the transition
 
 export async function initApp(container: HTMLElement): Promise<void> {
-  // Calculate total assets: Player (5) + Dog (2) = 7
+  // Calculate total assets: Player (5) + Dog (2) + Portal (1) = 8
   const PLAYER_ASSETS = 5; // idle model + idle anim + walk + run + wave
   const DOG_ASSETS = 2; // model + walk animation
-  const TOTAL_ASSETS = PLAYER_ASSETS + DOG_ASSETS;
+  const PORTAL_ASSETS = 1; // portal GLB (loaded once, cloned per checkpoint)
+  const TOTAL_ASSETS = PLAYER_ASSETS + DOG_ASSETS + PORTAL_ASSETS;
 
   // Set total and create elegant progress indicator
   setTotalAssets(TOTAL_ASSETS);
@@ -59,7 +66,15 @@ export async function initApp(container: HTMLElement): Promise<void> {
     console.log("📦 All assets loaded!");
   })();
 
-  const stops = createStops(scene);
+  const ENABLE_MOCK_STOPS = false;
+  const ENABLE_TIMELINE_STOPS = true;
+
+  const mockStops: Stop[] = ENABLE_MOCK_STOPS ? createStops(scene) : [];
+  const timelineStops: Stop[] = ENABLE_TIMELINE_STOPS
+    ? await createTimelineStops(scene, assetLoaded)
+    : [];
+  const collisionStops: Stop[] = [...mockStops, ...timelineStops];
+  const interactionStops: Stop[] = collisionStops;
   initKeyboard();
   let lastEPressed = false;
   let lastTime = performance.now();
@@ -209,12 +224,18 @@ export async function initApp(container: HTMLElement): Promise<void> {
       character.updateMixer(deltaSec);
       if (dog) dog.updateIdleOnly(deltaSec);
     } else if (!isTransitionOpen()) {
-      character.update(deltaSec, stops);
-      if (dog) dog.update(deltaSec, stops);
+      character.update(deltaSec, collisionStops);
+      if (dog) dog.update(deltaSec, collisionStops);
     }
 
-    updateStopAnimations(stops, time * 0.001);
-    updateStopLighting(stops, character.group.position);
+    if (ENABLE_MOCK_STOPS) {
+      updateStopAnimations(collisionStops, time * 0.001);
+      updateStopLighting(collisionStops, character.group.position);
+    }
+    if (ENABLE_TIMELINE_STOPS) {
+      updateTimelineAnimations(timelineStops, time * 0.001);
+      updateTimelineLighting(timelineStops, character.group.position);
+    }
 
     if (devMode) {
       orbitControls.update();
@@ -285,7 +306,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
     if (!introActive) {
       checkProximityAndInteract(
         character.group,
-        stops,
+        interactionStops,
         eJustPressed,
         isTransitionOpen()
           ? () => {}
@@ -294,6 +315,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
         isTransitionOpen() ? () => {} : hideProximity,
         (stop: Stop) => {
           hideProximity();
+          markStopCompleted(stop.data.id);
           const worldPos = new THREE.Vector3();
           stop.group.getWorldPosition(worldPos);
           openTransition(stop.data, worldPos, camera, undefined, () => ({

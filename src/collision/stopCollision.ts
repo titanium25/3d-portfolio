@@ -18,16 +18,32 @@ export function getCollidingStop(
   stops: Stop[],
   characterRadius = 0.5,
 ): Stop | null {
-  const pos = new THREE.Vector3(newX, 0, newZ);
-  const threshold = characterRadius + STOP_COLLISION_RADIUS;
-
   for (const stop of stops) {
     const worldPos = new THREE.Vector3();
     stop.group.getWorldPosition(worldPos);
-    const dx = pos.x - worldPos.x;
-    const dz = pos.z - worldPos.z;
-    const dist = Math.sqrt(dx * dx + dz * dz);
-    if (dist < threshold) return stop;
+
+    // Per-pillar collision points (e.g. gate frames)
+    const subPts = stop.group.userData.collisionPoints as
+      | [number, number][]
+      | undefined;
+
+    if (subPts) {
+      const subR =
+        (stop.group.userData.collisionRadius as number | undefined) ?? 0.3;
+      const threshold = characterRadius + subR;
+      for (const [ox, oz] of subPts) {
+        const dx = newX - (worldPos.x + ox);
+        const dz = newZ - (worldPos.z + oz);
+        if (Math.sqrt(dx * dx + dz * dz) < threshold) return stop;
+      }
+      continue; // skip default circle — the sub-points handle this stop
+    }
+
+    // Default: single circle around stop center
+    const dx = newX - worldPos.x;
+    const dz = newZ - worldPos.z;
+    if (Math.sqrt(dx * dx + dz * dz) < characterRadius + STOP_COLLISION_RADIUS)
+      return stop;
   }
   return null;
 }

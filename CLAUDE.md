@@ -19,7 +19,21 @@ This is an interactive 3D portfolio experience built with Three.js, TypeScript, 
 
 ## What's New
 
-**Ground Platform Visual Overhaul** ✨
+**Timeline Road System** ✨
+
+The first real gameplay content: 6 interactive Timeline Checkpoints along the road strip, each representing a career milestone (2018–2025):
+
+- **Portal Gates**: Loaded from a GLB model (`Meshy_AI_Neon_Quantum_Portal`), scaled to character height + extra (~2.5 units)
+- **Floor Pad**: Dark rounded-rect pad beneath each portal with cyan emissive trim
+- **Activation Ring**: Breathing/pulsing ring around each checkpoint, intensifies on proximity and completion
+- **Year Labels**: CanvasTexture sprites above each portal (always faces camera, gentle bobbing)
+- **Ground Glow Disc**: Radial gradient disc beneath each checkpoint, pulses subtly at idle, brightens on proximity
+- **Proximity Glow**: Model emissive materials, point light, ring, and glow disc all react to player distance
+- **Completion State**: Checkpoints glow brighter after interaction (`completedStops` Set tracks visited stops)
+- **Pillar Collision**: Two-circle collision per gate (one per pillar) — player walks through the opening but not through the solid frame
+- **Content Overlay**: Press E to open cinematic overlay with year, title, subtitle, bullet points, and links
+
+**Ground Platform Visual Overhaul**
 
 The floating megastructure ground has been significantly refined for visual quality and composition:
 
@@ -63,9 +77,15 @@ src/
 │   │   ├── DogCompanion.ts       # AI-controlled dog companion
 │   │   ├── types.ts              # Character-related type definitions
 │   │   └── index.ts              # Barrel exports
+│   ├── timeline/           # Timeline Road system
+│   │   ├── timelineConfig.ts          # Timeline content data (years, titles, bullets)
+│   │   ├── timelineLayout.ts          # Stop positions along the road strip
+│   │   ├── createTimelineCheckpoint.ts # Portal gate mesh + floor pad + ring + glow
+│   │   ├── createTimelineStops.ts     # Stop creation, animations, proximity lighting
+│   │   └── index.ts                   # Barrel exports
 │   ├── createScene.ts      # Scene, camera, renderer, lighting setup
 │   ├── createGround.ts     # Ground plane creation
-│   ├── createStops.ts      # Portfolio stop markers creation
+│   ├── createStops.ts      # Portfolio stop markers creation (legacy mock stops)
 │   ├── introSequence.ts    # Opening cinematic sequence
 │   ├── environment.ts      # Environment map loading
 │   ├── postProcessing.ts   # Post-processing effects
@@ -77,10 +97,10 @@ src/
 │
 ├── collision/              # Collision detection
 │   ├── checkCollisions.ts  # Proximity and interaction detection
-│   └── stopCollision.ts    # Stop collision checking
+│   └── stopCollision.ts    # Stop collision checking (supports per-pillar collision)
 │
 └── ui/                     # User interface
-    ├── transition.ts       # Cinematic transition overlay
+    ├── transition.ts       # Cinematic transition overlay (subtitle, bullets, links)
     ├── proximityUI.ts      # Proximity indicator UI
     ├── loadingScreen.ts    # Loading screen management
     └── popup.ts            # (Legacy) Popup component
@@ -113,7 +133,8 @@ The main application orchestrator that:
 
 - Player assets: 5 (idle model + idle anim + walk + run + wave)
 - Dog assets: 2 (model + walk animation)
-- Total: 7 assets with progress tracking
+- Portal assets: 1 (portal GLB, loaded once and cloned per checkpoint)
+- Total: 8 assets with progress tracking
 - Assets load in parallel with intro sequence for smooth experience
 
 **Character Coordination:**
@@ -328,7 +349,7 @@ Builds the floating megastructure platform — a hexagonal slab with layered sur
 - Width: 2.4 units, Length: 18 units (Z = −9 to +9)
 - Accent edge lines on both sides + dashed center line (opacity 0.14)
 - Sits above inner plate (Y = 0.005) — panel lines beneath are naturally hidden
-- Stops at (3, 0.5, 2) and (−3, 0.5, −2) sit along the road
+- Timeline checkpoints are positioned along the road (see Timeline Road System)
 
 **Edge Pylons:**
 
@@ -389,6 +410,88 @@ Located in `STOPS_CONFIG` array - modify this to add/remove/change portfolio ite
 - `PROXIMITY_RADIUS`: 3.5 (detection range)
 - `INTERACT_RADIUS`: 1.8 (interaction range)
 
+### Timeline Road System (`src/scene/timeline/`)
+
+The primary gameplay content — 6 interactive checkpoints along the road strip representing career milestones.
+
+#### timelineConfig.ts
+
+Defines content for each timeline stop:
+
+```typescript
+export interface TimelineStopData {
+  id: string;           // e.g. "y2018"
+  year: number;
+  title: string;        // short heading
+  subtitle: string;     // one-liner
+  bullets: string[];    // 3-5 items
+  links?: { label: string; url: string }[];
+}
+```
+
+`TIMELINE_STOPS` array holds 6 entries: 2018, 2020, 2022, 2023, 2024, 2025.
+
+#### timelineLayout.ts
+
+Arranges stops evenly along the road strip (Z = +8 to −8) with alternating X offsets for visual variety.
+
+**Key Constants:**
+
+- `Z_START`: 8.0, `Z_END`: -8.0
+- `X_OFFSETS`: [0.6, -0.6, 0.4, -0.4, 0.2, -0.2]
+- `GROUND_Y`: 0.15 (matches platform bevel height so portals sit on the visible floor)
+
+#### createTimelineCheckpoint.ts
+
+Factory that builds a single checkpoint group from the cached portal GLB model:
+
+**Components per checkpoint:**
+
+1. **Floor Pad** — dark rounded-rect (`COL_PAD`), slightly raised, with cyan trim line
+2. **Portal Model** — cloned from cached GLB, scaled to `MODEL_TARGET_HEIGHT` (2.5), grounded via bounding box
+3. **Year Label** — CanvasTexture sprite above portal top, always faces camera
+4. **Activation Ring** — thin cyan ring around the pad, pulses/breathes
+5. **Ground Glow Disc** — radial gradient, proximity-reactive opacity
+
+**Model Loading:**
+
+- GLB loaded once in `loadPortalModel()`, cached in `portalCache`
+- Each checkpoint clones the scene, scales, and grounds independently
+- All `MeshStandardMaterial`s on the clone are deep-cloned for independent emissive control
+- Base emissive intensity stored in `userData.baseEmissiveIntensity`
+
+**Pillar Collision:**
+
+- `group.userData.collisionPoints`: two `[x, z]` offsets (left/right pillar)
+- `group.userData.collisionRadius`: 0.25 (narrow pillar radius)
+- Player can walk through the gate opening but not through the solid frame
+
+**Portal Model:**
+
+- `/models/Meshy_AI_Neon_Quantum_Portal_0216123143_texture.glb`
+- `MODEL_TARGET_HEIGHT`: 2.5 units
+
+#### createTimelineStops.ts
+
+Creates all timeline stops, manages animations and proximity lighting:
+
+**Completion State:**
+
+- `completedStops` Set tracks visited checkpoint IDs
+- `markStopCompleted(id)` / `isStopCompleted(id)` — called from App.ts on interaction
+- Completed stops get persistent brighter glow
+
+**Per-frame Updates:**
+
+- `updateTimelineAnimations(stops, time)`: ring breathing, trim opacity, label bob, glow disc pulse
+- `updateTimelineLighting(stops, playerPosition)`: point light intensity, accent emissive, model emissive, glow disc opacity, ring opacity — all lerp based on distance
+
+**Key Constants:**
+
+- `BASE_LIGHT_INTENSITY`: 0.3, `MAX_LIGHT_INTENSITY`: 2.2
+- `BASE_EMISSIVE`: 0.2, `MAX_EMISSIVE`: 0.8
+- `COMPLETED_EMISSIVE_BOOST`: 0.15
+
 ### Transition System (`src/ui/transition.ts`)
 
 Cinematic overlay system that:
@@ -410,7 +513,8 @@ Cinematic overlay system that:
 **stopCollision.ts:**
 
 - Prevents character from walking through stops
-- Uses bounding box checks
+- Default: single circle per stop (`STOP_COLLISION_RADIUS = 0.85`)
+- **Per-pillar collision**: If `stop.group.userData.collisionPoints` exists (array of `[x, z]` offsets), checks each sub-point with `stop.group.userData.collisionRadius` instead — used by timeline gates so the player can walk through the opening but not the frame
 
 ### Map Bounds (`src/scene/bounds.ts`)
 
@@ -684,7 +788,7 @@ Environment map loading handled in `src/scene/environment.ts`:
 - Character animations use efficient GLTF clips
 - Post-processing effects are optimized
 - Shadow maps use reasonable resolution (2048x2048)
-- Particle counts are limited (8 per stop)
+- Portal GLB loaded once, cloned per checkpoint (6 clones from 1 load)
 - Camera lerp prevents jittery movement (0.045 factor)
 - Dog procedural animations use reusable quaternions (no per-frame allocations)
 - Asset loading happens in parallel with intro sequence
@@ -695,8 +799,8 @@ Environment map loading handled in `src/scene/environment.ts`:
 
 Based on the README and codebase:
 
-- [ ] Replace basic stop shapes with polished 3D models
-- [ ] Add richer project content (images, links, videos)
+- [x] Replace basic stop shapes with polished 3D portal models (Timeline Road)
+- [x] Add richer project content (subtitle, bullets, links in cinematic overlay)
 - [ ] Implement map view (M key)
 - [ ] Mobile touch controls
 - [ ] Multiple map areas/levels
@@ -779,6 +883,22 @@ Edit `src/scene/createGround.ts`:
 
 - Adjust `accentMat.emissiveIntensity` (currently 0.25)
 - Change ring spread via the `createHexShape(SIZE * outer)` / `createHexPath(SIZE * inner)` ratios (currently 0.96 / 0.70)
+
+### Customizing Timeline Content
+
+Edit `src/scene/timeline/timelineConfig.ts`:
+
+- Add/remove/edit entries in the `TIMELINE_STOPS` array
+- Each entry needs: `id`, `year`, `title`, `subtitle`, `bullets`, and optional `links`
+- Positions are auto-calculated in `timelineLayout.ts` (evenly spaced along road)
+- To change spacing or offsets, edit `Z_START`, `Z_END`, `X_OFFSETS` in `timelineLayout.ts`
+
+**Changing the portal model:**
+
+1. Place new GLB in `/public/models/`
+2. Update `PORTAL_MODEL_PATH` in `createTimelineCheckpoint.ts`
+3. Adjust `MODEL_TARGET_HEIGHT` if needed (currently 2.5)
+4. Pillar collision points may need updating (`collisionPoints` offsets near bottom of factory)
 
 ### Customizing Stop Appearance
 

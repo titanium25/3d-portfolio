@@ -24,7 +24,10 @@ function getOrCreateOverlay(): {
     <div id="cinematic-content">
       <button id="cinematic-close">&times;</button>
       <h2 id="cinematic-title"></h2>
+      <p id="cinematic-subtitle"></p>
       <p id="cinematic-description"></p>
+      <ul id="cinematic-bullets"></ul>
+      <div id="cinematic-links"></div>
     </div>
   `;
 
@@ -92,6 +95,37 @@ function getOrCreateOverlay(): {
     line-height: 1;
   `;
 
+  const subtitleStyle = overlay.querySelector(
+    "#cinematic-subtitle",
+  ) as HTMLParagraphElement;
+  subtitleStyle.style.cssText = `
+    color: rgba(255,255,255,0.5);
+    font-style: italic;
+    font-size: 0.85rem;
+    margin: 0.25rem 0 0 0;
+    display: none;
+  `;
+
+  const bulletsStyle = overlay.querySelector(
+    "#cinematic-bullets",
+  ) as HTMLUListElement;
+  bulletsStyle.style.cssText = `
+    list-style: none;
+    padding: 0;
+    margin: 0.75rem 0 0 0;
+    display: none;
+  `;
+
+  const linksStyle = overlay.querySelector(
+    "#cinematic-links",
+  ) as HTMLDivElement;
+  linksStyle.style.cssText = `
+    display: none;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+  `;
+
   document.addEventListener("keydown", (e) => {
     if (e.code === "Escape" && isOpen && currentCamera) {
       const cam = currentCamera;
@@ -144,7 +178,52 @@ export function openTransition(
   ) as HTMLParagraphElement;
 
   title.textContent = data.title;
-  desc.textContent = data.description;
+
+  const subtitleEl = overlay.querySelector(
+    "#cinematic-subtitle",
+  ) as HTMLParagraphElement;
+  const bulletsEl = overlay.querySelector(
+    "#cinematic-bullets",
+  ) as HTMLUListElement;
+  const linksEl = overlay.querySelector(
+    "#cinematic-links",
+  ) as HTMLDivElement;
+
+  if (data.subtitle) {
+    subtitleEl.textContent = data.subtitle;
+    subtitleEl.style.display = "block";
+    desc.style.display = "none";
+  } else {
+    subtitleEl.style.display = "none";
+    desc.textContent = data.description;
+    desc.style.display = "block";
+  }
+
+  if (data.bullets && data.bullets.length > 0) {
+    bulletsEl.innerHTML = data.bullets
+      .map(
+        (b) =>
+          `<li style="padding:0.3rem 0 0.3rem 1.1rem;position:relative;font-size:0.82rem;color:rgba(255,255,255,0.82);line-height:1.55"><span style="position:absolute;left:0;color:#00e5cc">▸</span>${b}</li>`,
+      )
+      .join("");
+    bulletsEl.style.display = "block";
+  } else {
+    bulletsEl.innerHTML = "";
+    bulletsEl.style.display = "none";
+  }
+
+  if (data.links && data.links.length > 0) {
+    linksEl.innerHTML = data.links
+      .map(
+        (l) =>
+          `<a href="${l.url}" target="_blank" rel="noopener" style="display:inline-block;padding:0.35rem 0.75rem;background:rgba(0,229,204,0.08);border:1px solid rgba(0,229,204,0.25);border-radius:6px;color:#00e5cc;text-decoration:none;font-size:0.75rem;transition:background 0.2s">${l.label}</a>`,
+      )
+      .join("");
+    linksEl.style.display = "flex";
+  } else {
+    linksEl.innerHTML = "";
+    linksEl.style.display = "none";
+  }
 
   overlay.style.display = "flex";
   overlay.style.pointerEvents = "auto";
