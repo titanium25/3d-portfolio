@@ -226,7 +226,10 @@ export class DogCompanion extends BaseCharacter {
     );
 
     // Close enough to goal → stop (unless we're too close to player — then keep moving to goal)
-    if (distToGoal < ARRIVE_RADIUS && distToPlayer >= MIN_DISTANCE_FROM_PLAYER) {
+    if (
+      distToGoal < ARRIVE_RADIUS &&
+      distToPlayer >= MIN_DISTANCE_FROM_PLAYER
+    ) {
       return noInput;
     }
     // If we're under the player's feet, always move toward the behind position
@@ -262,8 +265,7 @@ export class DogCompanion extends BaseCharacter {
     } else if (dist > CATCH_UP_RADIUS) {
       maxSpeed = this.runSpeed;
     } else {
-      const t =
-        (dist - ARRIVE_RADIUS) / (CATCH_UP_RADIUS - ARRIVE_RADIUS);
+      const t = (dist - ARRIVE_RADIUS) / (CATCH_UP_RADIUS - ARRIVE_RADIUS);
       maxSpeed =
         this.walkSpeed + (this.runSpeed - this.walkSpeed) * Math.min(1, t);
     }
@@ -325,6 +327,7 @@ export class DogCompanion extends BaseCharacter {
       this.walkAction.paused = true;
     }
     this.mixer.update(deltaSec);
+    this.lockModelY();
     this.idleTime += deltaSec;
     this.applyProceduralIdle(1);
   }
@@ -552,6 +555,7 @@ export class DogCompanion extends BaseCharacter {
 
     // Advance the mixer
     this.mixer.update(deltaSec);
+    this.lockModelY();
 
     // ── Procedural run gait: applied AFTER mixer ──────────────────
     if (this.runGaitBlend > 0.001) {
@@ -572,10 +576,7 @@ export class DogCompanion extends BaseCharacter {
     // When resting: do NOT update rotation — avoids dog wiggling when player taps A/D
     if (this.dogState === "settling") {
       const targetRotY = this.target.rotation.y;
-      const rotDiff = this.shortestAngleDist(
-        this.group.rotation.y,
-        targetRotY,
-      );
+      const rotDiff = this.shortestAngleDist(this.group.rotation.y, targetRotY);
       const rotLerp = 1 - Math.exp(-SETTLE_FACE_LERP * deltaSec);
       this.group.rotation.y += rotDiff * rotLerp;
     }
@@ -735,10 +736,7 @@ export class DogCompanion extends BaseCharacter {
     const pz = this.target.position.z;
 
     // Only update the offset rotation when the player actually moves
-    const posDelta = Math.hypot(
-      px - this.prevTargetX,
-      pz - this.prevTargetZ,
-    );
+    const posDelta = Math.hypot(px - this.prevTargetX, pz - this.prevTargetZ);
     if (posDelta > DogCompanion.MOVE_THRESHOLD) {
       this.lastMovingRotY = this.target.rotation.y;
     }
@@ -785,6 +783,23 @@ export class DogCompanion extends BaseCharacter {
       x: this.target.position.x,
       z: this.target.position.z,
       rotY: this.target.rotation.y,
+    };
+  }
+
+  override getDebugInfo(): Record<string, string> {
+    const base = super.getDebugInfo();
+    const distToPlayer = Math.hypot(
+      this.group.position.x - this.target.position.x,
+      this.group.position.z - this.target.position.z,
+    );
+    return {
+      ...base,
+      state: this.dogState,
+      "dist to player": distToPlayer.toFixed(2),
+      "idle blend": this.idleBlend.toFixed(2),
+      "run gait": this.runGaitBlend.toFixed(2),
+      "player speed": this.playerSpeed.toFixed(4),
+      "player running": this.playerIsRunning ? "yes" : "no",
     };
   }
 
@@ -850,6 +865,13 @@ export class DogCompanion extends BaseCharacter {
       group.add(model);
       onAssetLoaded?.();
 
+      // Store model reference and its base Y for animation Y-lock
+      companion.characterModel = model;
+      companion.modelBaseY = model.position.y;
+
+      // Capture root bone bind-pose Y before any animation plays
+      companion.initRootBoneLock(model);
+
       // Store ground-level Y for run bounce reference
       companion.baseY = group.position.y;
 
@@ -866,6 +888,7 @@ export class DogCompanion extends BaseCharacter {
         loader,
         "/models/Meshy_AI_model_Animation_Walking_withSkin_DOG.glb",
         "dog-walk",
+        "remove", // remove ALL position tracks – dog grounding is fully managed by code
       );
       onAssetLoaded?.();
 

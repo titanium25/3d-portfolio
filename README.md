@@ -8,7 +8,12 @@ The experience feels like a small open-world game: you land on a 3D hexagonal ma
 
 ## Core Features
 
-- **Map**: A hexagonal 3D ground plane that acts as the playable area with boundary collision
+- **Map**: A hexagonal 3D floating megastructure with layered surfaces and boundary collision
+  - Road-ready strip along Z-axis — darkest surface that signals "this is where you go"
+  - Edge pylons near the rim for scale and composition
+  - Procedural roughness maps for realistic material feel
+  - Contrast hierarchy: road (darkest) → inner plate → rim/body (lightest) → cyan accents
+  - Calmed cyan accent underglow on the underside
 - **Stops**: Animated 3D markers placed on the map, each representing a project or section of your portfolio
   - Floating animation with pulsing ring indicators
   - Orbiting particle effects
@@ -56,7 +61,11 @@ The project has evolved from a simple proof of concept to a fully-featured 3D ex
 ✅ Collision detection and boundary enforcement  
 ✅ Character animation state machine (idle/walk/run)  
 ✅ Smooth camera following with lerp  
-✅ Hexagonal map with boundary checking
+✅ Hexagonal map with boundary checking  
+✅ Layered ground platform with road strip and contrast hierarchy  
+✅ Edge pylons for composition and scale reference  
+✅ Procedural roughness maps and tuned PBR materials  
+✅ ACES Filmic tonemapping with atmospheric fog
 
 ## Future Enhancements
 
@@ -83,7 +92,8 @@ The project uses a clean, modular architecture:
 - **Character System**: Object-oriented design with `BaseCharacter` abstract class
   - `PlayerCharacter` - Keyboard-controlled player
   - `DogCompanion` - AI-controlled follower with procedural animations
-- **Scene Management**: Modular scene setup with lighting, shadows, and post-processing
+- **Scene Management**: Modular scene setup with lighting, shadows, fog, tonemapping, and post-processing
+- **Ground Platform**: Layered megastructure with road strip, edge pylons, procedural roughness maps, and contrast hierarchy
 - **Collision System**: Efficient proximity and collision detection
 - **UI System**: Cinematic transitions, proximity indicators, and loading screens
 - **Animation System**: State machine with smooth blending between animations

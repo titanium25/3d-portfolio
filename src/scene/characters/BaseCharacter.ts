@@ -75,6 +75,12 @@ export abstract class BaseCharacter {
   protected walkAction: AnimationAction | null = null;
   protected runAction: AnimationAction | null = null;
 
+  // ── Y-lock (prevents animations from sinking the character) ────────
+  protected characterModel: THREE.Object3D | null = null;
+  protected modelBaseY = 0;
+  protected rootBone: THREE.Bone | null = null;
+  protected rootBoneBaseY = 0;
+
   // ── Physics state ──────────────────────────────────────────────────
   protected velocityX = 0;
   protected velocityZ = 0;
@@ -115,9 +121,30 @@ export abstract class BaseCharacter {
     return Math.hypot(this.velocityX, this.velocityZ);
   }
 
+  /** Name of the currently playing animation action. */
+  get animationStateName(): string {
+    if (!this.activeAction) return "none";
+    if (this.activeAction === this.idleAction) return "idle";
+    if (this.activeAction === this.walkAction) return "walk";
+    if (this.activeAction === this.runAction) return "run";
+    return "other";
+  }
+
+  /** Return debug information for the dev HUD. Override in subclasses. */
+  getDebugInfo(): Record<string, string> {
+    const p = this.group.position;
+    return {
+      position: `${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}`,
+      speed: this.speed.toFixed(4),
+      animation: this.animationStateName,
+      rotation: `${THREE.MathUtils.radToDeg(this.group.rotation.y).toFixed(1)}°`,
+    };
+  }
+
   /** Tick the animation mixer without running full physics (e.g. during cinematics). */
   updateMixer(deltaSec: number): void {
     this.mixer?.update(deltaSec);
+    this.lockModelY();
   }
 
   /**
@@ -222,13 +249,11 @@ export abstract class BaseCharacter {
     const checkStops = this.collidesWithStops;
 
     const canMoveX =
-      (!checkBounds ||
-        isInsideMap(newX, this.group.position.z, this.radius)) &&
+      (!checkBounds || isInsideMap(newX, this.group.position.z, this.radius)) &&
       (!checkStops ||
         !getCollidingStop(newX, this.group.position.z, stops, this.radius));
     const canMoveZ =
-      (!checkBounds ||
-        isInsideMap(this.group.position.x, newZ, this.radius)) &&
+      (!checkBounds || isInsideMap(this.group.position.x, newZ, this.radius)) &&
       (!checkStops ||
         !getCollidingStop(this.group.position.x, newZ, stops, this.radius));
 
@@ -291,16 +316,14 @@ export abstract class BaseCharacter {
   protected updateAnimations(deltaSec: number, input: MovementInput): void {
     if (!this.mixer) return;
     this.mixer.update(deltaSec);
+    this.lockModelY();
 
     const updatedSpeed = Math.hypot(this.velocityX, this.velocityZ);
     this.selectLocomotionAnimation(updatedSpeed, input.hasInput);
   }
 
   /** Pick idle / walk / run based on current speed. */
-  protected selectLocomotionAnimation(
-    speed: number,
-    hasInput: boolean,
-  ): void {
+  protected selectLocomotionAnimation(speed: number, hasInput: boolean): void {
     if (hasInput || speed > this.stopThreshold) {
       if (speed > this.runAnimThreshold && this.runAction) {
         if (this.activeAction !== this.runAction) {
@@ -337,6 +360,38 @@ export abstract class BaseCharacter {
     }
     newAction.reset().setEffectiveWeight(1).fadeIn(fadeTime).play();
     this.activeAction = newAction;
+  }
+
+  /**
+   * Discover the skeleton root bone and store its bind-pose Y position.
+   * Call once after model loading (before or right after first animation frame).
+   * The root bone is identified as the first Bone whose parent is not a Bone.
+   */
+  protected initRootBoneLock(model: THREE.Object3D): void {
+    model.traverse((child: THREE.Object3D) => {
+      if (this.rootBone) return; // already found
+      if ((child as THREE.Bone).isBone) {
+        const parent = child.parent;
+        if (!parent || !(parent as THREE.Bone).isBone) {
+          this.rootBone = child as THREE.Bone;
+          this.rootBoneBaseY = this.rootBone.position.y;
+        }
+      }
+    });
+  }
+
+  /**
+   * Reset the character model's Y position **and** the skeleton root bone's
+   * Y position to their stored base values.
+   * Prevents walk/run/wave animations from sinking the character below ground.
+   */
+  protected lockModelY(): void {
+    if (this.characterModel) {
+      this.characterModel.position.y = this.modelBaseY;
+    }
+    if (this.rootBone) {
+      this.rootBone.position.y = this.rootBoneBaseY;
+    }
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -398,13 +453,50 @@ export abstract class BaseCharacter {
     });
   }
 
-  /** Load a single animation clip and register it on the mixer. */
+  /**
+   * Flatten the Y component in every `.position` track of a clip.
+   * Each track's Y values are replaced with the track's first-keyframe Y,
+   * so animations never pull the character above or below the ground.
+   */
+  protected static stripPositionY(clip: THREE.AnimationClip): void {
+    for (const track of clip.tracks) {
+      if (!track.name.endsWith(".position")) continue;
+
+      const v = track.values;
+      const firstY = v[1]; // Y of the first keyframe (indices: x0,y0,z0,x1,y1,z1,…)
+      for (let i = 1; i < v.length; i += 3) {
+        v[i] = firstY;
+      }
+    }
+  }
+
+  /**
+   * Remove ALL `.position` tracks from a clip.
+   * After this, the mixer will only apply rotation/quaternion/scale changes
+   * and never modify any bone's position. Useful when character grounding
+   * is fully managed by code (root bone lock + procedural bounce).
+   */
+  protected static removePositionTracks(clip: THREE.AnimationClip): void {
+    clip.tracks = clip.tracks.filter(
+      (track) => !track.name.endsWith(".position"),
+    );
+  }
+
+  /**
+   * Load a single animation clip and register it on the mixer.
+   *
+   * `positionTrackMode`:
+   *  - `"keep"` (default) – leave position tracks untouched
+   *  - `"stripY"` – flatten Y in position tracks to first-keyframe value
+   *  - `"remove"` – delete all position tracks entirely
+   */
   protected static async loadAnimationClip(
     mixer: THREE.AnimationMixer,
     model: THREE.Object3D,
     loader: GLTFLoader,
     url: string,
     name: string,
+    positionTrackMode: "keep" | "stripY" | "remove" = "keep",
   ): Promise<AnimationAction | null> {
     try {
       const gltf = await new Promise<GLTF>((resolve, reject) =>
@@ -412,6 +504,11 @@ export abstract class BaseCharacter {
       );
       if (gltf.animations.length > 0) {
         const clip = gltf.animations[0];
+        if (positionTrackMode === "stripY") {
+          BaseCharacter.stripPositionY(clip);
+        } else if (positionTrackMode === "remove") {
+          BaseCharacter.removePositionTracks(clip);
+        }
         const action = mixer.clipAction(clip, model);
         action.setLoop(THREE.LoopRepeat, Infinity);
         console.log(

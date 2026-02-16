@@ -19,7 +19,18 @@ This is an interactive 3D portfolio experience built with Three.js, TypeScript, 
 
 ## What's New
 
-**Character System Overhaul** ✨
+**Ground Platform Visual Overhaul** ✨
+
+The floating megastructure ground has been significantly refined for visual quality and composition:
+
+- **Specular fix**: Roughness/metalness/envMap rebalanced to eliminate hot-spot glare (roughnessMap × material.roughness double-attenuation issue fixed — material.roughness set to 1.0 so map alone controls)
+- **Road-ready strip**: Dark directional path along Z-axis with accent edge lines and center dashes — signals "this is where you go"
+- **Edge pylons**: 5 asymmetric placeholder volumes near the rim with accent caps — break up emptiness, provide scale
+- **Calmed accent underglow**: Lower emissive intensity (0.4 → 0.25) with wider spread (70%–96% vs 78%–92%)
+- **Contrast hierarchy**: Road (darkest) → inner plate (mid) → rim/body (lightest) → cyan accents
+- **Exposure & fog**: Tonemapping exposure lowered (0.7 → 0.62), fog density nudged (0.045 → 0.052) for softer contrast
+
+**Character System Overhaul**
 
 The character system has been completely refactored with an object-oriented architecture:
 
@@ -278,6 +289,67 @@ interface CharacterConfig {
 2. `BaseCharacter.updateVelocity()` processes the input using physics config
 3. Player reads keyboard, dog calculates follow vector, AI could use pathfinding
 4. This design makes it easy to create new character types with different input strategies
+
+### createGround (`src/scene/createGround.ts`)
+
+Builds the floating megastructure platform — a hexagonal slab with layered surfaces:
+
+**Structure (bottom to top):**
+
+1. **Platform body** — thick ExtrudeGeometry slab with beveled edges (`baseMat`)
+2. **Raised rim ring** — stepped inset border (`baseMat`, shared with body)
+3. **Inner plate** — dark recessed floor surface (`floorMat`)
+4. **Road-ready strip** — darkest surface, Z-axis directional path (`roadMat`)
+5. **Underside accent ring** — cyan emissive glow (`accentMat`)
+6. **Panel lines** — hex-grid grooves (radial spokes + concentric rings)
+7. **Edge trim lines** — brighter accent along rim borders
+8. **Edge pylons** — 5 small placeholder volumes near rim (`baseMat` + accent caps)
+
+**Materials (4 surface materials + line materials):**
+
+| Material | Color | Roughness | Metalness | Purpose |
+|---|---|---|---|---|
+| `baseMat` | `0x7b8fa3` | 1.0 (map: 0.78) | 0.10 | Body, rim, pylons |
+| `floorMat` | `0x1f2b38` | 1.0 (map: 0.85) | 0.08 | Inner plate |
+| `roadMat` | `0x141c26` | 1.0 (map: 0.85) | 0.06 | Road strip |
+| `accentMat` | cyan emissive | 0.9 | 0.0 | Underglow, pylon caps |
+
+> **Note:** `material.roughness` is set to 1.0 so the roughnessMap alone controls effective roughness. This avoids the Three.js double-attenuation trap where `roughness × roughnessMap` produces unexpectedly glossy surfaces.
+
+**Contrast Hierarchy (from 45° camera):**
+
+- Road = darkest (`0x141c26`)
+- Inner plate = mid-dark (`0x1f2b38`)
+- Rim/body = lightest (`0x7b8fa3`)
+- Accent = cyan emissive
+
+**Road Strip:**
+
+- Width: 2.4 units, Length: 18 units (Z = −9 to +9)
+- Accent edge lines on both sides + dashed center line (opacity 0.14)
+- Sits above inner plate (Y = 0.005) — panel lines beneath are naturally hidden
+- Stops at (3, 0.5, 2) and (−3, 0.5, −2) sit along the road
+
+**Edge Pylons:**
+
+- 5 asymmetric boxes at radius ~7–8.5, varied heights (0.35–0.85 units)
+- Each slightly Y-rotated to avoid grid-aligned look
+- Accent caps (tiny emissive lids) on top
+- Decorative only — not in collision system
+
+**Procedural Roughness Maps:**
+
+- Canvas-based noise textures (128px) with coarse + fine passes
+- Tiled via RepeatWrapping for micro-sheen variation
+- Prevents "flat plastic" appearance on large surfaces
+
+**Key Constants:**
+
+- `SIZE`: 12 (hexagon circumradius)
+- `PLATFORM_DEPTH`: 1.5 (slab thickness)
+- `ROAD_WIDTH`: 2.4, `ROAD_LENGTH`: 18
+- `RIM_INSET`: 0.35, `RIM_WIDTH`: 1.1, `RIM_HEIGHT`: 0.07
+- `INNER_RADIUS`: ~10.55 (SIZE − RIM_INSET − RIM_WIDTH)
 
 ### IntroSequence (`src/scene/introSequence.ts`)
 
@@ -569,14 +641,21 @@ Edit `src/scene/introSequence.ts`:
 - **Blend factors:** Smooth transitions (exponential interpolation)
 - **Performance:** Reusable quaternions/eulers to avoid allocations
 
-### Lighting
+### Lighting & Tone
+
+**Lights:**
 
 - **Ambient Light**: Base illumination (0.4 intensity)
-- **Directional Light**: Main sun light with shadows (0.6 intensity)
-- **Fill Light**: Soft blue fill from opposite side
-- **Hemisphere Light**: Sky/ground color gradient
-- **Rim Light**: Edge lighting for depth
+- **Directional Light**: Main sun light with shadows (0.6 intensity, warm 0xfff5e6)
+- **Fill Light**: Soft blue fill from opposite side (0.2 intensity)
+- **Hemisphere Light**: Sky/ground color gradient (0.25 intensity)
+- **Rim Light**: Edge lighting for depth (0.2 intensity)
 - **Point Lights**: Dynamic lights on stops that intensify with proximity
+
+**Tonemapping & Atmosphere:**
+
+- ACES Filmic tonemapping with exposure 0.62
+- Exponential fog (`FogExp2`, color `0x1a1d2e`, density 0.052) — helps the platform sit in space and softens harsh contrast at edges
 
 ### Post-Processing
 
@@ -666,6 +745,40 @@ Also in `DogCompanion.ts`:
 - `COMMIT_DISTANCE`: How far player must move before dog follows (currently 2.2)
 - `REACTION_DELAY`: Delay before dog starts moving (currently 0.45s)
 - `CATCH_UP_RADIUS`: Distance at which dog starts sprinting (currently 3.5)
+
+### Customizing Ground Appearance
+
+Edit `src/scene/createGround.ts`:
+
+**Palette:**
+
+- `COL_BASE`: Rim/body color (currently `0x7b8fa3` — cool light gray-blue)
+- `COL_FLOOR`: Inner plate color (currently `0x1f2b38` — deep slate)
+- `COL_ROAD`: Road strip color (currently `0x141c26` — deepest dark)
+- `COL_ACCENT`: Emissive trim color (currently `0x00e5cc` — cyan/teal)
+
+**Road strip:**
+
+- `ROAD_WIDTH`: Road width (currently 2.4)
+- `ROAD_LENGTH`: Road length along Z (currently 18)
+- `ROAD_DASH_LEN` / `ROAD_DASH_GAP`: Center line dash pattern
+
+**Edge pylons:**
+
+- Edit `PYLON_CONFIGS` array to add/remove/reposition pylons
+- Each entry: `{ pos: [x, y, z], size: [w, h, d], rotY: radians }`
+- Pylons are decorative — not in collision system
+
+**Material tuning:**
+
+- Adjust roughnessMap `baseRoughness` in `createNoiseRoughnessMap()` calls (controls effective roughness since material.roughness = 1.0)
+- Lower `envMapIntensity` to reduce environment reflections
+- Lower `metalness` to reduce specular highlights
+
+**Accent underglow:**
+
+- Adjust `accentMat.emissiveIntensity` (currently 0.25)
+- Change ring spread via the `createHexShape(SIZE * outer)` / `createHexPath(SIZE * inner)` ratios (currently 0.96 / 0.70)
 
 ### Customizing Stop Appearance
 

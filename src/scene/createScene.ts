@@ -13,7 +13,7 @@ export interface SceneContext {
 export function createScene(container: HTMLElement): SceneContext {
   const scene = new THREE.Scene();
   scene.background = null;
-  scene.fog = new THREE.FogExp2(0x1a1d2e, 0.045);
+  scene.fog = new THREE.FogExp2(0x1a1d2e, 0.052);
 
   const camera = new THREE.PerspectiveCamera(
     58,
@@ -31,7 +31,7 @@ export function createScene(container: HTMLElement): SceneContext {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.7;
+  renderer.toneMappingExposure = 0.62;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   container.appendChild(renderer.domElement);
 

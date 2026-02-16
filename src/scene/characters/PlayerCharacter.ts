@@ -83,6 +83,21 @@ export class PlayerCharacter extends BaseCharacter {
     );
   }
 
+  override get animationStateName(): string {
+    if (this.activeAction === this.waveAction) return "wave";
+    return super.animationStateName;
+  }
+
+  override getDebugInfo(): Record<string, string> {
+    const base = super.getDebugInfo();
+    const isRunning = isKeyPressed("ShiftLeft") || isKeyPressed("ShiftRight");
+    return {
+      ...base,
+      input: isRunning ? "run" : "walk",
+      waving: this.isWaving() ? "yes" : "no",
+    };
+  }
+
   // ──────────────────────────────────────────────────────────────────
   //  Animation override – adds wave handling
   // ──────────────────────────────────────────────────────────────────
@@ -93,16 +108,14 @@ export class PlayerCharacter extends BaseCharacter {
   ): void {
     if (!this.mixer) return;
     this.mixer.update(deltaSec);
+    this.lockModelY();
 
     const updatedSpeed = Math.hypot(this.velocityX, this.velocityZ);
 
     if (input.hasInput || updatedSpeed > this.stopThreshold) {
       // Moving → standard locomotion
       this.selectLocomotionAnimation(updatedSpeed, input.hasInput);
-    } else if (
-      this.activeAction === this.waveAction &&
-      this.waveAction
-    ) {
+    } else if (this.activeAction === this.waveAction && this.waveAction) {
       // Waving → wait until wave finishes, then return to idle
       if (!this.waveAction.isRunning()) {
         this.switchAction(this.idleAction);
@@ -139,13 +152,18 @@ export class PlayerCharacter extends BaseCharacter {
       );
       BaseCharacter.setupModelMaterials(model);
       group.add(model);
+
+      // Store model reference and its base Y for animation Y-lock
+      controller.characterModel = model;
+      controller.modelBaseY = model.position.y;
+
       onAssetLoaded?.();
 
       // Create animation mixer
       const mixer = new THREE.AnimationMixer(model);
       controller.mixer = mixer;
 
-      // Helper – load clip and report progress
+      // Helper – load clip, strip Y root motion, and report progress
       const load = async (url: string, name: string) => {
         const action = await BaseCharacter.loadAnimationClip(
           mixer,
@@ -153,6 +171,7 @@ export class PlayerCharacter extends BaseCharacter {
           loader,
           url,
           name,
+          "stripY", // flatten Y in position tracks – grounding is managed by code
         );
         onAssetLoaded?.();
         return action;
@@ -180,6 +199,11 @@ export class PlayerCharacter extends BaseCharacter {
         controller.idleAction.reset().setEffectiveWeight(1).play();
         controller.activeAction = controller.idleAction;
       }
+
+      // Apply one frame of idle, then capture the root bone's Y position.
+      // This is the "correct" Y that keeps feet on the ground.
+      mixer.update(0);
+      controller.initRootBoneLock(model);
 
       return controller;
     } catch (error) {

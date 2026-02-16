@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createScene } from "./scene/createScene";
 import { createGround } from "./scene/createGround";
 import { PlayerCharacter, DogCompanion } from "./scene/characters";
@@ -38,7 +39,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
   setTotalAssets(TOTAL_ASSETS);
   createProgressIndicator();
 
-  const { scene, camera, composer } = createScene(container);
+  const { scene, camera, renderer, composer } = createScene(container);
   createGround(scene);
   
   // Load character first (needed for intro sequence)
@@ -62,6 +63,116 @@ export async function initApp(container: HTMLElement): Promise<void> {
   initKeyboard();
   let lastEPressed = false;
   let lastTime = performance.now();
+
+  // ── Dev Mode: free camera with OrbitControls + debug HUD ──
+  let devMode = false;
+  const orbitControls = new OrbitControls(camera, renderer.domElement);
+  orbitControls.enabled = false;
+  orbitControls.enableDamping = true;
+  orbitControls.dampingFactor = 0.08;
+  orbitControls.minDistance = 1;
+  orbitControls.maxDistance = 60;
+  orbitControls.maxPolarAngle = Math.PI * 0.85;
+
+  // ── Debug HUD panel ──
+  const devPanel = document.createElement("div");
+  Object.assign(devPanel.style, {
+    position: "fixed",
+    top: "0",
+    left: "0",
+    width: "320px",
+    maxHeight: "100vh",
+    overflowY: "auto",
+    background: "rgba(10, 10, 18, 0.88)",
+    color: "#e0e0e0",
+    fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', monospace",
+    fontSize: "11px",
+    lineHeight: "1.5",
+    padding: "10px 14px",
+    zIndex: "9999",
+    pointerEvents: "none",
+    display: "none",
+    borderRight: "1px solid rgba(255,255,255,0.08)",
+    backdropFilter: "blur(8px)",
+    boxSizing: "border-box",
+  });
+  document.body.appendChild(devPanel);
+
+  // FPS tracking
+  let fpsFrames = 0;
+  let fpsLastTime = performance.now();
+  let fpsDisplay = 0;
+
+  function buildSection(title: string, data: Record<string, string>, color: string): string {
+    let html = `<div style="color:${color};font-weight:bold;font-size:12px;margin-top:8px;margin-bottom:3px;border-bottom:1px solid ${color}33;padding-bottom:2px">${title}</div>`;
+    for (const [key, val] of Object.entries(data)) {
+      html += `<div style="display:flex;justify-content:space-between"><span style="color:#888">${key}</span><span style="color:#ccc">${val}</span></div>`;
+    }
+    return html;
+  }
+
+  function updateDevHUD(): void {
+    // FPS
+    fpsFrames++;
+    const now = performance.now();
+    if (now - fpsLastTime >= 500) {
+      fpsDisplay = Math.round((fpsFrames * 1000) / (now - fpsLastTime));
+      fpsFrames = 0;
+      fpsLastTime = now;
+    }
+
+    const info = renderer.info;
+    const cp = camera.position;
+
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">` +
+      `<span style="color:#ff3c3c;font-weight:bold;font-size:13px;letter-spacing:1px">DEV MODE</span>` +
+      `<span style="color:#6f6;font-weight:bold;font-size:13px">${fpsDisplay} FPS</span></div>`;
+
+    // Scene
+    html += buildSection("Scene", {
+      triangles: info.render.triangles.toLocaleString(),
+      "draw calls": String(info.render.calls),
+      geometries: String(info.memory.geometries),
+      textures: String(info.memory.textures),
+    }, "#7cacf8");
+
+    // Camera
+    html += buildSection("Camera", {
+      position: `${cp.x.toFixed(2)}, ${cp.y.toFixed(2)}, ${cp.z.toFixed(2)}`,
+      rotation: `${THREE.MathUtils.radToDeg(camera.rotation.x).toFixed(1)}°, ${THREE.MathUtils.radToDeg(camera.rotation.y).toFixed(1)}°, ${THREE.MathUtils.radToDeg(camera.rotation.z).toFixed(1)}°`,
+      fov: `${camera.fov.toFixed(0)}°`,
+    }, "#f8c87c");
+
+    // Player
+    const playerDebug = character.getDebugInfo();
+    html += buildSection("Player", playerDebug, "#7cf8a4");
+
+    // Dog
+    if (dog) {
+      const dogDebug = dog.getDebugInfo();
+      html += buildSection("Dog", dogDebug, "#c87cf8");
+    }
+
+    // Controls hint
+    html += `<div style="margin-top:10px;color:#555;font-size:10px;text-align:center;border-top:1px solid #ffffff10;padding-top:6px">` +
+      `drag to rotate · scroll to zoom · \` to exit</div>`;
+
+    devPanel.innerHTML = html;
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Backquote") {
+      devMode = !devMode;
+      orbitControls.enabled = devMode;
+      devPanel.style.display = devMode ? "block" : "none";
+
+      if (devMode) {
+        const p = character.group.position;
+        orbitControls.target.set(p.x, 0.5, p.z);
+        orbitControls.update();
+      }
+    }
+  });
 
   // Track wave → gameplay camera transition
   let wasWaving = false;
@@ -105,7 +216,10 @@ export async function initApp(container: HTMLElement): Promise<void> {
     updateStopAnimations(stops, time * 0.001);
     updateStopLighting(stops, character.group.position);
 
-    if (!introActive && !isTransitionOpen()) {
+    if (devMode) {
+      orbitControls.update();
+      updateDevHUD();
+    } else if (!introActive && !isTransitionOpen()) {
       const isWaving = character.isWaving();
 
       // Detect when wave just ended → start smooth transition
