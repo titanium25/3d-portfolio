@@ -11,7 +11,7 @@ import type { MovementInput } from "./types";
 // ── Player-specific constants ────────────────────────────────────────
 export const PLAYER_RADIUS = 0.5;
 export const PLAYER_WALK_SPEED = 0.02;
-export const PLAYER_RUN_SPEED = 0.055;
+export const PLAYER_RUN_SPEED = 0.065;
 export const PLAYER_ACCELERATION = 0.012;
 export const PLAYER_DECELERATION = 0.88;
 
