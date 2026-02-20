@@ -21,7 +21,7 @@ This is an interactive 3D portfolio experience built with Three.js, TypeScript, 
 
 **Timeline Road System** ✨
 
-The first real gameplay content: 6 interactive Timeline Checkpoints along the road strip, each representing a career milestone (2018–2025):
+The first real gameplay content: 4 interactive Timeline Checkpoints along a curved road strip near the platform edge, each representing a career milestone (ASML 2018, Restigo 2022, Triolla 2023, The5ers 2024). Gates sit on a circular arc (radius 8, −15° to 45°) on the right side of the hex; the road curves to match.
 
 - **Portal Gates**: Loaded from a GLB model (`Meshy_AI_Neon_Quantum_Portal`), scaled to character height + extra (~2.5 units)
 - **Floor Pad**: Dark rounded-rect pad beneath each portal with cyan emissive trim
@@ -33,16 +33,18 @@ The first real gameplay content: 6 interactive Timeline Checkpoints along the ro
 - **Pillar Collision**: Two-circle collision per gate (one per pillar) — player walks through the opening but not through the solid frame
 - **Content Overlay**: Press E to open cinematic overlay with year, title, subtitle, bullet points, and links
 
-**Ground Platform Visual Overhaul**
+**Floating Hub Platform Overhaul**
 
-The floating megastructure ground has been significantly refined for visual quality and composition:
+The hexagonal platform has been transformed from a flat test room into a stylized floating hub with layered depth and intentional boundaries:
 
-- **Specular fix**: Roughness/metalness/envMap rebalanced to eliminate hot-spot glare (roughnessMap × material.roughness double-attenuation issue fixed — material.roughness set to 1.0 so map alone controls)
-- **Road-ready strip**: Dark directional path along Z-axis with accent edge lines and center dashes — signals "this is where you go"
-- **Edge pylons**: 5 asymmetric placeholder volumes near the rim with accent caps — break up emptiness, provide scale
-- **Calmed accent underglow**: Lower emissive intensity (0.4 → 0.25) with wider spread (70%–96% vs 78%–92%)
-- **Contrast hierarchy**: Road (darkest) → inner plate (mid) → rim/body (lightest) → cyan accents
-- **Exposure & fog**: Tonemapping exposure lowered (0.7 → 0.62), fog density nudged (0.045 → 0.052) for softer contrast
+- **Center Hub**: Elevated circular plate (radius 3.0, raised 0.035 units) with concentric accent rings, 6 radial spokes, and a pulsing radial glow disc — creates a clear focal point
+- **Edge Energy Barrier**: Vertical translucent ShaderMaterial planes along each hex edge with animated scanlines and shimmer — boundary feels like a force field, not "ran out of map"
+- **Void Cascade**: Glowing energy waterfall planes hanging below platform edges with animated flow patterns (additive blending) — creates depth below the floating island
+- **Enhanced Underglow**: Wider accent ring (45%–100% vs 70%–96%), brighter emissive (0.35 vs 0.25), plus a PointLight below the platform center — actual light illuminating the underside
+- **Ambient Rising Particles**: 80 cyan dots drifting upward from below the platform perimeter with gentle sway — ambient life around the edges
+- **Visual Hierarchy**: Center hub (focal, slightly elevated) → Road (directional path) → Inner plate (floor) → Rim (boundary) → Edge barrier (energy wall) → Void cascade (depth below)
+- **Animated Update Loop**: `createGround()` now returns `GroundContext` with `update(time)` — pulses center glow, animates shader uniforms (barrier scanlines, void flow), and drifts particles
+- **Previous features retained**: Road strip, edge pylons, panel lines, trim lines, specular-safe roughness maps, contrast hierarchy
 
 **Character System Overhaul**
 
@@ -313,63 +315,87 @@ interface CharacterConfig {
 
 ### createGround (`src/scene/createGround.ts`)
 
-Builds the floating megastructure platform — a hexagonal slab with layered surfaces:
+Builds the floating hub platform — a hexagonal megastructure with layered surfaces, an elevated center hub, energy-barrier edges, void cascade glow, and ambient particles. Returns a `GroundContext` with `group` and `update(time)`.
 
 **Structure (bottom to top):**
 
 1. **Platform body** — thick ExtrudeGeometry slab with beveled edges (`baseMat`)
 2. **Raised rim ring** — stepped inset border (`baseMat`, shared with body)
 3. **Inner plate** — dark recessed floor surface (`floorMat`)
-4. **Road-ready strip** — darkest surface, Z-axis directional path (`roadMat`)
-5. **Underside accent ring** — cyan emissive glow (`accentMat`)
+4. **Road strip** — curved strip (custom BufferGeometry from `sampleRoadCurve()` in timelineLayout.ts) following the timeline arc, darkest surface (`roadMat`)
+5. **Underside accent ring** — wide cyan emissive glow (`accentMat`) + PointLight below
 6. **Panel lines** — hex-grid grooves (radial spokes + concentric rings)
-7. **Edge trim lines** — brighter accent along rim borders
+7. **Edge trim lines** — brighter accent along rim borders (opacity 0.35)
 8. **Edge pylons** — 5 small placeholder volumes near rim (`baseMat` + accent caps)
+9. **Center Hub** — elevated circular plate (`hubMat`) with concentric rings, spokes, glow disc
+10. **Edge Energy Barrier** — 6 vertical ShaderMaterial planes with scanline + shimmer animation
+11. **Void Cascade** — 6 hanging ShaderMaterial planes below edges with flow animation (additive)
+12. **Ambient Particles** — 80 rising cyan dots around perimeter (PointsMaterial, additive)
 
-**Materials (4 surface materials + line materials):**
+**Materials (5 surface materials + 2 shader materials + line materials):**
 
 | Material | Color | Roughness | Metalness | Purpose |
 |---|---|---|---|---|
 | `baseMat` | `0x7b8fa3` | 1.0 (map: 0.78) | 0.10 | Body, rim, pylons |
 | `floorMat` | `0x1f2b38` | 1.0 (map: 0.85) | 0.08 | Inner plate |
 | `roadMat` | `0x141c26` | 1.0 (map: 0.85) | 0.06 | Road strip |
-| `accentMat` | cyan emissive | 0.9 | 0.0 | Underglow, pylon caps |
+| `accentMat` | cyan emissive (0.35) | 0.9 | 0.0 | Underglow, pylon caps |
+| `hubMat` | `0x263a4a` | 1.0 (map: 0.85) | 0.10 | Center hub plate |
+| `barrierMat` | ShaderMaterial | — | — | Edge energy barrier |
+| `voidCascadeMat` | ShaderMaterial | — | — | Void cascade waterfall |
 
 > **Note:** `material.roughness` is set to 1.0 so the roughnessMap alone controls effective roughness. This avoids the Three.js double-attenuation trap where `roughness × roughnessMap` produces unexpectedly glossy surfaces.
 
-**Contrast Hierarchy (from 45° camera):**
+**Visual Hierarchy (from 45° camera):**
 
-- Road = darkest (`0x141c26`)
-- Inner plate = mid-dark (`0x1f2b38`)
-- Rim/body = lightest (`0x7b8fa3`)
-- Accent = cyan emissive
+- Center Hub = focal point (elevated plate with glow, radius 3.0)
+- Road = directional path (darkest surface, `0x141c26`)
+- Inner plate = floor area (mid-dark, `0x1f2b38`)
+- Rim/body = boundary (lightest, `0x7b8fa3`)
+- Edge Barrier = force field (translucent cyan, animated)
+- Void Cascade = depth below (energy waterfall, additive glow)
 
-**Road Strip:**
+**Center Hub:**
 
-- Width: 2.4 units, Length: 18 units (Z = −9 to +9)
-- Accent edge lines on both sides + dashed center line (opacity 0.14)
-- Sits above inner plate (Y = 0.005) — panel lines beneath are naturally hidden
-- Timeline checkpoints are positioned along the road (see Timeline Road System)
+- CircleGeometry (radius 3.0, 48 segments) at Y = 0.035
+- 3 concentric accent rings (radii 1.0, 1.8, 2.6) + 1 brighter outer ring
+- 6 radial spokes (compass rose pattern)
+- Radial glow disc (canvas gradient, AdditiveBlending, pulsing opacity)
 
-**Edge Pylons:**
+**Edge Energy Barrier:**
 
-- 5 asymmetric boxes at radius ~7–8.5, varied heights (0.35–0.85 units)
-- Each slightly Y-rotated to avoid grid-aligned look
-- Accent caps (tiny emissive lids) on top
-- Decorative only — not in collision system
+- 6 custom BufferGeometry planes (one per hex edge), HEIGHT = 0.8
+- ShaderMaterial: heightFade³ × scanline × shimmer, animated via time uniform
+- Placed at SIZE × 0.99 (slightly inside outer edge), transparent, DoubleSide
 
-**Procedural Roughness Maps:**
+**Void Cascade:**
 
-- Canvas-based noise textures (128px) with coarse + fine passes
-- Tiled via RepeatWrapping for micro-sheen variation
-- Prevents "flat plastic" appearance on large surfaces
+- 6 custom BufferGeometry planes hanging below edges, HEIGHT = 3.0
+- ShaderMaterial: cubic fade × flow pattern, animated via time uniform
+- Placed at SIZE × 1.01 (slightly outside), starting at Y = −0.45, AdditiveBlending
+
+**Ambient Particles:**
+
+- 80 points scattered at radius 50%–100% of SIZE, below platform
+- Drift upward (RISE_RANGE = 5.0) with gentle sinusoidal sway
+- PointsMaterial with dot texture, AdditiveBlending, cyan accent
+
+**Animated Update (called per frame):**
+
+- `barrierMat.uniforms.time` — drives scanline + shimmer
+- `voidCascadeMat.uniforms.time` — drives flow pattern
+- `centerGlowMat.opacity` — pulses 0.6–1.0 at 0.6 Hz
+- `underLight.intensity` — pulses 0.35–0.65 at 0.4 Hz
+- Particle positions — time-based Y rise with X/Z sway
 
 **Key Constants:**
 
 - `SIZE`: 12 (hexagon circumradius)
 - `PLATFORM_DEPTH`: 1.5 (slab thickness)
-- `ROAD_WIDTH`: 2.4, `ROAD_LENGTH`: 18
-- `RIM_INSET`: 0.35, `RIM_WIDTH`: 1.1, `RIM_HEIGHT`: 0.07
+- `ROAD_WIDTH`: 2.4 (arc defined in timelineLayout.ts)
+- `HUB_RADIUS`: 3.0, `HUB_HEIGHT`: 0.035
+- `BARRIER_HEIGHT`: 0.8, `VOID_CASCADE_HEIGHT`: 3.0
+- `PARTICLE_COUNT`: 80, `RISE_RANGE`: 5.0
 - `INNER_RADIUS`: ~10.55 (SIZE − RIM_INSET − RIM_WIDTH)
 
 ### IntroSequence (`src/scene/introSequence.ts`)
@@ -412,7 +438,7 @@ Located in `STOPS_CONFIG` array - modify this to add/remove/change portfolio ite
 
 ### Timeline Road System (`src/scene/timeline/`)
 
-The primary gameplay content — 6 interactive checkpoints along the road strip representing career milestones.
+The primary gameplay content — 4 interactive checkpoints along a curved road strip near the platform edge, representing career milestones.
 
 #### timelineConfig.ts
 
@@ -429,17 +455,26 @@ export interface TimelineStopData {
 }
 ```
 
-`TIMELINE_STOPS` array holds 6 entries: 2018, 2020, 2022, 2023, 2024, 2025.
+`TIMELINE_STOPS` array holds 4 entries: 2018 (ASML), 2022 (Restigo), 2023 (Triolla), 2024 (The5ers).
 
 #### timelineLayout.ts
 
-Arranges stops evenly along the road strip (Z = +8 to −8) with alternating X offsets for visual variety.
+Arranges stops along a circular arc near the platform edge (right side of hex). Gates sit at radius 8 from center, sweeping from −15° to 45°. The road strip follows the same arc.
+
+**Exports:**
+
+- `ROAD_ARC` — arc params (radius, start/end degrees, padding)
+- `buildTimelinePositions()` — returns stop positions from config
+- `sampleRoadCurve()` — samples the arc for road geometry (triangle strip along sampled curve points)
 
 **Key Constants:**
 
-- `Z_START`: 8.0, `Z_END`: -8.0
-- `X_OFFSETS`: [0.6, -0.6, 0.4, -0.4, 0.2, -0.2]
+- `ARC_RADIUS`: 8 (distance from platform center)
+- `ARC_START_DEG`: -15, `ARC_END_DEG`: 45 (sweep range)
+- `ROAD_PADDING_DEG`: 15 (padding beyond gate span)
 - `GROUND_Y`: 0.15 (matches platform bevel height so portals sit on the visible floor)
+
+Gates are ~2.8 units apart along the arc.
 
 #### createTimelineCheckpoint.ts
 
@@ -788,7 +823,7 @@ Environment map loading handled in `src/scene/environment.ts`:
 - Character animations use efficient GLTF clips
 - Post-processing effects are optimized
 - Shadow maps use reasonable resolution (2048x2048)
-- Portal GLB loaded once, cloned per checkpoint (6 clones from 1 load)
+- Portal GLB loaded once, cloned per checkpoint (4 clones from 1 load)
 - Camera lerp prevents jittery movement (0.045 factor)
 - Dog procedural animations use reusable quaternions (no per-frame allocations)
 - Asset loading happens in parallel with intro sequence
@@ -860,11 +895,27 @@ Edit `src/scene/createGround.ts`:
 - `COL_FLOOR`: Inner plate color (currently `0x1f2b38` — deep slate)
 - `COL_ROAD`: Road strip color (currently `0x141c26` — deepest dark)
 - `COL_ACCENT`: Emissive trim color (currently `0x00e5cc` — cyan/teal)
+- `COL_HUB`: Center hub plate color (currently `0x263a4a` — between floor and base)
+
+**Center hub:**
+
+- `HUB_RADIUS`: Hub plate radius (currently 3.0)
+- `HUB_HEIGHT`: Hub elevation above floor (currently 0.035)
+- `HUB_RING_RADII`: Concentric ring positions (currently [1.0, 1.8, 2.6])
+
+**Edge effects:**
+
+- `BARRIER_HEIGHT`: Energy barrier height (currently 0.8)
+- `VOID_CASCADE_HEIGHT`: Void cascade drop distance (currently 3.0)
+- `PARTICLE_COUNT`: Number of ambient particles (currently 80)
+- Adjust `barrierMat` shader opacity uniform (currently 0.12)
+- Adjust `voidCascadeMat` shader opacity uniform (currently 0.2)
 
 **Road strip:**
 
 - `ROAD_WIDTH`: Road width (currently 2.4)
-- `ROAD_LENGTH`: Road length along Z (currently 18)
+- Arc and curve are defined in `timelineLayout.ts` (`ROAD_ARC`, `sampleRoadCurve()`)
+- Road markings (edge lines + center dashes) follow the curve via arc-length parameterization
 - `ROAD_DASH_LEN` / `ROAD_DASH_GAP`: Center line dash pattern
 
 **Edge pylons:**
@@ -881,8 +932,9 @@ Edit `src/scene/createGround.ts`:
 
 **Accent underglow:**
 
-- Adjust `accentMat.emissiveIntensity` (currently 0.25)
-- Change ring spread via the `createHexShape(SIZE * outer)` / `createHexPath(SIZE * inner)` ratios (currently 0.96 / 0.70)
+- Adjust `accentMat.emissiveIntensity` (currently 0.35)
+- Change ring spread via the `createHexShape(SIZE * outer)` / `createHexPath(SIZE * inner)` ratios (currently 1.0 / 0.45)
+- Adjust `underLight.intensity` base value (currently 0.5)
 
 ### Customizing Timeline Content
 
@@ -890,8 +942,8 @@ Edit `src/scene/timeline/timelineConfig.ts`:
 
 - Add/remove/edit entries in the `TIMELINE_STOPS` array
 - Each entry needs: `id`, `year`, `title`, `subtitle`, `bullets`, and optional `links`
-- Positions are auto-calculated in `timelineLayout.ts` (evenly spaced along road)
-- To change spacing or offsets, edit `Z_START`, `Z_END`, `X_OFFSETS` in `timelineLayout.ts`
+- Positions are auto-calculated in `timelineLayout.ts` (arc-based: evenly spaced along the arc)
+- To change arc or spacing, edit `ARC_RADIUS`, `ARC_START_DEG`, `ARC_END_DEG`, `ROAD_PADDING_DEG` in `timelineLayout.ts`
 
 **Changing the portal model:**
 

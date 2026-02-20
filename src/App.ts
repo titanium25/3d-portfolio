@@ -47,7 +47,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
   createProgressIndicator();
 
   const { scene, camera, renderer, composer } = createScene(container);
-  createGround(scene);
+  const ground = createGround(scene);
   
   // Load character first (needed for intro sequence)
   const character = await PlayerCharacter.create(scene, assetLoaded);
@@ -236,6 +236,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
       updateTimelineAnimations(timelineStops, time * 0.001);
       updateTimelineLighting(timelineStops, character.group.position);
     }
+    ground.update(time * 0.001);
 
     if (devMode) {
       orbitControls.update();
