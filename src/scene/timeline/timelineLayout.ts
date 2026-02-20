@@ -24,24 +24,37 @@ export const ROAD_ARC = {
   endAngle: (ARC_END_DEG + ROAD_PADDING_DEG) * DEG2RAD,
 } as const;
 
+export interface TimelinePlacement {
+  position: [number, number, number];
+  /** Rotation Y in radians — gate faces tangent along the road arc */
+  rotationY: number;
+}
+
 export function buildTimelinePositions(
   count: number = 4,
-): [number, number, number][] {
-  const positions: [number, number, number][] = [];
+): TimelinePlacement[] {
+  const placements: TimelinePlacement[] = [];
   const startRad = ARC_START_DEG * DEG2RAD;
   const endRad = ARC_END_DEG * DEG2RAD;
 
   for (let i = 0; i < count; i++) {
     const t = count > 1 ? i / (count - 1) : 0;
     const angle = startRad + (endRad - startRad) * t;
-    positions.push([
-      Math.cos(angle) * ARC_RADIUS,
-      GROUND_Y,
-      -Math.sin(angle) * ARC_RADIUS,
-    ]);
+    // Tangent along arc (increasing angle): (-sin(θ), -cos(θ))
+    const tx = -Math.sin(angle);
+    const tz = -Math.cos(angle);
+    // rotation.y so gate faces the road (tangent direction)
+    placements.push({
+      position: [
+        Math.cos(angle) * ARC_RADIUS,
+        GROUND_Y,
+        -Math.sin(angle) * ARC_RADIUS,
+      ],
+      rotationY: Math.atan2(tx, tz),
+    });
   }
 
-  return positions;
+  return placements;
 }
 
 /** Sample evenly-spaced points along the road arc (for building road geometry). */

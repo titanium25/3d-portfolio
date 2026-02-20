@@ -32,8 +32,10 @@ export function getCollidingStop(
         (stop.group.userData.collisionRadius as number | undefined) ?? 0.3;
       const threshold = characterRadius + subR;
       for (const [ox, oz] of subPts) {
-        const dx = newX - (worldPos.x + ox);
-        const dz = newZ - (worldPos.z + oz);
+        const localPt = new THREE.Vector3(ox, 0, oz);
+        stop.group.localToWorld(localPt);
+        const dx = newX - localPt.x;
+        const dz = newZ - localPt.z;
         if (Math.sqrt(dx * dx + dz * dz) < threshold) return stop;
       }
       continue; // skip default circle — the sub-points handle this stop

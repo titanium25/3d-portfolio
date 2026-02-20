@@ -56,7 +56,7 @@ const PARTICLE_COUNT = 80;
 const COL_BASE = 0x7b8fa3;
 const COL_FLOOR = 0x1f2b38;
 const COL_ACCENT = 0x00e5cc;
-const COL_ROAD = 0x141c26;
+const COL_ROAD = 0x2a3d4f; // lighter than floor so road reads as a distinct path
 const COL_HUB = 0x263a4a;
 
 /* ── Return type ───────────────────────────────────────────── */
@@ -256,10 +256,12 @@ export function createGround(scene: Scene): GroundContext {
 
   const roadMat = new THREE.MeshStandardMaterial({
     color: COL_ROAD,
+    emissive: COL_ACCENT,
+    emissiveIntensity: 0.04,
     roughness: 1.0,
     roughnessMap: floorRoughnessMap,
     metalness: 0.06,
-    envMapIntensity: 0.3,
+    envMapIntensity: 0.35,
   });
 
   const hubMat = new THREE.MeshStandardMaterial({
@@ -354,7 +356,7 @@ export function createGround(scene: Scene): GroundContext {
   {
     const verts: number[] = [];
     const idx: number[] = [];
-    const roadY = 0.015;
+    const roadY = 0.025; // raised above floor for visibility and to avoid z-fight
     const halfW = ROAD_WIDTH / 2;
 
     for (let i = 0; i <= ROAD_CURVE_SEGMENTS; i++) {
@@ -398,12 +400,12 @@ export function createGround(scene: Scene): GroundContext {
   }
 
   {
-    const roadMarkY = 0.018;
+    const roadMarkY = 0.028;
     const halfW = ROAD_WIDTH / 2;
     const markMat = new THREE.LineBasicMaterial({
       color: COL_ACCENT,
       transparent: true,
-      opacity: 0.14,
+      opacity: 0.5,
     });
 
     for (const side of [-1, 1]) {

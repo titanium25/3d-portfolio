@@ -50,12 +50,13 @@ export async function createTimelineStops(
   onAssetLoaded?.();
 
   const stops: Stop[] = [];
-  const positions = buildTimelinePositions(TIMELINE_STOPS.length);
+  const placements = buildTimelinePositions(TIMELINE_STOPS.length);
 
   TIMELINE_STOPS.forEach((item, i) => {
-    const pos = positions[i];
+    const { position: pos, rotationY } = placements[i];
     const { group, mainMesh, ringMesh } = createTimelineCheckpoint(item.year);
     group.position.set(pos[0], pos[1], pos[2]);
+    group.rotation.y = rotationY;
 
     // Empty particles group (required by Stop interface, no visible particles)
     const particlesGroup = new THREE.Group();
