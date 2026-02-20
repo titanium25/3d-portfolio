@@ -61,11 +61,16 @@ export async function createTimelineStops(
     const particlesGroup = new THREE.Group();
     group.add(particlesGroup);
 
-    /* ── Point light ───────────────────────────────────────── */
+    /* ── Point lights (primary + softer fill for stronger proximity glow) ─ */
 
-    const pointLight = new THREE.PointLight(COL_ACCENT, 0.3, 6);
+    const pointLight = new THREE.PointLight(COL_ACCENT, 0.5, 10);
     pointLight.position.set(0, 1.2, 0);
     group.add(pointLight);
+
+    const fillLight = new THREE.PointLight(COL_ACCENT, 0.2, 6);
+    fillLight.position.set(0, 0.8, 0);
+    group.add(fillLight);
+    group.userData.fillLight = fillLight;
 
     scene.add(group);
 
@@ -126,22 +131,26 @@ export function updateTimelineAnimations(stops: Stop[], time: number): void {
         labelBaseY + Math.sin(time * LABEL_BOB_SPEED + phase) * LABEL_BOB_AMP;
     }
 
-    // Ground glow disc gentle pulse (alive feeling even at idle)
+    // Ground glow disc gentle pulse (combines with proximity scale from lighting)
     const glowDisc = stop.group.userData.glowDisc as THREE.Mesh | undefined;
     if (glowDisc) {
       const glowPulse = 1.0 + Math.sin(time * 1.5 + phase) * 0.04;
-      glowDisc.scale.setScalar(glowPulse);
+      const baseScale = (stop.group.userData.glowDiscBaseScale as number) ?? 1;
+      glowDisc.scale.setScalar(baseScale * glowPulse);
     }
   });
 }
 
-/* ── Proximity lighting (smooth lerp) ─────────────────────────── */
+/* ── Proximity lighting (smooth lerp, stronger glow on approach) ───────── */
 
-const BASE_LIGHT_INTENSITY = 0.3;
-const MAX_LIGHT_INTENSITY = 2.2;
-const BASE_EMISSIVE = 0.2;
-const MAX_EMISSIVE = 0.8;
-const COMPLETED_EMISSIVE_BOOST = 0.15;
+const BASE_LIGHT_INTENSITY = 0.5;
+const MAX_LIGHT_INTENSITY = 4.0;
+const BASE_FILL_INTENSITY = 0.2;
+const MAX_FILL_INTENSITY = 2.5;
+const BASE_EMISSIVE = 0.3;
+const MAX_EMISSIVE = 1.25;
+const COMPLETED_EMISSIVE_BOOST = 0.2;
+const PROXIMITY_CURVE = 0.6; // power curve: lower = ramp up sooner from distance
 
 export function updateTimelineLighting(
   stops: Stop[],
@@ -153,24 +162,35 @@ export function updateTimelineLighting(
     const distance = playerPosition.distanceTo(worldPos);
     const completed = completedStops.has(stop.data.id);
 
-    // Proximity factor 0..1
+    // Proximity factor 0..1 (closer = higher)
     let t = 0;
     if (distance < PROXIMITY_RADIUS) {
       t =
         1 -
         (distance - INTERACT_RADIUS) / (PROXIMITY_RADIUS - INTERACT_RADIUS);
       t = Math.max(0, Math.min(1, t));
+      // Power curve: glow ramps up sooner as you approach
+      t = Math.pow(t, PROXIMITY_CURVE);
     }
 
     const completedBoost = completed ? COMPLETED_EMISSIVE_BOOST : 0;
 
-    // Point light — ramps up strongly on approach
+    // Primary point light — strong ramp on approach
     const lightIntensity =
       BASE_LIGHT_INTENSITY +
       (MAX_LIGHT_INTENSITY - BASE_LIGHT_INTENSITY) * t +
-      (completed ? 0.4 : 0);
+      (completed ? 0.6 : 0);
     if (stop.pointLight) {
       stop.pointLight.intensity = lightIntensity;
+    }
+
+    // Fill point light — softer glow that also intensifies
+    const fillLight = stop.group.userData.fillLight as THREE.PointLight | undefined;
+    if (fillLight) {
+      fillLight.intensity =
+        BASE_FILL_INTENSITY +
+        (MAX_FILL_INTENSITY - BASE_FILL_INTENSITY) * t +
+        (completed ? 0.3 : 0);
     }
 
     // Accent material (pad trim, ring effects)
@@ -188,7 +208,7 @@ export function updateTimelineLighting(
       | THREE.MeshStandardMaterial[]
       | undefined;
     if (modelMats) {
-      const proxScale = 0.6 + t * 0.8 + (completed ? 0.2 : 0);
+      const proxScale = 0.5 + t * 1.2 + (completed ? 0.25 : 0);
       for (const mat of modelMats) {
         const base =
           (mat.userData.baseEmissiveIntensity as number | undefined) ?? 0.5;
@@ -196,17 +216,25 @@ export function updateTimelineLighting(
       }
     }
 
-    // Ground glow disc — the main proximity feedback
+    // Ground glow disc — main proximity feedback, stronger ramp
     const glowDisc = stop.group.userData.glowDisc as THREE.Mesh | undefined;
     if (glowDisc) {
       const glowMat = glowDisc.material as THREE.MeshBasicMaterial;
-      const glowBase = completed ? 0.15 : 0.0;
-      glowMat.opacity = glowBase + t * 0.45;
+      const glowBase = completed ? 0.2 : 0.02;
+      glowMat.opacity = glowBase + t * 0.72;
+      stop.group.userData.glowDiscBaseScale = 1.0 + t * 0.28; // animation applies pulse on top
     }
 
     // Ring opacity boost on proximity
     const ringMat = stop.ringMesh.material as THREE.MeshBasicMaterial;
-    const ringBase = completed ? 0.4 : 0.12;
-    ringMat.opacity = ringBase + t * 0.35;
+    const ringBase = completed ? 0.45 : 0.1;
+    ringMat.opacity = ringBase + t * 0.55;
+
+    // Trim line — brighter when close
+    const trimLine = stop.group.userData.trimLine as THREE.LineLoop | undefined;
+    if (trimLine) {
+      const trimMat = trimLine.material as THREE.LineBasicMaterial;
+      trimMat.opacity = completed ? 0.7 : 0.35 + t * 0.5;
+    }
   });
 }

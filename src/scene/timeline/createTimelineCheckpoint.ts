@@ -13,7 +13,7 @@ const COL_ACCENT = 0x00e5cc; // cyan emissive
 
 const PORTAL_MODEL_PATH =
   "/models/Meshy_AI_Neon_Quantum_Portal_0216123143_texture.glb";
-const MODEL_TARGET_HEIGHT = 2.5;
+const MODEL_TARGET_HEIGHT = 2.2;
 
 /* ── Floor pad ────────────────────────────────────────────────── */
 

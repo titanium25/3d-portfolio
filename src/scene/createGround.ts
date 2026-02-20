@@ -15,7 +15,7 @@ const BEVEL_SEGMENTS = 3;
 
 // Raised rim (creates the "stepped inset" look)
 const RIM_INSET = 0.35;
-const RIM_WIDTH = 1.1;
+const RIM_WIDTH = 0.1;
 const RIM_HEIGHT = 0.07;
 const RIM_BEVEL = 0.018;
 const RIM_BEVEL_SEGMENTS = 2;

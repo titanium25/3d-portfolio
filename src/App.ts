@@ -28,7 +28,7 @@ import {
 import type { Stop } from "./scene/types";
 
 const CAMERA_HEIGHT = 3;
-const CAMERA_DISTANCE = 5;
+const CAMERA_DISTANCE = 6;
 const CAMERA_OFFSET_X = 3;
 const CAMERA_LERP = 0.045;
 
