@@ -10,8 +10,8 @@
  */
 
 const ARC_RADIUS = 8;
-const ARC_START_DEG = -15;
-const ARC_END_DEG = 45;
+const ARC_START_DEG = -30;
+const ARC_END_DEG = 70;
 const ROAD_PADDING_DEG = 15;
 const GROUND_Y = 0.15;
 

@@ -38,18 +38,6 @@ const ROAD_WIDTH = 2.4;
 const ROAD_DASH_LEN = 0.6;
 const ROAD_DASH_GAP = 0.8;
 
-const PYLON_CONFIGS: Array<{
-  pos: [number, number, number];
-  size: [number, number, number];
-  rotY: number;
-}> = [
-  { pos: [8.0, 0, -3.0], size: [0.35, 0.65, 0.35], rotY: 0.3 },
-  { pos: [-7.0, 0, -5.5], size: [0.25, 0.45, 0.25], rotY: -0.15 },
-  { pos: [-7.5, 0, 5.0], size: [0.3, 0.85, 0.3], rotY: 0.5 },
-  { pos: [5.5, 0, 7.5], size: [0.2, 0.38, 0.2], rotY: 0.1 },
-  { pos: [-0.5, 0, -8.5], size: [0.4, 0.55, 0.28], rotY: -0.4 },
-];
-
 /* ── Center Hub ────────────────────────────────────────────── */
 
 const HUB_RADIUS = 3.0;
@@ -555,28 +543,6 @@ export function createGround(scene: Scene): GroundContext {
     }
     const lineGeom = new THREE.BufferGeometry().setFromPoints(pts);
     group.add(new THREE.Line(lineGeom, trimMat));
-  }
-
-  /* ──────────────────────────────────────────────────────────
-   * 7. Edge pylons
-   * ────────────────────────────────────────────────────────── */
-
-  for (const { pos, size, rotY } of PYLON_CONFIGS) {
-    const [w, h, d] = size;
-
-    const pylonGeom = new THREE.BoxGeometry(w, h, d);
-    const pylon = new THREE.Mesh(pylonGeom, baseMat);
-    pylon.position.set(pos[0], h / 2, pos[2]);
-    pylon.rotation.y = rotY;
-    pylon.castShadow = true;
-    pylon.receiveShadow = true;
-    group.add(pylon);
-
-    const capGeom = new THREE.BoxGeometry(w * 1.15, 0.02, d * 1.15);
-    const cap = new THREE.Mesh(capGeom, accentMat);
-    cap.position.set(pos[0], h + 0.01, pos[2]);
-    cap.rotation.y = rotY;
-    group.add(cap);
   }
 
   /* ══════════════════════════════════════════════════════════
