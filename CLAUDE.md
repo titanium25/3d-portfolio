@@ -23,10 +23,10 @@ This is an interactive 3D portfolio experience built with Three.js, TypeScript, 
 
 A two-piece entry zone added below (south, +Z side) the main arena:
 
-- **Spawn Pad**: Small hexagonal platform sized so its flat face exactly matches the bridge width (`SPAWN_APOTHEM = BRIDGE_WIDTH / 2`). Player spawns here at world position `(0, 0, 27.51)`.
-- **Timeline Bridge**: Flat `14 × 6.235` unit rectangular slab running along the +Z axis from the arena's bottom flat face (`Z ≈ 10.392`) outward. Hosts the 4 timeline portal gates evenly spaced along its length.
+- **Spawn Pad**: Hexagonal platform with underglow, Edge Energy Barrier, Void Cascade, and ambient rising particles (35) — matches arena effects. Player spawns at `(0, 0, SPAWN_CENTER_Z)`.
+- **Timeline Bridge**: Thin glass-like slab (`BRIDGE_DEPTH = 0.25`) with transparent material (no transmission for performance). Same effects as arena plus: center runway strip (flow shader), stream particles (70 flowing toward arena), destination glow at arena end, 4 edge lights, brighter trim. Hosts the 4 timeline portal gates.
 - **Multi-zone bounds**: `isInsideMap()` now checks three zones (arena hex, bridge rectangle, spawn pad hex) composed with OR — character can walk seamlessly between all three.
-- **New file**: `src/scene/createSpawnPad.ts` — builds both structures with the same material palette as the arena (`baseMat`, `floorMat`, `trimMat`).
+- **File**: `src/scene/createSpawnPad.ts` — builds both. `layoutConstants.ts` defines `BRIDGE_WIDTH`. Returns `SpawnPadContext` with `update(time)` for animated effects.
 - **Portal layout moved**: Portals now placed along the straight bridge (Z axis) instead of the arena's curved arc. `rotationY = 0` so pillars span X and the opening faces ±Z — player walks straight through each arch.
 - **Road strip removed from arena**: `createGround.ts` no longer imports `sampleRoadCurve` or renders a road on the arena floor; the bridge slab floor serves as the timeline road surface.
 
@@ -98,7 +98,10 @@ src/
 │   │   └── index.ts                   # Barrel exports
 │   ├── createScene.ts      # Scene, camera, renderer, lighting setup
 │   ├── createGround.ts     # Main arena hex platform creation
-│   ├── createSpawnPad.ts   # Spawn pad + Timeline Bridge creation
+│   ├── createSpawnPad.ts   # Spawn pad + Timeline Bridge (glass, effects)
+│   ├── layoutConstants.ts  # Shared arena, bridge, spawn layout constants (single source of truth)
+│   ├── hexUtils.ts         # Shared hex geometry: hexVertex, createHexShape, createHexPath
+│   ├── textureUtils.ts     # Shared textures: createNoiseRoughnessMap, createRadialGlowTexture, createDotTexture
 │   ├── createStops.ts      # Portfolio stop markers creation (legacy mock stops)
 │   ├── introSequence.ts    # Opening cinematic sequence
 │   ├── environment.ts      # Environment map loading
@@ -111,6 +114,7 @@ src/
 │
 ├── collision/              # Collision detection
 │   ├── checkCollisions.ts  # Proximity and interaction detection
+│   ├── proximityUtils.ts   # Shared computeProximityFactor for stop lighting
 │   └── stopCollision.ts    # Stop collision checking (supports per-pillar collision)
 │
 └── ui/                     # User interface
@@ -411,50 +415,46 @@ Builds the floating hub platform — a hexagonal megastructure with layered surf
 
 ### createSpawnPad (`src/scene/createSpawnPad.ts`)
 
-Builds the entry zone south of the main arena — a hexagonal spawn pad connected to the arena by a flat rectangular Timeline Bridge. Uses the same material palette as `createGround`. Returns `SpawnPadContext` with `group` and `spawnCenter`.
+Builds the entry zone south of the main arena — a hexagonal spawn pad connected by a thin glass-like Timeline Bridge. Returns `SpawnPadContext` with `group`, `spawnCenter`, and `update(time)` for animated effects.
 
 **Layout (top-down, +Z = south / toward viewer):**
 
 ```
 [Main Arena]  ←  centre (0, 0, 0)
      |
-[Timeline Bridge]   Z: +10.392 → +24.392  (14 units long, 6.235 wide)
+[Timeline Bridge]   Z: +10.392 → +24.392  (14 units long, BRIDGE_WIDTH from layoutConstants)
      |   4 portal gates evenly spaced along bridge
-[Spawn Pad]   centre (0, 0, 27.51)   ← player starts here
+[Spawn Pad]   centre (0, 0, SPAWN_CENTER_Z)   ← player starts here
 ```
 
 **Key Constants:**
 
-- `ARENA_APOTHEM`: `12 × cos(30°) ≈ 10.392` — arena bottom flat-face Z position
-- `BRIDGE_LENGTH`: 14 — spans from `BRIDGE_NEAR_Z` to `BRIDGE_FAR_Z`
-- `BRIDGE_WIDTH`: `ARENA_APOTHEM × 2 × 0.30 ≈ 6.235` — 30% of arena flat-to-flat diameter
-- `BRIDGE_NEAR_Z`: `≈ 10.392` (flush with arena bottom face)
-- `BRIDGE_FAR_Z`: `≈ 24.392`
-- `BRIDGE_CENTER_Z`: `≈ 17.392`
-- `SPAWN_APOTHEM`: `BRIDGE_WIDTH / 2 ≈ 3.117` — spawn pad apothem equals bridge half-width so edges are flush
-- `SPAWN_SIZE`: `SPAWN_APOTHEM / cos(30°) ≈ 3.598` — spawn hex circumradius
-- `SPAWN_CENTER_Z`: `≈ 27.51`
+- `ARENA_APOTHEM`: `≈ 10.392` — arena bottom flat-face Z position
+- `BRIDGE_LENGTH`: 14, `BRIDGE_DEPTH`: 0.25 (thin glass slab)
+- `BRIDGE_WIDTH`: from `layoutConstants` — `GATE_PAD_WIDTH + 1.0 ≈ 4.2`
+- `BRIDGE_NEAR_Z`, `BRIDGE_FAR_Z`, `BRIDGE_CENTER_Z` — bridge Z range
+- `SPAWN_APOTHEM`: `BRIDGE_WIDTH * 0.95` — spawn hex flat-face matches bridge
+- `SPAWN_CENTER_Z`: `BRIDGE_FAR_Z + SPAWN_APOTHEM`
 
-**Spawn Pad layers (same pattern as arena):**
+**Spawn Pad layers:**
 
-1. Body slab — `ExtrudeGeometry` hex, beveled, depth 1.5
-2. Rim ring — raised border (`RIM_HEIGHT = 0.07`)
-3. Inner floor plate — dark `floorMat` at Y = 0.01
-4. Edge trim lines — cyan accent at rim borders
+1. Body slab, rim ring, inner floor — same pattern as arena (`baseMat`, `floorMat`)
+2. Underglow accent ring + PointLight
+3. Edge Energy Barrier (6 hex edges), Void Cascade (6 edges)
+4. Ambient rising particles (35), edge trim lines
 
 **Bridge layers:**
 
-1. Body slab — rectangular `ExtrudeGeometry`, same depth and bevel as arena
-2. Inner floor plate — dark `floorMat` (the "road" surface for timeline portals)
-3. Long-edge trim lines — cyan accent running along ±X edges, full length
+1. Thin body slab (`BRIDGE_DEPTH = 0.25`) — `bridgeGlassMat` (transparent `MeshStandardMaterial`, no transmission for performance)
+2. Full floor plate — same glass material
+3. Center runway strip — flow shader animating toward arena
+4. Underglow ring + PointLight; 4 edge PointLights; Edge Energy Barrier (4 edges); Void Cascade (4 edges)
+5. Destination glow plane at arena end; stream particles (70) flowing toward arena
+6. Brighter trim on all 4 edges (opacity 0.55)
 
-**Coordinate mapping note:**  
-`ExtrudeGeometry` shape lives in XY plane; after `rotateX(-π/2)`: shape-X → world-X, shape-Y → −world-Z. The bridge shape therefore uses `halfWidth` on shape-X and `halfLen` on shape-Y so the slab runs correctly along the Z axis.
+**Performance:** Bridge uses `MeshStandardMaterial` with transparency instead of `MeshPhysicalMaterial` transmission to avoid FPS drops. Edge lights limited to 4 total.
 
-**Exported constants (used by `PlayerCharacter` and `bounds.ts`):**
-
-- `SPAWN_PAD_CENTER_X = 0`
-- `SPAWN_PAD_CENTER_Z ≈ 27.51`
+**Exported constants:** `SPAWN_PAD_CENTER_X`, `SPAWN_PAD_CENTER_Z`
 
 ### IntroSequence (`src/scene/introSequence.ts`)
 
@@ -625,7 +625,7 @@ Multi-zone boundary system. `isInsideMap(x, z, margin)` returns `true` if the po
 
 All three zones use the `margin` parameter (character collision radius) so the character cannot walk to the very edge.
 
-**Key constants (must stay in sync with `createSpawnPad.ts`):**
+**Key constants (all from `layoutConstants.ts` — single source of truth):**
 
 - `SIZE`: 12, `SIDES`: 6
 - `ARENA_APOTHEM`: `≈ 10.392`
@@ -894,6 +894,8 @@ Environment map loading handled in `src/scene/environment.ts`:
 ## Performance Considerations
 
 - Character animations use efficient GLTF clips
+- Bridge uses transparent `MeshStandardMaterial` (not `MeshPhysicalMaterial` transmission) to avoid FPS drops
+- Bridge edge lights limited to 4 (not per-unit along length) for performance
 - Post-processing effects are optimized
 - Shadow maps use reasonable resolution (2048x2048)
 - Portal GLB loaded once, cloned per checkpoint (4 clones from 1 load)
@@ -970,7 +972,7 @@ Edit `src/scene/createGround.ts`:
 - `COL_ACCENT`: Emissive trim color (currently `0x00e5cc` — cyan/teal)
 - `COL_HUB`: Center hub plate color (currently `0x263a4a` — between floor and base)
 
-> `COL_ROAD` has been removed — the road surface now lives in `createSpawnPad.ts` as the bridge floor using `COL_FLOOR`.
+> `COL_ROAD` has been removed. The bridge floor in `createSpawnPad.ts` uses `bridgeGlassMat` (transparent glass). Bridge width comes from `layoutConstants.ts`.
 
 **Center hub:**
 
@@ -986,9 +988,9 @@ Edit `src/scene/createGround.ts`:
 - Adjust `barrierMat` shader opacity uniform (currently 0.12)
 - Adjust `voidCascadeMat` shader opacity uniform (currently 0.2)
 
-**Road strip:**
+**Bridge appearance:**
 
-The road strip has moved off the arena and onto the Timeline Bridge. The bridge slab floor in `createSpawnPad.ts` (`floorMat`) serves as the road surface. To adjust bridge width edit `BRIDGE_WIDTH` in `createSpawnPad.ts` (and keep `bounds.ts` in sync).
+The Timeline Bridge in `createSpawnPad.ts` is a thin glass slab (`BRIDGE_DEPTH = 0.25`, `bridgeGlassMat`). To adjust width, edit `BRIDGE_WIDTH` in `layoutConstants.ts` (and keep `bounds.ts` in sync). Bridge-specific effects: runway strip, stream particles, destination glow, edge lights.
 
 **Edge pylons:**
 

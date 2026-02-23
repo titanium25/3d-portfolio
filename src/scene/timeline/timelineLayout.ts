@@ -12,13 +12,11 @@
  * so the player walks straight through each arch without turning.
  */
 
-/* ── Bridge constants (must stay in sync with createSpawnPad) ─── */
-
-const ARENA_APOTHEM  = 12 * Math.cos(Math.PI / 6); // ≈ 10.392
-const BRIDGE_LENGTH  = 14;
-const BRIDGE_NEAR_Z  = ARENA_APOTHEM;               // ≈ 10.392  (arena side)
-const BRIDGE_FAR_Z   = BRIDGE_NEAR_Z + BRIDGE_LENGTH; // ≈ 24.392 (spawn side)
-const BRIDGE_WIDTH   = ARENA_APOTHEM * 2 * 0.30;   // ≈ 6.235
+import {
+  BRIDGE_WIDTH,
+  BRIDGE_NEAR_Z,
+  BRIDGE_FAR_Z,
+} from "../layoutConstants";
 
 /** Padding beyond first/last gate on each end of the road strip. */
 const ROAD_PADDING = 1.5;

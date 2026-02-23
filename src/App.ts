@@ -49,7 +49,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
 
   const { scene, camera, renderer, composer } = createScene(container);
   const ground = createGround(scene);
-  createSpawnPad(scene);
+  const spawnPad = createSpawnPad(scene);
   
   // Load character first (needed for intro sequence)
   const character = await PlayerCharacter.create(scene, assetLoaded);
@@ -239,6 +239,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
       updateTimelineLighting(timelineStops, character.group.position);
     }
     ground.update(time * 0.001);
+    spawnPad.update(time * 0.001);
 
     if (devMode) {
       orbitControls.update();

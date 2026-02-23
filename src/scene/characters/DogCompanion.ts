@@ -18,7 +18,6 @@ const DOG_MODEL_HEIGHT = 0.38;
 // ── Follow behaviour ─────────────────────────────────────────────────
 const FOLLOW_OFFSET_SIDE = -0.5; // lateral offset so dog isn't directly in line
 const FOLLOW_OFFSET_BEHIND = 2.2; // distance behind player — keeps dog out from under feet
-const FOLLOW_DELAY_SEC = 0.35; // used for path smoothing in history
 const ARRIVE_RADIUS = 0.5; // stop moving when this close to target
 const MIN_DISTANCE_FROM_PLAYER = 1.0; // never aim closer than this (avoids "under feet")
 const CATCH_UP_RADIUS = 3.5; // start sprinting when this far
@@ -756,34 +755,6 @@ export class DogCompanion extends BaseCharacter {
     while (this.posHistory.length > 0 && this.posHistory[0].t < cutoff) {
       this.posHistory.shift();
     }
-  }
-
-  /** Interpolate position/rotation from the history at (now – delay). */
-  private sampleDelayed(): { x: number; z: number; rotY: number } {
-    const now = performance.now() / 1000;
-    const tTarget = now - FOLLOW_DELAY_SEC;
-
-    for (let i = this.posHistory.length - 1; i >= 0; i--) {
-      const a = this.posHistory[i];
-      if (a.t <= tTarget) {
-        const b = this.posHistory[i + 1];
-        if (b) {
-          const frac = (tTarget - a.t) / (b.t - a.t);
-          return {
-            x: a.x + (b.x - a.x) * frac,
-            z: a.z + (b.z - a.z) * frac,
-            rotY: a.rotY + this.shortestAngleDist(a.rotY, b.rotY) * frac,
-          };
-        }
-        return { x: a.x, z: a.z, rotY: a.rotY };
-      }
-    }
-
-    return {
-      x: this.target.position.x,
-      z: this.target.position.z,
-      rotY: this.target.rotation.y,
-    };
   }
 
   override getDebugInfo(): Record<string, string> {

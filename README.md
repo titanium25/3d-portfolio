@@ -14,8 +14,9 @@ The experience feels like a small open-world game: you land on a 3D hexagonal ma
   - Contrast hierarchy: inner plate → rim/body (lightest) → cyan accents
   - Cyan accent underglow on the underside
 - **Spawn Pad + Timeline Bridge**: A distinct entry zone south of the arena
-  - Player spawns on a small hexagonal pad sized to connect flush with the bridge
-  - Flat rectangular bridge (14 units long) leads from spawn pad to the arena entrance
+  - Spawn pad matches arena effects: underglow, energy barrier, void cascade, rising particles
+  - Thin glass-like bridge leads from spawn to arena — translucent slab with glowing runway strip
+  - Stream particles flow toward the arena; destination glow marks the entrance
   - Four timeline portal gates line the bridge — walk through each arch to progress
 - **Timeline Road**: 4 interactive portal gates along the Timeline Bridge, each representing a career milestone (2018–2024)
   - GLB portal models with floor pads, activation rings, and year labels
@@ -70,8 +71,8 @@ The project has evolved from a simple proof of concept to a fully-featured 3D ex
 ✅ Edge pylons for composition and scale reference  
 ✅ Procedural roughness maps and tuned PBR materials  
 ✅ ACES Filmic tonemapping with atmospheric fog  
-✅ Spawn pad + Timeline Bridge entry zone (Phase 1 layout)  
-✅ Timeline Road with 4 interactive portal gates (2018–2024) along the bridge  
+✅ Spawn pad + Timeline Bridge with arena effects (underglow, barrier, cascade, particles) and glass bridge with runway strip  
+✅ Timeline Road with 4 interactive portal gates (2018–2024) along glass bridge with runway strip and stream particles  
 ✅ GLB portal models with proximity glow and completion tracking  
 ✅ Per-pillar collision (walk through gate openings)  
 ✅ Rich content overlay (subtitle, bullet points, links)
@@ -101,7 +102,7 @@ The project uses a clean, modular architecture:
 - **Character System**: Object-oriented design with `BaseCharacter` abstract class
   - `PlayerCharacter` - Keyboard-controlled player
   - `DogCompanion` - AI-controlled follower with procedural animations
-- **Spawn Pad + Timeline Bridge**: Entry zone with spawn hex pad and 14-unit bridge connecting to the arena; hosts 4 timeline portal gates
+- **Spawn Pad + Timeline Bridge**: Entry zone with spawn hex (arena effects) and thin glass bridge; runway strip, stream particles, destination glow; hosts 4 timeline portal gates
 - **Timeline Road**: 4 portal checkpoints along the bridge with GLB models, proximity glow, completion tracking, and per-pillar collision
 - **Scene Management**: Modular scene setup with lighting, shadows, fog, tonemapping, and post-processing
 - **Ground Platform**: Layered megastructure with edge pylons, procedural roughness maps, and contrast hierarchy
@@ -134,7 +135,8 @@ src/
 │   │   └── createTimelineStops.ts     # Creation, animation, lighting
 │   ├── createScene.ts     # Scene, camera, renderer setup
 │   ├── createGround.ts    # Main arena hex platform
-│   ├── createSpawnPad.ts  # Spawn pad + Timeline Bridge
+│   ├── createSpawnPad.ts  # Spawn pad + Timeline Bridge (glass, effects)
+│   ├── layoutConstants.ts # Bridge width and gate dimensions
 │   ├── createStops.ts     # Legacy mock stop markers
 │   ├── introSequence.ts   # Opening cinematic
 │   └── bounds.ts          # Hexagonal boundary checking
@@ -166,6 +168,7 @@ All 3D assets are stored in `/public/models/` and loaded via GLTF:
 ## Performance
 
 - Shadow mapping with PCF soft shadows
+- Bridge uses transparent material (no refraction) to maintain 60 FPS
 - Optimized animation blending
 - Efficient collision detection
 - Smooth camera interpolation (lerp)

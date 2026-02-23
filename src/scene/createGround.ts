@@ -1,5 +1,16 @@
 import * as THREE from "three";
 import type { Scene } from "three";
+import { ARENA_SIZE, ARENA_SIDES } from "./layoutConstants";
+import {
+  createHexShape,
+  createHexPath,
+  hexVertex,
+} from "./hexUtils";
+import {
+  createNoiseRoughnessMap,
+  createRadialGlowTexture,
+  createDotTexture,
+} from "./textureUtils";
 
 /* ══════════════════════════════════════════════════════════════
  *  FLOATING HUB PLATFORM
@@ -10,13 +21,12 @@ import type { Scene } from "three";
  *  of place rather than a flat test room.
  * ═══════════════════════════════════════════════════════════ */
 
+const SIZE = ARENA_SIZE;
+const SIDES = ARENA_SIDES;
+
 /* ── Platform constants ─────────────────────────────────────── */
 
-const SIZE = 12;
-const SIDES = 6;
-const ANGLE_OFFSET = -Math.PI / 6;
-
-const PLATFORM_DEPTH = 1.5;
+const PLATFORM_DEPTH = 0.3; /* 1/5 of original 1.5 */
 const BEVEL_SIZE = 0.25;
 const BEVEL_THICKNESS = 0.15;
 const BEVEL_SEGMENTS = 3;
@@ -44,7 +54,7 @@ const HUB_RING_RADII = [1.0, 1.8, 2.6];
 /* ── Edge effects ──────────────────────────────────────────── */
 
 const BARRIER_HEIGHT = 0.6;
-const VOID_CASCADE_HEIGHT = 3.0;
+const VOID_CASCADE_HEIGHT = 2.0;
 const PARTICLE_COUNT = 80;
 
 /* ── Palette ───────────────────────────────────────────────── */
@@ -61,136 +71,7 @@ export interface GroundContext {
   update(time: number): void;
 }
 
-/* ── Procedural roughness map ────────────────────────────────── */
-
-function createNoiseRoughnessMap(
-  resolution: number,
-  baseRoughness: number,
-  variation: number,
-  tileRepeat: number,
-): THREE.CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = resolution;
-  canvas.height = resolution;
-  const ctx = canvas.getContext("2d")!;
-  const imageData = ctx.createImageData(resolution, resolution);
-  const d = imageData.data;
-
-  const coarseSize = 8;
-  const coarseGrid: number[] = [];
-  const coarseDim = Math.ceil(resolution / coarseSize);
-  for (let i = 0; i < coarseDim * coarseDim; i++) {
-    coarseGrid[i] = (Math.random() - 0.5) * variation * 1.4;
-  }
-
-  for (let y = 0; y < resolution; y++) {
-    for (let x = 0; x < resolution; x++) {
-      const gx = x / coarseSize;
-      const gy = y / coarseSize;
-      const gx0 = Math.floor(gx) % coarseDim;
-      const gy0 = Math.floor(gy) % coarseDim;
-      const gx1 = (gx0 + 1) % coarseDim;
-      const gy1 = (gy0 + 1) % coarseDim;
-      const fx = gx - Math.floor(gx);
-      const fy = gy - Math.floor(gy);
-
-      const c00 = coarseGrid[gy0 * coarseDim + gx0];
-      const c10 = coarseGrid[gy0 * coarseDim + gx1];
-      const c01 = coarseGrid[gy1 * coarseDim + gx0];
-      const c11 = coarseGrid[gy1 * coarseDim + gx1];
-      const coarseVal =
-        c00 * (1 - fx) * (1 - fy) +
-        c10 * fx * (1 - fy) +
-        c01 * (1 - fx) * fy +
-        c11 * fx * fy;
-
-      const fineVal = (Math.random() - 0.5) * variation * 0.4;
-
-      const v =
-        Math.max(0, Math.min(1, baseRoughness + coarseVal + fineVal)) * 255;
-      const idx = (y * resolution + x) * 4;
-      d[idx] = v;
-      d[idx + 1] = v;
-      d[idx + 2] = v;
-      d[idx + 3] = 255;
-    }
-  }
-
-  ctx.putImageData(imageData, 0, 0);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(tileRepeat, tileRepeat);
-  return texture;
-}
-
-/* ── Canvas texture helpers ──────────────────────────────────── */
-
-function createRadialGlowTexture(
-  size: number,
-  r: number,
-  g: number,
-  b: number,
-  peakAlpha: number,
-): THREE.CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d")!;
-  const half = size / 2;
-  const grad = ctx.createRadialGradient(half, half, 0, half, half, half);
-  grad.addColorStop(0, `rgba(${r},${g},${b},${peakAlpha})`);
-  grad.addColorStop(0.45, `rgba(${r},${g},${b},${peakAlpha * 0.35})`);
-  grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, size, size);
-  return new THREE.CanvasTexture(canvas);
-}
-
-function createDotTexture(size: number = 32): THREE.CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d")!;
-  const half = size / 2;
-  const grad = ctx.createRadialGradient(half, half, 0, half, half, half);
-  grad.addColorStop(0, "rgba(255,255,255,1)");
-  grad.addColorStop(0.3, "rgba(255,255,255,0.5)");
-  grad.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, size, size);
-  return new THREE.CanvasTexture(canvas);
-}
-
-/* ── Geometry helpers ────────────────────────────────────────── */
-
-function hexVertex(i: number, radius: number): [number, number] {
-  const angle = (i / SIDES) * Math.PI * 2 + ANGLE_OFFSET;
-  return [Math.cos(angle) * radius, Math.sin(angle) * radius];
-}
-
-function createHexShape(radius: number): THREE.Shape {
-  const shape = new THREE.Shape();
-  for (let i = 0; i < SIDES; i++) {
-    const [x, z] = hexVertex(i, radius);
-    if (i === 0) shape.moveTo(x, z);
-    else shape.lineTo(x, z);
-  }
-  shape.closePath();
-  return shape;
-}
-
-function createHexPath(radius: number): THREE.Path {
-  const path = new THREE.Path();
-  for (let i = 0; i < SIDES; i++) {
-    const [x, z] = hexVertex(i, radius);
-    if (i === 0) path.moveTo(x, z);
-    else path.lineTo(x, z);
-  }
-  path.closePath();
-  return path;
-}
+/* ── Geometry helpers (hub pentagon uses point-up orientation) ── */
 
 function polygonVertex(i: number, sides: number, radius: number): [number, number] {
   const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
@@ -273,8 +154,8 @@ export function createGround(scene: Scene): GroundContext {
    * 1. Platform body — thick slab with beveled edges
    * ────────────────────────────────────────────────────────── */
 
-  const bodyShape = createHexShape(SIZE);
-  bodyShape.holes.push(createHexPath(INNER_RADIUS));
+  const bodyShape = createHexShape(SIZE, SIDES);
+  bodyShape.holes.push(createHexPath(INNER_RADIUS, SIDES));
 
   const bodyGeom = new THREE.ExtrudeGeometry(bodyShape, {
     depth: PLATFORM_DEPTH,
@@ -299,8 +180,8 @@ export function createGround(scene: Scene): GroundContext {
   const rimOuterRadius = SIZE - RIM_INSET;
   const rimInnerRadius = INNER_RADIUS;
 
-  const rimShape = createHexShape(rimOuterRadius);
-  rimShape.holes.push(createHexPath(rimInnerRadius));
+  const rimShape = createHexShape(rimOuterRadius, SIDES);
+  rimShape.holes.push(createHexPath(rimInnerRadius, SIDES));
 
   const rimGeom = new THREE.ExtrudeGeometry(rimShape, {
     depth: RIM_HEIGHT,
@@ -321,7 +202,7 @@ export function createGround(scene: Scene): GroundContext {
    * 3. Inner plate — dark slate floor
    * ────────────────────────────────────────────────────────── */
 
-  const innerShape = createHexShape(SIZE * INNER_SCALE);
+  const innerShape = createHexShape(SIZE * INNER_SCALE, SIDES);
   const innerGeom = new THREE.ShapeGeometry(innerShape);
   innerGeom.rotateX(-Math.PI / 2);
   innerGeom.translate(0, 0.01, 0);
@@ -335,8 +216,8 @@ export function createGround(scene: Scene): GroundContext {
    * 4. Underside accent ring — enhanced wide glow
    * ────────────────────────────────────────────────────────── */
 
-  const glowRingShape = createHexShape(SIZE * 1.0);
-  glowRingShape.holes.push(createHexPath(SIZE * 0.45));
+  const glowRingShape = createHexShape(SIZE * 1.0, SIDES);
+  glowRingShape.holes.push(createHexPath(SIZE * 0.45, SIDES));
 
   const glowGeom = new THREE.ShapeGeometry(glowRingShape);
   glowGeom.rotateX(-Math.PI / 2);
@@ -364,7 +245,7 @@ export function createGround(scene: Scene): GroundContext {
   const panelPts: THREE.Vector3[] = [];
 
   for (let i = 0; i < SIDES; i++) {
-    const [vx, vy] = hexVertex(i, rimInnerRadius * 0.97);
+    const [vx, vy] = hexVertex(i, SIDES, rimInnerRadius * 0.97);
     panelPts.push(toWorld(0, 0, panelY));
     panelPts.push(toWorld(vx, vy, panelY));
   }
@@ -372,8 +253,8 @@ export function createGround(scene: Scene): GroundContext {
   for (const frac of PANEL_RINGS) {
     const r = rimInnerRadius * frac;
     for (let i = 0; i < SIDES; i++) {
-      const [x1, y1] = hexVertex(i, r);
-      const [x2, y2] = hexVertex((i + 1) % SIDES, r);
+      const [x1, y1] = hexVertex(i, SIDES, r);
+      const [x2, y2] = hexVertex((i + 1) % SIDES, SIDES, r);
       panelPts.push(toWorld(x1, y1, panelY));
       panelPts.push(toWorld(x2, y2, panelY));
     }
@@ -395,7 +276,7 @@ export function createGround(scene: Scene): GroundContext {
   for (const radius of [rimOuterRadius, rimInnerRadius]) {
     const pts: THREE.Vector3[] = [];
     for (let i = 0; i <= SIDES; i++) {
-      const [x, z] = hexVertex(i % SIDES, radius);
+      const [x, z] = hexVertex(i % SIDES, SIDES, radius);
       pts.push(toWorld(x, z, RIM_HEIGHT + 0.005));
     }
     const lineGeom = new THREE.BufferGeometry().setFromPoints(pts);
@@ -475,7 +356,13 @@ export function createGround(scene: Scene): GroundContext {
     ),
   );
 
-  const centerGlowTex = createRadialGlowTexture(256, 0, 229, 204, 0.32);
+  const centerGlowTex = createRadialGlowTexture({
+    size: 256,
+    r: 0,
+    g: 229,
+    b: 204,
+    peakAlpha: 0.32,
+  });
   const centerGlowMat = new THREE.MeshBasicMaterial({
     map: centerGlowTex,
     transparent: true,
@@ -528,8 +415,8 @@ export function createGround(scene: Scene): GroundContext {
   });
 
   for (let i = 0; i < SIDES; i++) {
-    const [sx1, sy1] = hexVertex(i, SIZE * 0.99);
-    const [sx2, sy2] = hexVertex((i + 1) % SIDES, SIZE * 0.99);
+    const [sx1, sy1] = hexVertex(i, SIDES, SIZE * 0.99);
+    const [sx2, sy2] = hexVertex((i + 1) % SIDES, SIDES, SIZE * 0.99);
     const wx1 = sx1,
       wz1 = -sy1;
     const wx2 = sx2,
@@ -554,7 +441,7 @@ export function createGround(scene: Scene): GroundContext {
   const voidCascadeMat = new THREE.ShaderMaterial({
     uniforms: {
       topColor: { value: new THREE.Color(COL_ACCENT) },
-      opacity: { value: 0.5 },
+      opacity: { value: 0.42 },
       time: { value: 0 },
     },
     vertexShader: `
@@ -570,10 +457,11 @@ export function createGround(scene: Scene): GroundContext {
       uniform float time;
       varying vec2 vUv;
       void main() {
-        float fade = vUv.y * vUv.y;
-        float flow = 0.8 + 0.2 * sin(vUv.x * 10.0 - time * 1.5 + vUv.y * 6.0);
-        float alpha = opacity * fade * flow;
-        vec3 col = topColor * (0.4 + 0.6 * vUv.y);
+        float t = vUv.y;
+        float fade = t * t * t;
+        float wisps = 0.92 + 0.08 * sin(vUv.x * 4.0 - time * 0.6 + t * 8.0);
+        float alpha = opacity * fade * wisps;
+        vec3 col = topColor * (0.6 + 0.4 * t);
         gl_FragColor = vec4(col, alpha);
       }
     `,
@@ -584,8 +472,8 @@ export function createGround(scene: Scene): GroundContext {
   });
 
   for (let i = 0; i < SIDES; i++) {
-    const [sx1, sy1] = hexVertex(i, SIZE * 1.01);
-    const [sx2, sy2] = hexVertex((i + 1) % SIDES, SIZE * 1.01);
+    const [sx1, sy1] = hexVertex(i, SIDES, SIZE * 1.01);
+    const [sx2, sy2] = hexVertex((i + 1) % SIDES, SIDES, SIZE * 1.01);
     const wx1 = sx1,
       wz1 = -sy1;
     const wx2 = sx2,

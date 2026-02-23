@@ -5,6 +5,7 @@ import {
   PROXIMITY_RADIUS,
   INTERACT_RADIUS,
 } from "../collision/checkCollisions";
+import { computeProximityFactor } from "../collision/proximityUtils";
 
 const STOP_COLORS = [0x4ecdc4, 0xffe66d, 0x95e1d3];
 
@@ -141,13 +142,11 @@ export function updateStopLighting(
     const worldPos = new THREE.Vector3();
     stop.group.getWorldPosition(worldPos);
     const distance = playerPosition.distanceTo(worldPos);
-
-    let t = 0;
-    if (distance < PROXIMITY_RADIUS) {
-      t =
-        1 - (distance - INTERACT_RADIUS) / (PROXIMITY_RADIUS - INTERACT_RADIUS);
-      t = Math.max(0, Math.min(1, t));
-    }
+    const t = computeProximityFactor(
+      distance,
+      PROXIMITY_RADIUS,
+      INTERACT_RADIUS,
+    );
 
     const lightIntensity =
       BASE_LIGHT_INTENSITY + (MAX_LIGHT_INTENSITY - BASE_LIGHT_INTENSITY) * t;

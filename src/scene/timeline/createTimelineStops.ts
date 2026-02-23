@@ -11,6 +11,7 @@ import {
   PROXIMITY_RADIUS,
   INTERACT_RADIUS,
 } from "../../collision/checkCollisions";
+import { computeProximityFactor } from "../../collision/proximityUtils";
 
 const COL_ACCENT = 0x00e5cc;
 
@@ -163,16 +164,12 @@ export function updateTimelineLighting(
     const distance = playerPosition.distanceTo(worldPos);
     const completed = completedStops.has(stop.data.id);
 
-    // Proximity factor 0..1 (closer = higher)
-    let t = 0;
-    if (distance < PROXIMITY_RADIUS) {
-      t =
-        1 -
-        (distance - INTERACT_RADIUS) / (PROXIMITY_RADIUS - INTERACT_RADIUS);
-      t = Math.max(0, Math.min(1, t));
-      // Power curve: glow ramps up sooner as you approach
-      t = Math.pow(t, PROXIMITY_CURVE);
-    }
+    const t = computeProximityFactor(
+      distance,
+      PROXIMITY_RADIUS,
+      INTERACT_RADIUS,
+      PROXIMITY_CURVE,
+    );
 
     const completedBoost = completed ? COMPLETED_EMISSIVE_BOOST : 0;
 

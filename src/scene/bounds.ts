@@ -1,40 +1,29 @@
-/* ── Main arena ─────────────────────────────────────────────── */
+import {
+  ARENA_SIZE,
+  ARENA_SIDES,
+  BRIDGE_NEAR_Z,
+  BRIDGE_FAR_Z,
+  BRIDGE_HALF_WIDTH,
+  SPAWN_SIZE,
+  SPAWN_CENTER_X,
+  SPAWN_CENTER_Z,
+} from "./layoutConstants";
+import { hexVertex } from "./hexUtils";
 
-const SIZE  = 12;
-const SIDES = 6;
+/* ── Arena hex vertices (flat-top, local space) ───────────────── */
 
 const HEX_VERTICES: Array<[number, number]> = [];
-for (let i = 0; i < SIDES; i++) {
-  const angle = (i / SIDES) * Math.PI * 2 - Math.PI / 6;
-  HEX_VERTICES.push([Math.cos(angle) * SIZE, Math.sin(angle) * SIZE]);
+for (let i = 0; i < ARENA_SIDES; i++) {
+  const [x, z] = hexVertex(i, ARENA_SIDES, ARENA_SIZE);
+  HEX_VERTICES.push([x, z]);
 }
 
-/* ── Spawn pad + bridge (must stay in sync with createSpawnPad) ── */
+/* ── Spawn hex vertices in world space (X, Z) ─────────────────── */
 
-const ARENA_APOTHEM   = SIZE * Math.cos(Math.PI / 6); // ≈ 10.392
-
-// Bridge runs along +Z
-const BRIDGE_LENGTH   = 14;
-const BRIDGE_WIDTH    = ARENA_APOTHEM * 2 * 0.30;     // ≈ 6.235
-const BRIDGE_NEAR_Z   = ARENA_APOTHEM;                 // ≈ 10.392
-const BRIDGE_FAR_Z    = BRIDGE_NEAR_Z + BRIDGE_LENGTH; // ≈ 24.392
-const BRIDGE_HALF_WIDTH = BRIDGE_WIDTH / 2;
-
-// Spawn pad: apothem = BRIDGE_WIDTH/2 so flat face equals bridge width
-const SPAWN_APOTHEM   = BRIDGE_WIDTH / 2;                       // ≈ 3.117
-const SPAWN_SIZE      = SPAWN_APOTHEM / Math.cos(Math.PI / 6); // ≈ 3.598
-const SPAWN_CENTER_Z  = BRIDGE_FAR_Z + SPAWN_APOTHEM;          // ≈ 27.51
-const SPAWN_CENTER_X  = 0;
-
-// Pre-build spawn hex vertices in world space (X, Z)
 const SPAWN_HEX_VERTICES: Array<[number, number]> = [];
-for (let i = 0; i < SIDES; i++) {
-  // Same angle formula as hexVertex() in createSpawnPad / createGround
-  const angle = (i / SIDES) * Math.PI * 2 - Math.PI / 6;
-  SPAWN_HEX_VERTICES.push([
-    Math.cos(angle) * SPAWN_SIZE + SPAWN_CENTER_X,
-    Math.sin(angle) * SPAWN_SIZE + SPAWN_CENTER_Z, // Z offset in "z-slot"
-  ]);
+for (let i = 0; i < ARENA_SIDES; i++) {
+  const [lx, lz] = hexVertex(i, ARENA_SIDES, SPAWN_SIZE);
+  SPAWN_HEX_VERTICES.push([lx + SPAWN_CENTER_X, lz + SPAWN_CENTER_Z]);
 }
 
 /* ── Helpers ────────────────────────────────────────────────── */
@@ -62,7 +51,7 @@ function isInsideWithVertices(
 }
 
 function isInsideArena(x: number, z: number, margin: number): boolean {
-  const innerSize = SIZE - margin;
+  const innerSize = ARENA_SIZE - margin;
   if (innerSize <= 0) return false;
 
   const innerVertices = HEX_VERTICES.map(([vx, vz]) => {

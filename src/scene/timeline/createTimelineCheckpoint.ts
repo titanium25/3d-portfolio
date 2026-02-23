@@ -3,6 +3,7 @@ import {
   GLTFLoader,
   type GLTF,
 } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { createRadialGlowTexture } from "../textureUtils";
 
 /* ── Palette (matches megastructure platform) ─────────────────── */
 
@@ -13,7 +14,7 @@ const COL_ACCENT = 0x00e5cc; // cyan emissive
 
 const PORTAL_MODEL_PATH =
   "/models/Meshy_AI_Neon_Quantum_Portal_0216123143_texture.glb";
-const MODEL_TARGET_HEIGHT = 2.2;
+const MODEL_TARGET_HEIGHT = 3.2;
 
 /* ── Floor pad ────────────────────────────────────────────────── */
 
@@ -217,7 +218,15 @@ export function createTimelineCheckpoint(year: number): CheckpointComponents {
 
   const glowR = Math.max(p.halfW, p.halfD) + 1.0;
   const glowGeom = new THREE.PlaneGeometry(glowR * 2, glowR * 2);
-  const glowTex = createRadialGlowTexture();
+  const glowTex = createRadialGlowTexture({
+    size: 128,
+    colorStops: [
+      { offset: 0, color: "rgba(255,255,255,0.7)" },
+      { offset: 0.35, color: "rgba(255,255,255,0.3)" },
+      { offset: 0.7, color: "rgba(255,255,255,0.08)" },
+      { offset: 1, color: "rgba(255,255,255,0)" },
+    ],
+  });
   const glowMat = new THREE.MeshBasicMaterial({
     map: glowTex,
     color: COL_ACCENT,
@@ -299,35 +308,6 @@ function createRoundedRectPoints(
   return pts;
 }
 
-/* ── Radial glow texture (ground disc) ────────────────────────── */
-
-function createRadialGlowTexture(): THREE.CanvasTexture {
-  const size = 128;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d")!;
-
-  const gradient = ctx.createRadialGradient(
-    size / 2,
-    size / 2,
-    0,
-    size / 2,
-    size / 2,
-    size / 2,
-  );
-  gradient.addColorStop(0, "rgba(255,255,255,0.7)");
-  gradient.addColorStop(0.35, "rgba(255,255,255,0.3)");
-  gradient.addColorStop(0.7, "rgba(255,255,255,0.08)");
-  gradient.addColorStop(1, "rgba(255,255,255,0)");
-
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.minFilter = THREE.LinearFilter;
-  return texture;
-}
 
 /* ── Year label sprite (CanvasTexture, always faces camera) ───── */
 
