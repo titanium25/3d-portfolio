@@ -135,7 +135,8 @@ export class PlayerCharacter extends BaseCharacter {
     onAssetLoaded?: () => void,
   ): Promise<PlayerCharacter> {
     const group = new THREE.Group();
-    group.position.set(0, 0, 0);
+    // Start on the spawn pad (bottom of map, +Z side)
+    group.position.set(0, 0, 27.51);
     // YZX order: yaw (Y) applied first, then lean/roll (Z) in character-local space
     group.rotation.order = "YZX";
     scene.add(group);

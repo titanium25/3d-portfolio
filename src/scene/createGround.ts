@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import type { Scene } from "three";
-import { sampleRoadCurve } from "./timeline/timelineLayout";
 
 /* ══════════════════════════════════════════════════════════════
  *  FLOATING HUB PLATFORM
@@ -34,9 +33,6 @@ const INNER_SCALE = INNER_RADIUS / SIZE;
 const UNDERGLOW_OFFSET = 0.4;
 const PANEL_RINGS = [0.38, 0.68];
 
-const ROAD_WIDTH = 2.4;
-const ROAD_DASH_LEN = 0.6;
-const ROAD_DASH_GAP = 0.8;
 
 /* ── Center Hub ────────────────────────────────────────────── */
 
@@ -56,7 +52,6 @@ const PARTICLE_COUNT = 80;
 const COL_BASE = 0x7b8fa3;
 const COL_FLOOR = 0x1f2b38;
 const COL_ACCENT = 0x00e5cc;
-const COL_ROAD = 0x2a3d4f; // lighter than floor so road reads as a distinct path
 const COL_HUB = 0x263a4a;
 
 /* ── Return type ───────────────────────────────────────────── */
@@ -254,16 +249,6 @@ export function createGround(scene: Scene): GroundContext {
     side: THREE.DoubleSide,
   });
 
-  const roadMat = new THREE.MeshStandardMaterial({
-    color: COL_ROAD,
-    emissive: COL_ACCENT,
-    emissiveIntensity: 0.04,
-    roughness: 1.0,
-    roughnessMap: floorRoughnessMap,
-    metalness: 0.06,
-    envMapIntensity: 0.35,
-  });
-
   const hubMat = new THREE.MeshStandardMaterial({
     color: COL_HUB,
     roughness: 1.0,
@@ -345,136 +330,6 @@ export function createGround(scene: Scene): GroundContext {
   const innerMesh = new THREE.Mesh(innerGeom, floorMat);
   innerMesh.receiveShadow = true;
   group.add(innerMesh);
-
-  /* ──────────────────────────────────────────────────────────
-   * 3b. Curved road strip (follows timeline arc)
-   * ────────────────────────────────────────────────────────── */
-
-  const ROAD_CURVE_SEGMENTS = 48;
-  const roadCurve = sampleRoadCurve(ROAD_CURVE_SEGMENTS);
-
-  {
-    const verts: number[] = [];
-    const idx: number[] = [];
-    const roadY = 0.025; // raised above floor for visibility and to avoid z-fight
-    const halfW = ROAD_WIDTH / 2;
-
-    for (let i = 0; i <= ROAD_CURVE_SEGMENTS; i++) {
-      const p = roadCurve[i];
-      let tx: number, tz: number;
-      if (i < ROAD_CURVE_SEGMENTS) {
-        tx = roadCurve[i + 1].x - p.x;
-        tz = roadCurve[i + 1].z - p.z;
-      } else {
-        tx = p.x - roadCurve[i - 1].x;
-        tz = p.z - roadCurve[i - 1].z;
-      }
-      const len = Math.sqrt(tx * tx + tz * tz);
-      tx /= len;
-      tz /= len;
-      const nx = tz;
-      const nz = -tx;
-
-      verts.push(
-        p.x - nx * halfW, roadY, p.z - nz * halfW,
-        p.x + nx * halfW, roadY, p.z + nz * halfW,
-      );
-    }
-
-    for (let i = 0; i < ROAD_CURVE_SEGMENTS; i++) {
-      const b = i * 2;
-      idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
-    }
-
-    const roadGeom = new THREE.BufferGeometry();
-    roadGeom.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(verts, 3),
-    );
-    roadGeom.setIndex(idx);
-    roadGeom.computeVertexNormals();
-
-    const roadMesh = new THREE.Mesh(roadGeom, roadMat);
-    roadMesh.receiveShadow = true;
-    group.add(roadMesh);
-  }
-
-  {
-    const roadMarkY = 0.028;
-    const halfW = ROAD_WIDTH / 2;
-    const markMat = new THREE.LineBasicMaterial({
-      color: COL_ACCENT,
-      transparent: true,
-      opacity: 0.5,
-    });
-
-    for (const side of [-1, 1]) {
-      const pts: THREE.Vector3[] = [];
-      for (let i = 0; i <= ROAD_CURVE_SEGMENTS; i++) {
-        const p = roadCurve[i];
-        let tx: number, tz: number;
-        if (i < ROAD_CURVE_SEGMENTS) {
-          tx = roadCurve[i + 1].x - p.x;
-          tz = roadCurve[i + 1].z - p.z;
-        } else {
-          tx = p.x - roadCurve[i - 1].x;
-          tz = p.z - roadCurve[i - 1].z;
-        }
-        const len = Math.sqrt(tx * tx + tz * tz);
-        tx /= len;
-        tz /= len;
-        const nx = tz * side;
-        const nz = -tx * side;
-        pts.push(
-          new THREE.Vector3(
-            p.x + nx * halfW,
-            roadMarkY,
-            p.z + nz * halfW,
-          ),
-        );
-      }
-      group.add(
-        new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints(pts),
-          markMat,
-        ),
-      );
-    }
-
-    const arcLens: number[] = [0];
-    for (let i = 0; i < ROAD_CURVE_SEGMENTS; i++) {
-      const dx = roadCurve[i + 1].x - roadCurve[i].x;
-      const dz = roadCurve[i + 1].z - roadCurve[i].z;
-      arcLens.push(arcLens[i] + Math.sqrt(dx * dx + dz * dz));
-    }
-    const totalLen = arcLens[ROAD_CURVE_SEGMENTS];
-
-    function posAtArc(s: number): THREE.Vector3 {
-      const sc = Math.max(0, Math.min(totalLen, s));
-      let seg = 0;
-      while (seg < ROAD_CURVE_SEGMENTS - 1 && arcLens[seg + 1] < sc) seg++;
-      const denom = arcLens[seg + 1] - arcLens[seg];
-      const lt = denom > 0 ? (sc - arcLens[seg]) / denom : 0;
-      return new THREE.Vector3(
-        roadCurve[seg].x + (roadCurve[seg + 1].x - roadCurve[seg].x) * lt,
-        roadMarkY,
-        roadCurve[seg].z + (roadCurve[seg + 1].z - roadCurve[seg].z) * lt,
-      );
-    }
-
-    const dashPts: THREE.Vector3[] = [];
-    const period = ROAD_DASH_LEN + ROAD_DASH_GAP;
-    for (let s = ROAD_DASH_GAP; s < totalLen; s += period) {
-      dashPts.push(posAtArc(s), posAtArc(Math.min(s + ROAD_DASH_LEN, totalLen)));
-    }
-
-    group.add(
-      new THREE.LineSegments(
-        new THREE.BufferGeometry().setFromPoints(dashPts),
-        markMat,
-      ),
-    );
-  }
 
   /* ──────────────────────────────────────────────────────────
    * 4. Underside accent ring — enhanced wide glow

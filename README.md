@@ -9,12 +9,15 @@ The experience feels like a small open-world game: you land on a 3D hexagonal ma
 ## Core Features
 
 - **Map**: A hexagonal 3D floating megastructure with layered surfaces and boundary collision
-  - Road-ready strip along Z-axis — darkest surface that signals "this is where you go"
   - Edge pylons near the rim for scale and composition
   - Procedural roughness maps for realistic material feel
-  - Contrast hierarchy: road (darkest) → inner plate → rim/body (lightest) → cyan accents
-  - Calmed cyan accent underglow on the underside
-- **Timeline Road**: 6 interactive portal gates along the road, each representing a career milestone (2018–2025)
+  - Contrast hierarchy: inner plate → rim/body (lightest) → cyan accents
+  - Cyan accent underglow on the underside
+- **Spawn Pad + Timeline Bridge**: A distinct entry zone south of the arena
+  - Player spawns on a small hexagonal pad sized to connect flush with the bridge
+  - Flat rectangular bridge (14 units long) leads from spawn pad to the arena entrance
+  - Four timeline portal gates line the bridge — walk through each arch to progress
+- **Timeline Road**: 4 interactive portal gates along the Timeline Bridge, each representing a career milestone (2018–2024)
   - GLB portal models with floor pads, activation rings, and year labels
   - Proximity glow: model emissive, point lights, ground glow disc all react to player distance
   - Completion tracking: visited checkpoints glow brighter persistently
@@ -62,12 +65,13 @@ The project has evolved from a simple proof of concept to a fully-featured 3D ex
 ✅ Collision detection and boundary enforcement  
 ✅ Character animation state machine (idle/walk/run)  
 ✅ Smooth camera following with lerp  
-✅ Hexagonal map with boundary checking  
-✅ Layered ground platform with road strip and contrast hierarchy  
+✅ Hexagonal map with multi-zone boundary checking (arena + bridge + spawn pad)  
+✅ Layered ground platform with contrast hierarchy  
 ✅ Edge pylons for composition and scale reference  
 ✅ Procedural roughness maps and tuned PBR materials  
 ✅ ACES Filmic tonemapping with atmospheric fog  
-✅ Timeline Road with 6 interactive portal gates (2018–2025)  
+✅ Spawn pad + Timeline Bridge entry zone (Phase 1 layout)  
+✅ Timeline Road with 4 interactive portal gates (2018–2024) along the bridge  
 ✅ GLB portal models with proximity glow and completion tracking  
 ✅ Per-pillar collision (walk through gate openings)  
 ✅ Rich content overlay (subtitle, bullet points, links)
@@ -97,9 +101,10 @@ The project uses a clean, modular architecture:
 - **Character System**: Object-oriented design with `BaseCharacter` abstract class
   - `PlayerCharacter` - Keyboard-controlled player
   - `DogCompanion` - AI-controlled follower with procedural animations
-- **Timeline Road**: 6 portal checkpoints with GLB models, proximity glow, completion tracking, and per-pillar collision
+- **Spawn Pad + Timeline Bridge**: Entry zone with spawn hex pad and 14-unit bridge connecting to the arena; hosts 4 timeline portal gates
+- **Timeline Road**: 4 portal checkpoints along the bridge with GLB models, proximity glow, completion tracking, and per-pillar collision
 - **Scene Management**: Modular scene setup with lighting, shadows, fog, tonemapping, and post-processing
-- **Ground Platform**: Layered megastructure with road strip, edge pylons, procedural roughness maps, and contrast hierarchy
+- **Ground Platform**: Layered megastructure with edge pylons, procedural roughness maps, and contrast hierarchy
 - **Collision System**: Efficient proximity and collision detection with support for multi-point collision shapes (gate pillars)
 - **UI System**: Cinematic transitions with rich content (subtitle, bullets, links), proximity indicators, and loading screens
 - **Animation System**: State machine with smooth blending between animations
@@ -128,7 +133,8 @@ src/
 │   │   ├── createTimelineCheckpoint.ts # Portal gate + pad + ring + glow
 │   │   └── createTimelineStops.ts     # Creation, animation, lighting
 │   ├── createScene.ts     # Scene, camera, renderer setup
-│   ├── createGround.ts    # Ground plane creation
+│   ├── createGround.ts    # Main arena hex platform
+│   ├── createSpawnPad.ts  # Spawn pad + Timeline Bridge
 │   ├── createStops.ts     # Legacy mock stop markers
 │   ├── introSequence.ts   # Opening cinematic
 │   └── bounds.ts          # Hexagonal boundary checking

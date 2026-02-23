@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createScene } from "./scene/createScene";
 import { createGround } from "./scene/createGround";
+import { createSpawnPad } from "./scene/createSpawnPad";
 import { PlayerCharacter, DogCompanion } from "./scene/characters";
 import { IntroSequence } from "./scene/introSequence";
 import {
@@ -48,6 +49,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
 
   const { scene, camera, renderer, composer } = createScene(container);
   const ground = createGround(scene);
+  createSpawnPad(scene);
   
   // Load character first (needed for intro sequence)
   const character = await PlayerCharacter.create(scene, assetLoaded);

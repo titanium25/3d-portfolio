@@ -1,32 +1,40 @@
 /**
- * Timeline gate positions along a circular arc near the platform edge.
+ * Timeline gate positions along the Timeline Bridge.
  *
- * Gates sit at radius ARC_RADIUS from the platform center, sweeping
- * from the back-right toward the front-right of the hex.  Walking
- * along the arc = moving forward in time (2018 → 2024).
+ * The bridge runs along the +Z axis from BRIDGE_NEAR_Z (arena bottom
+ * face, ≈ 10.392) to BRIDGE_FAR_Z (≈ 24.392), a total of 14 units.
  *
- * The road strip follows the same arc with a bit of angular padding
- * on each end so the road extends past the first and last gate.
+ * The player spawns at the far end (high Z) and walks toward −Z to
+ * reach the arena.  Gates are spaced along Z, oldest (2018) nearest
+ * the spawn, newest (2024) nearest the arena.
+ *
+ * rotationY = 0 → portal model faces along Z (pillars span X axis),
+ * so the player walks straight through each arch without turning.
  */
 
-const ARC_RADIUS = 8;
-const ARC_START_DEG = -30;
-const ARC_END_DEG = 70;
-const ROAD_PADDING_DEG = 15;
+/* ── Bridge constants (must stay in sync with createSpawnPad) ─── */
+
+const ARENA_APOTHEM  = 12 * Math.cos(Math.PI / 6); // ≈ 10.392
+const BRIDGE_LENGTH  = 14;
+const BRIDGE_NEAR_Z  = ARENA_APOTHEM;               // ≈ 10.392  (arena side)
+const BRIDGE_FAR_Z   = BRIDGE_NEAR_Z + BRIDGE_LENGTH; // ≈ 24.392 (spawn side)
+const BRIDGE_WIDTH   = ARENA_APOTHEM * 2 * 0.30;   // ≈ 6.235
+
+/** Padding beyond first/last gate on each end of the road strip. */
+const ROAD_PADDING = 1.5;
+
 const GROUND_Y = 0.15;
 
-const DEG2RAD = Math.PI / 180;
-
-/** Road arc parameters (used by createGround to build the curved road). */
+/** Legacy export kept for API compatibility (road is now straight). */
 export const ROAD_ARC = {
-  radius: ARC_RADIUS,
-  startAngle: (ARC_START_DEG - ROAD_PADDING_DEG) * DEG2RAD,
-  endAngle: (ARC_END_DEG + ROAD_PADDING_DEG) * DEG2RAD,
+  radius: 0,
+  startAngle: 0,
+  endAngle: 0,
 } as const;
 
 export interface TimelinePlacement {
   position: [number, number, number];
-  /** Rotation Y in radians — gate faces tangent along the road arc */
+  /** rotationY = 0 → gate opening faces ±Z, player walks through along Z */
   rotationY: number;
 }
 
@@ -34,44 +42,42 @@ export function buildTimelinePositions(
   count: number = 4,
 ): TimelinePlacement[] {
   const placements: TimelinePlacement[] = [];
-  const startRad = ARC_START_DEG * DEG2RAD;
-  const endRad = ARC_END_DEG * DEG2RAD;
+
+  // Usable span inside the bridge, padded from each end
+  const spanFar  = BRIDGE_FAR_Z  - ROAD_PADDING; // near spawn (oldest)
+  const spanNear = BRIDGE_NEAR_Z + ROAD_PADDING;  // near arena (newest)
 
   for (let i = 0; i < count; i++) {
-    const t = count > 1 ? i / (count - 1) : 0;
-    const angle = startRad + (endRad - startRad) * t;
-    // Tangent along arc (increasing angle): (-sin(θ), -cos(θ))
-    const tx = -Math.sin(angle);
-    const tz = -Math.cos(angle);
-    // rotation.y so gate faces the road (tangent direction)
+    const t = count > 1 ? i / (count - 1) : 0.5;
+    // i=0 → oldest (2018) near spawn (far Z); i=last → newest near arena (near Z)
+    const worldZ = spanFar - (spanFar - spanNear) * t;
+
     placements.push({
-      position: [
-        Math.cos(angle) * ARC_RADIUS,
-        GROUND_Y,
-        -Math.sin(angle) * ARC_RADIUS,
-      ],
-      rotationY: Math.atan2(tx, tz),
+      position: [0, GROUND_Y, worldZ],
+      // rotationY = 0: portal pillars span X, opening faces ±Z
+      // Player walks along −Z through the arch — correct orientation.
+      rotationY: 0,
     });
   }
 
   return placements;
 }
 
-/** Sample evenly-spaced points along the road arc (for building road geometry). */
+/** Sample evenly-spaced points along the straight bridge road strip. */
 export function sampleRoadCurve(
   segments: number,
 ): { x: number; z: number }[] {
-  const { startAngle, endAngle, radius } = ROAD_ARC;
+  const startZ = BRIDGE_FAR_Z  + ROAD_PADDING * 0.5;
+  const endZ   = BRIDGE_NEAR_Z - ROAD_PADDING * 0.5;
   const points: { x: number; z: number }[] = [];
 
   for (let i = 0; i <= segments; i++) {
     const t = i / segments;
-    const angle = startAngle + (endAngle - startAngle) * t;
-    points.push({
-      x: Math.cos(angle) * radius,
-      z: -Math.sin(angle) * radius,
-    });
+    points.push({ x: 0, z: startZ + (endZ - startZ) * t });
   }
 
   return points;
 }
+
+/** Half-width of the bridge road strip. */
+export const BRIDGE_ROAD_HALF_WIDTH = BRIDGE_WIDTH / 2;

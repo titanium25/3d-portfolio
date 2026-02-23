@@ -19,9 +19,20 @@ This is an interactive 3D portfolio experience built with Three.js, TypeScript, 
 
 ## What's New
 
+**Spawn Pad + Timeline Bridge** ✨
+
+A two-piece entry zone added below (south, +Z side) the main arena:
+
+- **Spawn Pad**: Small hexagonal platform sized so its flat face exactly matches the bridge width (`SPAWN_APOTHEM = BRIDGE_WIDTH / 2`). Player spawns here at world position `(0, 0, 27.51)`.
+- **Timeline Bridge**: Flat `14 × 6.235` unit rectangular slab running along the +Z axis from the arena's bottom flat face (`Z ≈ 10.392`) outward. Hosts the 4 timeline portal gates evenly spaced along its length.
+- **Multi-zone bounds**: `isInsideMap()` now checks three zones (arena hex, bridge rectangle, spawn pad hex) composed with OR — character can walk seamlessly between all three.
+- **New file**: `src/scene/createSpawnPad.ts` — builds both structures with the same material palette as the arena (`baseMat`, `floorMat`, `trimMat`).
+- **Portal layout moved**: Portals now placed along the straight bridge (Z axis) instead of the arena's curved arc. `rotationY = 0` so pillars span X and the opening faces ±Z — player walks straight through each arch.
+- **Road strip removed from arena**: `createGround.ts` no longer imports `sampleRoadCurve` or renders a road on the arena floor; the bridge slab floor serves as the timeline road surface.
+
 **Timeline Road System** ✨
 
-The first real gameplay content: 4 interactive Timeline Checkpoints along a curved road strip near the platform edge, each representing a career milestone (ASML 2018, Restigo 2022, Triolla 2023, The5ers 2024). Gates sit on a circular arc (radius 8, −15° to 45°) on the right side of the hex; the road curves to match.
+The first real gameplay content: 4 interactive Timeline Checkpoints along the Timeline Bridge, each representing a career milestone (ASML 2018, Restigo 2022, Triolla 2023, The5ers 2024). Gates sit evenly spaced along the +Z bridge, oldest (2018) near the spawn pad, newest (2024) near the arena entrance.
 
 - **Portal Gates**: Loaded from a GLB model (`Meshy_AI_Neon_Quantum_Portal`), scaled to character height + extra (~2.5 units)
 - **Floor Pad**: Dark rounded-rect pad beneath each portal with cyan emissive trim
@@ -86,7 +97,8 @@ src/
 │   │   ├── createTimelineStops.ts     # Stop creation, animations, proximity lighting
 │   │   └── index.ts                   # Barrel exports
 │   ├── createScene.ts      # Scene, camera, renderer, lighting setup
-│   ├── createGround.ts     # Ground plane creation
+│   ├── createGround.ts     # Main arena hex platform creation
+│   ├── createSpawnPad.ts   # Spawn pad + Timeline Bridge creation
 │   ├── createStops.ts      # Portfolio stop markers creation (legacy mock stops)
 │   ├── introSequence.ts    # Opening cinematic sequence
 │   ├── environment.ts      # Environment map loading
@@ -322,23 +334,23 @@ Builds the floating hub platform — a hexagonal megastructure with layered surf
 1. **Platform body** — thick ExtrudeGeometry slab with beveled edges (`baseMat`)
 2. **Raised rim ring** — stepped inset border (`baseMat`, shared with body)
 3. **Inner plate** — dark recessed floor surface (`floorMat`)
-4. **Road strip** — curved strip (custom BufferGeometry from `sampleRoadCurve()` in timelineLayout.ts) following the timeline arc, darkest surface (`roadMat`)
-5. **Underside accent ring** — wide cyan emissive glow (`accentMat`) + PointLight below
-6. **Panel lines** — hex-grid grooves (radial spokes + concentric rings)
-7. **Edge trim lines** — brighter accent along rim borders (opacity 0.35)
-8. **Edge pylons** — 5 small placeholder volumes near rim (`baseMat` + accent caps)
-9. **Center Hub** — elevated circular plate (`hubMat`) with concentric rings, spokes, glow disc
-10. **Edge Energy Barrier** — 6 vertical ShaderMaterial planes with scanline + shimmer animation
-11. **Void Cascade** — 6 hanging ShaderMaterial planes below edges with flow animation (additive)
-12. **Ambient Particles** — 80 rising cyan dots around perimeter (PointsMaterial, additive)
+4. **Underside accent ring** — wide cyan emissive glow (`accentMat`) + PointLight below
+5. **Panel lines** — hex-grid grooves (radial spokes + concentric rings)
+6. **Edge trim lines** — brighter accent along rim borders (opacity 0.35)
+7. **Edge pylons** — 5 small placeholder volumes near rim (`baseMat` + accent caps)
+8. **Center Hub** — elevated circular plate (`hubMat`) with concentric rings, spokes, glow disc
+9. **Edge Energy Barrier** — 6 vertical ShaderMaterial planes with scanline + shimmer animation
+10. **Void Cascade** — 6 hanging ShaderMaterial planes below edges with flow animation (additive)
+11. **Ambient Particles** — 80 rising cyan dots around perimeter (PointsMaterial, additive)
 
-**Materials (5 surface materials + 2 shader materials + line materials):**
+> **Note:** The road strip formerly rendered on the arena has been removed. The Timeline Bridge slab (in `createSpawnPad.ts`) now serves as the road surface.
+
+**Materials (4 surface materials + 2 shader materials + line materials):**
 
 | Material | Color | Roughness | Metalness | Purpose |
 |---|---|---|---|---|
 | `baseMat` | `0x7b8fa3` | 1.0 (map: 0.78) | 0.10 | Body, rim, pylons |
 | `floorMat` | `0x1f2b38` | 1.0 (map: 0.85) | 0.08 | Inner plate |
-| `roadMat` | `0x141c26` | 1.0 (map: 0.85) | 0.06 | Road strip |
 | `accentMat` | cyan emissive (0.35) | 0.9 | 0.0 | Underglow, pylon caps |
 | `hubMat` | `0x263a4a` | 1.0 (map: 0.85) | 0.10 | Center hub plate |
 | `barrierMat` | ShaderMaterial | — | — | Edge energy barrier |
@@ -349,7 +361,6 @@ Builds the floating hub platform — a hexagonal megastructure with layered surf
 **Visual Hierarchy (from 45° camera):**
 
 - Center Hub = focal point (elevated plate with glow, radius 3.0)
-- Road = directional path (darkest surface, `0x141c26`)
 - Inner plate = floor area (mid-dark, `0x1f2b38`)
 - Rim/body = boundary (lightest, `0x7b8fa3`)
 - Edge Barrier = force field (translucent cyan, animated)
@@ -398,6 +409,53 @@ Builds the floating hub platform — a hexagonal megastructure with layered surf
 - `PARTICLE_COUNT`: 80, `RISE_RANGE`: 5.0
 - `INNER_RADIUS`: ~10.55 (SIZE − RIM_INSET − RIM_WIDTH)
 
+### createSpawnPad (`src/scene/createSpawnPad.ts`)
+
+Builds the entry zone south of the main arena — a hexagonal spawn pad connected to the arena by a flat rectangular Timeline Bridge. Uses the same material palette as `createGround`. Returns `SpawnPadContext` with `group` and `spawnCenter`.
+
+**Layout (top-down, +Z = south / toward viewer):**
+
+```
+[Main Arena]  ←  centre (0, 0, 0)
+     |
+[Timeline Bridge]   Z: +10.392 → +24.392  (14 units long, 6.235 wide)
+     |   4 portal gates evenly spaced along bridge
+[Spawn Pad]   centre (0, 0, 27.51)   ← player starts here
+```
+
+**Key Constants:**
+
+- `ARENA_APOTHEM`: `12 × cos(30°) ≈ 10.392` — arena bottom flat-face Z position
+- `BRIDGE_LENGTH`: 14 — spans from `BRIDGE_NEAR_Z` to `BRIDGE_FAR_Z`
+- `BRIDGE_WIDTH`: `ARENA_APOTHEM × 2 × 0.30 ≈ 6.235` — 30% of arena flat-to-flat diameter
+- `BRIDGE_NEAR_Z`: `≈ 10.392` (flush with arena bottom face)
+- `BRIDGE_FAR_Z`: `≈ 24.392`
+- `BRIDGE_CENTER_Z`: `≈ 17.392`
+- `SPAWN_APOTHEM`: `BRIDGE_WIDTH / 2 ≈ 3.117` — spawn pad apothem equals bridge half-width so edges are flush
+- `SPAWN_SIZE`: `SPAWN_APOTHEM / cos(30°) ≈ 3.598` — spawn hex circumradius
+- `SPAWN_CENTER_Z`: `≈ 27.51`
+
+**Spawn Pad layers (same pattern as arena):**
+
+1. Body slab — `ExtrudeGeometry` hex, beveled, depth 1.5
+2. Rim ring — raised border (`RIM_HEIGHT = 0.07`)
+3. Inner floor plate — dark `floorMat` at Y = 0.01
+4. Edge trim lines — cyan accent at rim borders
+
+**Bridge layers:**
+
+1. Body slab — rectangular `ExtrudeGeometry`, same depth and bevel as arena
+2. Inner floor plate — dark `floorMat` (the "road" surface for timeline portals)
+3. Long-edge trim lines — cyan accent running along ±X edges, full length
+
+**Coordinate mapping note:**  
+`ExtrudeGeometry` shape lives in XY plane; after `rotateX(-π/2)`: shape-X → world-X, shape-Y → −world-Z. The bridge shape therefore uses `halfWidth` on shape-X and `halfLen` on shape-Y so the slab runs correctly along the Z axis.
+
+**Exported constants (used by `PlayerCharacter` and `bounds.ts`):**
+
+- `SPAWN_PAD_CENTER_X = 0`
+- `SPAWN_PAD_CENTER_Z ≈ 27.51`
+
 ### IntroSequence (`src/scene/introSequence.ts`)
 
 Handles the opening cinematic:
@@ -438,7 +496,7 @@ Located in `STOPS_CONFIG` array - modify this to add/remove/change portfolio ite
 
 ### Timeline Road System (`src/scene/timeline/`)
 
-The primary gameplay content — 4 interactive checkpoints along a curved road strip near the platform edge, representing career milestones.
+The primary gameplay content — 4 interactive checkpoints along the Timeline Bridge (south of the main arena), representing career milestones. Player walks from the spawn pad northward (−Z) through each gate to reach the arena.
 
 #### timelineConfig.ts
 
@@ -459,22 +517,28 @@ export interface TimelineStopData {
 
 #### timelineLayout.ts
 
-Arranges stops along a circular arc near the platform edge (right side of hex). Gates sit at radius 8 from center, sweeping from −15° to 45°. The road strip follows the same arc.
+Arranges stops in a straight line along the Timeline Bridge (+Z axis). Gates are evenly spaced from spawn end (high Z) to arena end (low Z), oldest milestone nearest the spawn pad.
 
 **Exports:**
 
-- `ROAD_ARC` — arc params (radius, start/end degrees, padding)
-- `buildTimelinePositions()` — returns stop positions from config
-- `sampleRoadCurve()` — samples the arc for road geometry (triangle strip along sampled curve points)
+- `ROAD_ARC` — legacy stub (kept for API compatibility; bridge is straight)
+- `buildTimelinePositions()` — returns evenly-spaced positions along the bridge Z axis
+- `sampleRoadCurve()` — returns straight-line points along bridge for road geometry
+- `BRIDGE_ROAD_HALF_WIDTH` — half of bridge width for road geometry
 
 **Key Constants:**
 
-- `ARC_RADIUS`: 8 (distance from platform center)
-- `ARC_START_DEG`: -15, `ARC_END_DEG`: 45 (sweep range)
-- `ROAD_PADDING_DEG`: 15 (padding beyond gate span)
-- `GROUND_Y`: 0.15 (matches platform bevel height so portals sit on the visible floor)
+- `ARENA_APOTHEM`: `12 × cos(30°) ≈ 10.392`
+- `BRIDGE_LENGTH`: 14 — total bridge span in world units
+- `BRIDGE_NEAR_Z`: `≈ 10.392` (arena side)
+- `BRIDGE_FAR_Z`: `≈ 24.392` (spawn side)
+- `ROAD_PADDING`: 1.5 — gap between bridge ends and first/last gate
+- `GROUND_Y`: 0.15 — portal Y position on the bridge floor
 
-Gates are ~2.8 units apart along the arc.
+**Portal orientation:**  
+`rotationY = 0` — portal model pillars span the X axis; opening faces ±Z. Player walks along −Z (toward arena) and passes straight through each arch without turning.
+
+Gates are ~3.67 units apart along Z (`(BRIDGE_LENGTH - 2×ROAD_PADDING) / 3`).
 
 #### createTimelineCheckpoint.ts
 
@@ -553,12 +617,21 @@ Cinematic overlay system that:
 
 ### Map Bounds (`src/scene/bounds.ts`)
 
-Hexagonal boundary system:
+Multi-zone boundary system. `isInsideMap(x, z, margin)` returns `true` if the point is inside **any** of three zones:
 
-- `SIZE`: 12 (hexagon radius)
-- `SIDES`: 6 (hexagon sides)
-- Uses point-in-polygon algorithm to check if position is inside map
-- Accounts for character radius with margin
+1. **Arena hex** (`isInsideArena`) — point-in-polygon on the main hex (radius 12, same angle offset as `createGround`)
+2. **Bridge rectangle** (`isInsideBridge`) — axis-aligned box: X ∈ [−BRIDGE_HALF_WIDTH, +BRIDGE_HALF_WIDTH], Z ∈ [BRIDGE_NEAR_Z, BRIDGE_FAR_Z]
+3. **Spawn pad hex** (`isInsideSpawnPad`) — point-in-polygon on the smaller hex centred at `(0, SPAWN_CENTER_Z)`
+
+All three zones use the `margin` parameter (character collision radius) so the character cannot walk to the very edge.
+
+**Key constants (must stay in sync with `createSpawnPad.ts`):**
+
+- `SIZE`: 12, `SIDES`: 6
+- `ARENA_APOTHEM`: `≈ 10.392`
+- `BRIDGE_LENGTH`: 14, `BRIDGE_WIDTH`: `≈ 6.235`
+- `BRIDGE_NEAR_Z`: `≈ 10.392`, `BRIDGE_FAR_Z`: `≈ 24.392`
+- `SPAWN_SIZE`: `≈ 3.598`, `SPAWN_CENTER_Z`: `≈ 27.51`
 
 ## Controls
 
@@ -836,6 +909,7 @@ Based on the README and codebase:
 
 - [x] Replace basic stop shapes with polished 3D portal models (Timeline Road)
 - [x] Add richer project content (subtitle, bullets, links in cinematic overlay)
+- [x] Spawn pad + Timeline Bridge entry zone (Phase 1 structural layout)
 - [ ] Implement map view (M key)
 - [ ] Mobile touch controls
 - [ ] Multiple map areas/levels
@@ -893,9 +967,10 @@ Edit `src/scene/createGround.ts`:
 
 - `COL_BASE`: Rim/body color (currently `0x7b8fa3` — cool light gray-blue)
 - `COL_FLOOR`: Inner plate color (currently `0x1f2b38` — deep slate)
-- `COL_ROAD`: Road strip color (currently `0x141c26` — deepest dark)
 - `COL_ACCENT`: Emissive trim color (currently `0x00e5cc` — cyan/teal)
 - `COL_HUB`: Center hub plate color (currently `0x263a4a` — between floor and base)
+
+> `COL_ROAD` has been removed — the road surface now lives in `createSpawnPad.ts` as the bridge floor using `COL_FLOOR`.
 
 **Center hub:**
 
@@ -913,10 +988,7 @@ Edit `src/scene/createGround.ts`:
 
 **Road strip:**
 
-- `ROAD_WIDTH`: Road width (currently 2.4)
-- Arc and curve are defined in `timelineLayout.ts` (`ROAD_ARC`, `sampleRoadCurve()`)
-- Road markings (edge lines + center dashes) follow the curve via arc-length parameterization
-- `ROAD_DASH_LEN` / `ROAD_DASH_GAP`: Center line dash pattern
+The road strip has moved off the arena and onto the Timeline Bridge. The bridge slab floor in `createSpawnPad.ts` (`floorMat`) serves as the road surface. To adjust bridge width edit `BRIDGE_WIDTH` in `createSpawnPad.ts` (and keep `bounds.ts` in sync).
 
 **Edge pylons:**
 
@@ -942,8 +1014,9 @@ Edit `src/scene/timeline/timelineConfig.ts`:
 
 - Add/remove/edit entries in the `TIMELINE_STOPS` array
 - Each entry needs: `id`, `year`, `title`, `subtitle`, `bullets`, and optional `links`
-- Positions are auto-calculated in `timelineLayout.ts` (arc-based: evenly spaced along the arc)
-- To change arc or spacing, edit `ARC_RADIUS`, `ARC_START_DEG`, `ARC_END_DEG`, `ROAD_PADDING_DEG` in `timelineLayout.ts`
+- Positions are auto-calculated in `timelineLayout.ts` (straight line along bridge Z axis, evenly spaced)
+- To change spacing or padding, edit `BRIDGE_LENGTH` in `createSpawnPad.ts` and `timelineLayout.ts`, or `ROAD_PADDING` in `timelineLayout.ts`
+- To move the bridge to a different hex face, change `BRIDGE_NEAR_Z` to point to the desired apothem and update `bounds.ts` accordingly
 
 **Changing the portal model:**
 
