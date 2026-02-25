@@ -26,6 +26,7 @@ import {
   assetLoaded,
   hideProgressIndicator,
 } from "./ui/loadingScreen";
+import { initCVPanel } from "./ui/cvPanel";
 import type { Stop } from "./scene/types";
 
 const CAMERA_HEIGHT = 3;
@@ -46,6 +47,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
   // Set total and create elegant progress indicator
   setTotalAssets(TOTAL_ASSETS);
   createProgressIndicator();
+  initCVPanel();
 
   const { scene, camera, renderer, composer } = createScene(container);
   const ground = createGround(scene);
