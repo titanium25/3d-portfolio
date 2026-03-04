@@ -7,6 +7,10 @@ import {
 } from "../../controls/keyboardController";
 import { BaseCharacter } from "./BaseCharacter";
 import type { MovementInput } from "./types";
+import {
+  SPAWN_CENTER_X,
+  SPAWN_CENTER_Z,
+} from "../layoutConstants";
 
 // ── Player-specific constants ────────────────────────────────────────
 export const PLAYER_RADIUS = 0.5;
@@ -135,8 +139,8 @@ export class PlayerCharacter extends BaseCharacter {
     onAssetLoaded?: () => void,
   ): Promise<PlayerCharacter> {
     const group = new THREE.Group();
-    // Start on the spawn pad (bottom of map, +Z side)
-    group.position.set(0, 0, 27.51);
+    // Start at the centre of the spawn pad — derived from layoutConstants
+    group.position.set(SPAWN_CENTER_X, 0, SPAWN_CENTER_Z);
     // YZX order: yaw (Y) applied first, then lean/roll (Z) in character-local space
     group.rotation.order = "YZX";
     scene.add(group);

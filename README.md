@@ -23,7 +23,7 @@ The experience feels like a small open-world game: you land on a 3D hexagonal ma
   - Proximity glow: model emissive, point lights, ground glow disc all react to player distance
   - Completion tracking: visited checkpoints glow brighter persistently
   - Pillar collision: walk through the gate opening, blocked by the frame
-  - Press **E** to open cinematic overlay with year title, bullets, and links
+  - Walk near a gate to reveal a floating info panel on the right side of the screen
 - **Player Character**: A fully animated 3D character controlled via keyboard
   - Smooth acceleration/deceleration physics
   - Multiple animations: idle, walk, run, and wave
@@ -40,11 +40,9 @@ The experience feels like a small open-world game: you land on a 3D hexagonal ma
   - Typing animation with CRT scanlines
   - Smooth pullback transition to gameplay
   - Character wave animation
-- **Interaction System**: Proximity-based interactions with cinematic transitions
-  - Press **E** when near a checkpoint to view project details
-  - Smooth camera zoom to stop position
-  - Styled modal overlay with title, subtitle, bullet points, and links
-  - Background blur effect
+- **Interaction System**: Two-tier proximity-based interactions
+  - **Timeline gates**: Walk near a gate — a floating info panel fades in at center-right, driven by distance; fades out as you walk away
+  - **Buildings/stops**: Press **E** when near a stop for a cinematic overlay with camera zoom and background blur
   - Press **ESC** or click outside to close
 
 ## Controls

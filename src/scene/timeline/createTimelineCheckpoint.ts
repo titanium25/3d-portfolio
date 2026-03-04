@@ -14,7 +14,7 @@ const COL_ACCENT = 0x00e5cc; // cyan emissive
 
 const PORTAL_MODEL_PATH =
   "/models/Meshy_AI_Neon_Quantum_Portal_0216123143_texture.glb";
-const MODEL_TARGET_HEIGHT = 3.2;
+const MODEL_TARGET_HEIGHT = 2.9;
 
 /* ── Floor pad ────────────────────────────────────────────────── */
 
@@ -30,7 +30,7 @@ const RING_SEGMENTS = 48;
 
 /* ── Year label ───────────────────────────────────────────────── */
 
-const LABEL_SPRITE_W = 1.0;
+const LABEL_SPRITE_W = 1.2;
 
 /* ── Model cache (loaded once, cloned per checkpoint) ─────────── */
 
@@ -191,7 +191,7 @@ export function createTimelineCheckpoint(year: number): CheckpointComponents {
   /* ── 3. Year label sprite on the top bar ─────────────────── */
 
   const labelSprite = createYearSprite(year);
-  const labelY = p.height + 0.12; // just above the model top
+  const labelY = p.height - 0.75; // under the top crossbar
   labelSprite.position.set(0, labelY, 0);
   group.add(labelSprite);
 
@@ -246,7 +246,7 @@ export function createTimelineCheckpoint(year: number): CheckpointComponents {
   group.userData.emissiveMaterials = emissiveMaterials;
   group.userData.trimLine = trimLine;
   group.userData.labelSprite = labelSprite;
-  group.userData.labelBaseY = p.height + 0.12;
+  group.userData.labelBaseY = p.height - 0.75;
   group.userData.glowDisc = glowDisc;
 
   /* ── Pillar collision (two circles for left/right frame, opening is free) */

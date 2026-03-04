@@ -3,7 +3,7 @@
  * Single source of truth — do not duplicate in createGround, createSpawnPad, bounds, timelineLayout.
  */
 
-/** Gate pad footprint width (X span) — from portal at MODEL_TARGET_HEIGHT ≈ 3.2. */
+/** Gate pad footprint width (X span) — from portal at MODEL_TARGET_HEIGHT ≈ 1.8. */
 export const GATE_PAD_WIDTH = 3.2;
 
 /** Bridge width: a little bit wider than gates. */
@@ -19,7 +19,7 @@ export const ARENA_SIDES = 6;
 export const ARENA_APOTHEM = ARENA_SIZE * Math.cos(Math.PI / 6);
 
 /** Bridge length along Z axis. */
-export const BRIDGE_LENGTH = 14;
+export const BRIDGE_LENGTH = 28;
 
 /** Bridge Z at arena end. ≈ 10.392 */
 export const BRIDGE_NEAR_Z = ARENA_APOTHEM;

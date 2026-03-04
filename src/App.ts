@@ -17,9 +17,15 @@ import {
   markStopCompleted,
 } from "./scene/timeline";
 import { initKeyboard, isKeyPressed } from "./controls/keyboardController";
-import { checkProximityAndInteract } from "./collision/checkCollisions";
+import {
+  checkProximityAndInteract,
+  getNearbyStop,
+  INTERACT_RADIUS,
+} from "./collision/checkCollisions";
+import { computeProximityFactor } from "./collision/proximityUtils";
 import { openTransition, isTransitionOpen } from "./ui/transition";
 import { updateProximityUI, hideProximity } from "./ui/proximityUI";
+import { initGatePanel, updateGatePanel } from "./ui/gatePanel";
 import {
   createProgressIndicator,
   setTotalAssets,
@@ -48,6 +54,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
   setTotalAssets(TOTAL_ASSETS);
   createProgressIndicator();
   initCVPanel();
+  initGatePanel();
 
   const { scene, camera, renderer, composer } = createScene(container);
   const ground = createGround(scene);
@@ -78,7 +85,8 @@ export async function initApp(container: HTMLElement): Promise<void> {
     ? await createTimelineStops(scene, assetLoaded)
     : [];
   const collisionStops: Stop[] = [...mockStops, ...timelineStops];
-  const interactionStops: Stop[] = collisionStops;
+  // Timeline gates use proximity-based floating panel; only building-type stops use E-key
+  const interactionStops: Stop[] = mockStops;
   initKeyboard();
   let lastEPressed = false;
   let lastTime = performance.now();
@@ -310,6 +318,19 @@ export async function initApp(container: HTMLElement): Promise<void> {
     lastEPressed = ePressed;
 
     if (!introActive) {
+      // Timeline gates: proximity-based floating panel, no E-key required
+      const nearbyGate = getNearbyStop(character.group, timelineStops);
+      if (nearbyGate) {
+        const factor = computeProximityFactor(nearbyGate.distance);
+        updateGatePanel(nearbyGate.stop.data, factor);
+        if (nearbyGate.distance < INTERACT_RADIUS) {
+          markStopCompleted(nearbyGate.stop.data.id);
+        }
+      } else {
+        updateGatePanel(null, 0);
+      }
+
+      // Building stops: E-key interaction with cinematic overlay
       checkProximityAndInteract(
         character.group,
         interactionStops,

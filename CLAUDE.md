@@ -119,7 +119,8 @@ src/
 │
 └── ui/                     # User interface
     ├── transition.ts       # Cinematic transition overlay (subtitle, bullets, links)
-    ├── proximityUI.ts      # Proximity indicator UI
+    ├── gatePanel.ts        # Floating proximity panel for timeline gates (center-right)
+    ├── proximityUI.ts      # Proximity indicator UI (used by building stops)
     ├── loadingScreen.ts    # Loading screen management
     └── popup.ts            # (Legacy) Popup component
 ```
@@ -134,7 +135,7 @@ The main application orchestrator that:
 - Manages the animation loop
 - Handles camera following (smooth lerp)
 - Coordinates intro sequence
-- Manages proximity detection and interactions
+- Manages two-tier interaction system: proximity gate panel (timeline) + E-key cinematic overlay (buildings)
 - Controls transition overlays
 - Tracks asset loading progress with elegant progress indicator
 - Coordinates dog behavior with intro sequence
@@ -590,6 +591,25 @@ Creates all timeline stops, manages animations and proximity lighting:
 - `BASE_LIGHT_INTENSITY`: 0.3, `MAX_LIGHT_INTENSITY`: 2.2
 - `BASE_EMISSIVE`: 0.2, `MAX_EMISSIVE`: 0.8
 - `COMPLETED_EMISSIVE_BOOST`: 0.15
+
+### Gate Panel (`src/ui/gatePanel.ts`)
+
+Floating proximity panel that replaces E-key interaction for timeline gates. Fades in/out at center-right of the viewport as the player approaches or leaves a gate.
+
+**Position:** `right: 3vw; top: 50%` — vertically centered, fixed to the right side
+
+**API:**
+- `initGatePanel()` — creates the DOM element once (called during app setup)
+- `updateGatePanel(data: StopData | null, proximityFactor: number)` — called every frame; drives opacity and horizontal slide via the 0–1 `proximityFactor` from `computeProximityFactor()`. Pass `null` or `0` to fade out.
+
+**Behavior:**
+- Content updates immediately when the active stop changes (`data.id` mismatch)
+- Title is split on ` — ` so the year portion becomes a small cyan badge above the company/role name
+- Only one panel is visible at a time (always shows the closest gate)
+- Fades in with a subtle slide-in from the right (`translateX` 20px → 0 driven by factor)
+- `pointer-events: none` — never blocks scene interaction
+
+**Styling:** Dark `#13151f` background, cyan `#00e5cc` accents, 14px radius, subtle cyan border and box-shadow — matches `cvPanel.ts` aesthetic
 
 ### Transition System (`src/ui/transition.ts`)
 
