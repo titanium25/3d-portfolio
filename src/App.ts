@@ -318,13 +318,33 @@ export async function initApp(container: HTMLElement): Promise<void> {
     lastEPressed = ePressed;
 
     if (!introActive) {
-      // Timeline gates: proximity-based floating panel, no E-key required
+      // Timeline gates: proximity-based floating panel + E-key / click to open cinematic overlay
       const nearbyGate = getNearbyStop(character.group, timelineStops);
       if (nearbyGate) {
         const factor = computeProximityFactor(nearbyGate.distance);
-        updateGatePanel(nearbyGate.stop.data, factor);
-        if (nearbyGate.distance < INTERACT_RADIUS) {
-          markStopCompleted(nearbyGate.stop.data.id);
+        const canInteract = nearbyGate.distance < INTERACT_RADIUS;
+        const openGateOverlay = () => {
+          if (!isTransitionOpen()) {
+            markStopCompleted(nearbyGate.stop.data.id);
+            const worldPos = new THREE.Vector3();
+            nearbyGate.stop.group.getWorldPosition(worldPos);
+            openTransition(nearbyGate.stop.data, worldPos, camera, undefined, () => ({
+              position: new THREE.Vector3(
+                character.group.position.x + CAMERA_OFFSET_X,
+                CAMERA_HEIGHT,
+                character.group.position.z + CAMERA_DISTANCE,
+              ),
+              lookAt: new THREE.Vector3(
+                character.group.position.x + CAMERA_OFFSET_X * 0.3,
+                0.5,
+                character.group.position.z + CAMERA_DISTANCE * 0.2,
+              ),
+            }));
+          }
+        };
+        updateGatePanel(nearbyGate.stop.data, factor, canInteract, openGateOverlay);
+        if (canInteract && eJustPressed) {
+          openGateOverlay();
         }
       } else {
         updateGatePanel(null, 0);
