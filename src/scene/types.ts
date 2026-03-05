@@ -7,6 +7,11 @@ export interface StopData {
   subtitle?: string;
   bullets?: string[];
   links?: { label: string; url: string }[];
+  image?: string;
+  imageCaption?: string;
+  companyContext?: string;
+  logo?: string;
+  skills?: string[];
 }
 
 export interface Stop {

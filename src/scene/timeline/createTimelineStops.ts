@@ -7,10 +7,7 @@ import {
   loadPortalModel,
   createTimelineCheckpoint,
 } from "./createTimelineCheckpoint";
-import {
-  PROXIMITY_RADIUS,
-  INTERACT_RADIUS,
-} from "../../collision/checkCollisions";
+import { INTERACT_RADIUS } from "../../collision/checkCollisions";
 import { computeProximityFactor } from "../../collision/proximityUtils";
 
 const COL_ACCENT = 0x00e5cc;
@@ -36,7 +33,11 @@ function mapToStopData(item: TimelineStopData): Stop["data"] {
     description: item.subtitle,
     subtitle: item.subtitle,
     bullets: item.bullets,
-    links: item.links,
+    image: item.image,
+    imageCaption: item.imageCaption,
+    companyContext: item.companyContext,
+    logo: item.logo,
+    skills: item.skills,
   };
 }
 
@@ -140,11 +141,36 @@ export function updateTimelineAnimations(stops: Stop[], time: number): void {
       const baseScale = (stop.group.userData.glowDiscBaseScale as number) ?? 1;
       glowDisc.scale.setScalar(baseScale * glowPulse);
     }
+
+    // Portal fill — advance time uniform
+    const portalFillMat = stop.group.userData.portalFillMat as THREE.ShaderMaterial | undefined;
+    if (portalFillMat) {
+      portalFillMat.uniforms.time.value = time;
+    }
+
+    // Energy particles — rising position animation (always ticks, opacity set by lighting)
+    const energyParticles = stop.group.userData.energyParticles as THREE.Points | undefined;
+    const energyOffsets = stop.group.userData.energyOffsets as Float32Array | undefined;
+    const energyBasePos = stop.group.userData.energyBasePositions as Float32Array | undefined;
+    const energyRise = (stop.group.userData.energyRise as number | undefined) ?? 3.0;
+    const energySpeed = (stop.group.userData.energySpeed as number | undefined) ?? 0.3;
+    if (energyParticles && energyOffsets && energyBasePos) {
+      const posAttr = energyParticles.geometry.getAttribute("position") as THREE.BufferAttribute;
+      for (let j = 0; j < energyOffsets.length; j++) {
+        const off = energyOffsets[j];
+        const riseY = ((time * energySpeed + off * 0.159) % 1.0) * energyRise;
+        posAttr.setY(j, riseY);
+        posAttr.setX(j, energyBasePos[j * 3] + Math.sin(time * 0.9 + off) * 0.12);
+        posAttr.setZ(j, energyBasePos[j * 3 + 2] + Math.cos(time * 0.7 + off) * 0.12);
+      }
+      posAttr.needsUpdate = true;
+    }
   });
 }
 
 /* ── Proximity lighting (smooth lerp, stronger glow on approach) ───────── */
 
+const TIMELINE_PROXIMITY_RADIUS = 6.0; // wider than the global 3.5 — gates start reacting sooner
 const BASE_LIGHT_INTENSITY = 0.5;
 const MAX_LIGHT_INTENSITY = 4.0;
 const BASE_FILL_INTENSITY = 0.2;
@@ -152,7 +178,7 @@ const MAX_FILL_INTENSITY = 2.5;
 const BASE_EMISSIVE = 0.3;
 const MAX_EMISSIVE = 1.25;
 const COMPLETED_EMISSIVE_BOOST = 0.2;
-const PROXIMITY_CURVE = 0.6; // power curve: lower = ramp up sooner from distance
+const PROXIMITY_CURVE = 0.55; // power curve: lower = ramp up sooner from distance
 
 export function updateTimelineLighting(
   stops: Stop[],
@@ -166,7 +192,7 @@ export function updateTimelineLighting(
 
     const t = computeProximityFactor(
       distance,
-      PROXIMITY_RADIUS,
+      TIMELINE_PROXIMITY_RADIUS,
       INTERACT_RADIUS,
       PROXIMITY_CURVE,
     );
@@ -233,6 +259,32 @@ export function updateTimelineLighting(
     if (trimLine) {
       const trimMat = trimLine.material as THREE.LineBasicMaterial;
       trimMat.opacity = completed ? 0.7 : 0.35 + t * 0.5;
+    }
+
+    // Portal model scale — gentle grow on approach, smooth lerp
+    const portalModel = stop.group.userData.portalModel as THREE.Group | undefined;
+    const portalBaseScale = (stop.group.userData.portalBaseScale as number | undefined) ?? 1;
+    if (portalModel) {
+      const targetScale = portalBaseScale * (1.0 + t * 0.06);
+      const cs = portalModel.scale.x;
+      portalModel.scale.setScalar(cs + (targetScale - cs) * 0.08);
+    }
+
+    // Energy particles — opacity and rise speed scale with proximity
+    const energyPts = stop.group.userData.energyParticles as THREE.Points | undefined;
+    if (energyPts) {
+      const eMat = energyPts.material as THREE.PointsMaterial;
+      eMat.opacity = t * 0.7 + (completed ? 0.08 : 0);
+      stop.group.userData.energySpeed = 0.25 + t * 0.85;
+    }
+
+    // Portal fill opacity — base visibility always on, intensifies on approach
+    const fillMat = stop.group.userData.portalFillMat as THREE.ShaderMaterial | undefined;
+    if (fillMat) {
+      const fillBase = completed ? 0.12 : 0.06;
+      const fillTarget = fillBase + t * 0.15;
+      const fillCurrent = fillMat.uniforms.opacity.value as number;
+      fillMat.uniforms.opacity.value = fillCurrent + (fillTarget - fillCurrent) * 0.08;
     }
   });
 }

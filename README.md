@@ -23,7 +23,8 @@ The experience feels like a small open-world game: you land on a 3D hexagonal ma
   - Proximity glow: model emissive, point lights, ground glow disc all react to player distance
   - Completion tracking: visited checkpoints glow brighter persistently
   - Pillar collision: walk through the gate opening, blocked by the frame
-  - Walk near a gate to reveal a floating info panel on the right side of the screen
+  - Walk near a gate to reveal a floating info panel — company context, bullets, skill chips, and a "Open full story" CTA
+  - Panel crossfades between gates so switching never pops or flashes
 - **Player Character**: A fully animated 3D character controlled via keyboard
   - Smooth acceleration/deceleration physics
   - Multiple animations: idle, walk, run, and wave
@@ -42,8 +43,9 @@ The experience feels like a small open-world game: you land on a 3D hexagonal ma
   - Character wave animation
 - **Interaction System**: Two-tier proximity-based interactions
   - **Timeline gates**: Walk near a gate — a floating info panel fades in at center-right, driven by distance; fades out as you walk away
-  - **Buildings/stops**: Press **E** when near a stop for a cinematic overlay with camera zoom and background blur
-  - Press **ESC** or click outside to close
+  - **Timeline gates**: Press **E** or click the panel CTA for a full cinematic overlay — company logo, cover image, bullets, tech stack chips — with camera zoom and backdrop blur
+  - **Buildings/stops**: Press **E** when near a stop for a cinematic overlay
+  - Press **ESC**, click the close button, or click the backdrop to close
 
 ## Controls
 
@@ -73,7 +75,10 @@ The project has evolved from a simple proof of concept to a fully-featured 3D ex
 ✅ Timeline Road with 4 interactive portal gates (2018–2024) along glass bridge with runway strip and stream particles  
 ✅ GLB portal models with proximity glow and completion tracking  
 ✅ Per-pillar collision (walk through gate openings)  
-✅ Rich content overlay (subtitle, bullet points, links)
+✅ Rich cinematic overlay — cover image, company logo, bullet points, per-role tech stack chips  
+✅ Scrollable overlay card with height cap (content-heavy entries don't overflow the viewport)  
+✅ Résumé modal (CV panel) — headshot avatar, cover photo, Inter font, logo pills, skills, download CTA  
+✅ Gate panel crossfade — smooth content transition when walking between adjacent gates
 
 ## Future Enhancements
 
@@ -105,7 +110,7 @@ The project uses a clean, modular architecture:
 - **Scene Management**: Modular scene setup with lighting, shadows, fog, tonemapping, and post-processing
 - **Ground Platform**: Layered megastructure with edge pylons, procedural roughness maps, and contrast hierarchy
 - **Collision System**: Efficient proximity and collision detection with support for multi-point collision shapes (gate pillars)
-- **UI System**: Cinematic transitions with rich content (subtitle, bullets, links), proximity indicators, and loading screens
+- **UI System**: Three-layer overlay stack — gate panel (proximity), cinematic overlay (full story with image + skills), CV modal (résumé with headshot, logos, download)
 - **Animation System**: State machine with smooth blending between animations
 
 ## Running the Project
@@ -144,8 +149,11 @@ src/
 │   ├── checkCollisions.ts     # Proximity detection
 │   └── stopCollision.ts       # Stop collision (supports per-pillar)
 ├── ui/
-│   ├── transition.ts      # Cinematic transitions (subtitle, bullets, links)
-│   ├── proximityUI.ts     # Proximity indicators
+│   ├── transition.ts      # Cinematic overlay (image, bullets, skill chips)
+│   ├── gatePanel.ts       # Proximity panel for timeline gates
+│   ├── cvPanel.ts         # Résumé modal (headshot, logos, skills, download)
+│   ├── tiltEffect.ts      # Reusable 3D tilt + shine + border light effect
+│   ├── proximityUI.ts     # Proximity indicators (building stops)
 │   └── loadingScreen.ts   # Loading management
 ├── App.ts                 # Main application logic
 └── main.ts               # Entry point

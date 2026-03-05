@@ -176,6 +176,8 @@ export function createTimelineCheckpoint(year: number): CheckpointComponents {
   });
 
   group.add(model);
+  group.userData.portalModel = model;
+  group.userData.portalBaseScale = p.scale;
 
   // Fallback if model had no meshes
   if (!mainMesh) {
@@ -240,6 +242,125 @@ export function createTimelineCheckpoint(year: number): CheckpointComponents {
   glowDisc.position.y = 0.006;
   group.add(glowDisc);
 
+  /* ── 6. Rising energy particles ──────────────────────────── */
+
+  const ENERGY_COUNT = 28;
+  const ENERGY_SPREAD = 1.0; // scatter radius around base
+  const ENERGY_RISE = 3.4;   // max height particles reach
+
+  const ePosArray = new Float32Array(ENERGY_COUNT * 3);
+  const eOffsets = new Float32Array(ENERGY_COUNT);
+  for (let j = 0; j < ENERGY_COUNT; j++) {
+    const angle = (j / ENERGY_COUNT) * Math.PI * 2 + Math.random() * 0.5;
+    const r = ENERGY_SPREAD * (0.3 + Math.random() * 0.7);
+    ePosArray[j * 3] = Math.cos(angle) * r;
+    ePosArray[j * 3 + 1] = Math.random() * ENERGY_RISE;
+    ePosArray[j * 3 + 2] = Math.sin(angle) * r;
+    eOffsets[j] = Math.random() * Math.PI * 2;
+  }
+
+  const energyGeom = new THREE.BufferGeometry();
+  energyGeom.setAttribute("position", new THREE.BufferAttribute(ePosArray, 3));
+  const energyMat = new THREE.PointsMaterial({
+    color: COL_ACCENT,
+    size: 0.09,
+    transparent: true,
+    opacity: 0.0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const energyParticles = new THREE.Points(energyGeom, energyMat);
+  group.add(energyParticles);
+
+  /* ── 7. Portal fill — energy field inside the arch opening ──── */
+
+  const pillarInset = 0.08;
+  const pillarX = p.halfW - pillarInset;
+
+  // Size the fill to the clear opening between pillars
+  const fillW = pillarX * 2 * 0.88;
+  const fillH = p.height * 0.80;
+  const fillY = 0.18 + fillH / 2; // slightly above pad
+
+  const fillGeom = new THREE.PlaneGeometry(fillW, fillH, 1, 1);
+
+  const portalFillMat = new THREE.ShaderMaterial({
+    uniforms: {
+      time:    { value: 0.0 },
+      color:   { value: new THREE.Color(COL_ACCENT) },
+      opacity: { value: 0.0 },
+    },
+    vertexShader: /* glsl */`
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform float time;
+      uniform vec3  color;
+      uniform float opacity;
+      varying vec2  vUv;
+
+      void main() {
+        vec2 uv = vUv - 0.5;
+
+        // Elliptical soft mask that follows arch shape
+        float dist = length(uv * vec2(1.0, 1.12));
+        float mask = 1.0 - smoothstep(0.36, 0.5, dist);
+        if (mask <= 0.001) discard;
+
+        float r     = length(uv);
+        float theta = atan(uv.y, uv.x);
+
+        // Expanding ripple rings from centre
+        float rings = sin(r * 20.0 - time * 2.8) * 0.5 + 0.5;
+        rings = pow(rings, 1.6);
+
+        // Rotating swirl
+        float swirl = sin(theta * 3.0 + r * 9.0 - time * 1.6) * 0.5 + 0.5;
+
+        // Vertical energy flow (two frequencies for richness)
+        float flow = sin(vUv.y * 11.0 - time * 4.2) * 0.35
+                   + sin(vUv.y *  5.5 - time * 2.4 + 1.3) * 0.25
+                   + 0.4;
+
+        // Rotational shimmer sparks
+        float shimmer = pow(max(0.0, sin(theta * 9.0 + time * 3.5) * 0.5 + 0.5), 4.0) * 0.4;
+
+        // Soft bright core
+        float core = 1.0 - smoothstep(0.0, 0.22, r);
+
+        // Event-horizon ring — sharp bright edge at the perimeter
+        float edgeRing = smoothstep(0.26, 0.40, dist) * (1.0 - smoothstep(0.40, 0.50, dist));
+        edgeRing = pow(edgeRing, 0.65);
+
+        float intensity = rings   * 0.22
+                        + swirl   * 0.18
+                        + flow    * 0.22
+                        + shimmer
+                        + core    * 0.30
+                        + edgeRing * 1.0;
+
+        intensity *= mask;
+
+        // Gentle global pulse
+        float pulse = 0.80 + sin(time * 1.15) * 0.20;
+
+        gl_FragColor = vec4(color, clamp(intensity * opacity * pulse, 0.0, 1.0));
+      }
+    `,
+    transparent: true,
+    depthWrite:  false,
+    side:        THREE.DoubleSide,
+    blending:    THREE.AdditiveBlending,
+  });
+
+  const portalFillMesh = new THREE.Mesh(fillGeom, portalFillMat);
+  portalFillMesh.position.set(0, fillY, 0);
+  group.add(portalFillMesh);
+
   /* ── Store refs for per-frame updates ────────────────────── */
 
   group.userData.accentMaterial = accentMat;
@@ -248,11 +369,13 @@ export function createTimelineCheckpoint(year: number): CheckpointComponents {
   group.userData.labelSprite = labelSprite;
   group.userData.labelBaseY = p.height - 0.75;
   group.userData.glowDisc = glowDisc;
+  group.userData.energyParticles = energyParticles;
+  group.userData.energyOffsets = eOffsets;
+  group.userData.energyBasePositions = ePosArray;
+  group.userData.energyRise = ENERGY_RISE;
+  group.userData.portalFillMat = portalFillMat;
 
   /* ── Pillar collision (two circles for left/right frame, opening is free) */
-
-  const pillarInset = 0.08; // pillars are near the model edges
-  const pillarX = p.halfW - pillarInset;
   group.userData.collisionPoints = [
     [-pillarX, 0] as [number, number], // left pillar
     [pillarX, 0] as [number, number], // right pillar
@@ -312,8 +435,8 @@ function createRoundedRectPoints(
 /* ── Year label sprite (CanvasTexture, always faces camera) ───── */
 
 function createYearSprite(year: number): THREE.Sprite {
-  const canvasW = 256;
-  const canvasH = 128;
+  const canvasW = 512;
+  const canvasH = 160;
   const canvas = document.createElement("canvas");
   canvas.width = canvasW;
   canvas.height = canvasH;
@@ -321,18 +444,27 @@ function createYearSprite(year: number): THREE.Sprite {
 
   ctx.clearRect(0, 0, canvasW, canvasH);
 
-  // Glow halo
-  ctx.shadowColor = "#00e5cc";
-  ctx.shadowBlur = 14;
-  ctx.fillStyle = "#00e5cc";
-  ctx.font = `bold 72px 'Cascadia Code', 'Fira Code', monospace`;
+  const cx = canvasW / 2;
+  const cy = canvasH / 2;
+  ctx.font = `bold 96px 'Cascadia Code', 'Fira Code', monospace`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  // Double-draw for stronger glow
-  ctx.fillText(String(year), canvasW / 2, canvasH / 2);
-  ctx.shadowBlur = 6;
-  ctx.fillText(String(year), canvasW / 2, canvasH / 2);
+  // Glow layer — blurred cyan halo behind the text
+  ctx.shadowColor = "#00e5cc";
+  ctx.shadowBlur = 28;
+  ctx.fillStyle = "rgba(0, 229, 204, 0.55)";
+  ctx.fillText(String(year), cx, cy);
+
+  // Second glow pass for density
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = "rgba(0, 229, 204, 0.4)";
+  ctx.fillText(String(year), cx, cy);
+
+  // Crisp white text on top — no shadow so letters stay sharp
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#d8fff9";
+  ctx.fillText(String(year), cx, cy);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
@@ -345,6 +477,7 @@ function createYearSprite(year: number): THREE.Sprite {
   });
 
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(LABEL_SPRITE_W, LABEL_SPRITE_W * 0.5, 1);
+  const aspect = canvasH / canvasW;
+  sprite.scale.set(LABEL_SPRITE_W, LABEL_SPRITE_W * aspect, 1);
   return sprite;
 }

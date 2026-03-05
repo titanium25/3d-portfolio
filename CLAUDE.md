@@ -431,7 +431,7 @@ Builds the entry zone south of the main arena — a hexagonal spawn pad connecte
 **Key Constants:**
 
 - `ARENA_APOTHEM`: `≈ 10.392` — arena bottom flat-face Z position
-- `BRIDGE_LENGTH`: 14, `BRIDGE_DEPTH`: 0.25 (thin glass slab)
+- `BRIDGE_LENGTH`: 16, `BRIDGE_DEPTH`: 0.25 (thin glass slab)
 - `BRIDGE_WIDTH`: from `layoutConstants` — `GATE_PAD_WIDTH + 1.0 ≈ 4.2`
 - `BRIDGE_NEAR_Z`, `BRIDGE_FAR_Z`, `BRIDGE_CENTER_Z` — bridge Z range
 - `SPAWN_APOTHEM`: `BRIDGE_WIDTH * 0.95` — spawn hex flat-face matches bridge
@@ -505,16 +505,20 @@ Defines content for each timeline stop:
 
 ```typescript
 export interface TimelineStopData {
-  id: string;           // e.g. "y2018"
+  id: string;
   year: number;
-  title: string;        // short heading
-  subtitle: string;     // one-liner
-  bullets: string[];    // 3-5 items
-  links?: { label: string; url: string }[];
+  title: string;           // "Company — Role"
+  subtitle: string;        // "Full-time · Month Year – Month Year · duration · location"
+  bullets: string[];       // 4-6 achievement bullets
+  skills?: string[];       // tech stack chips shown in cinematic overlay
+  image?: string;          // path to image shown in cinematic overlay image panel
+  imageCaption?: string;   // caption under the image
+  companyContext?: string; // one–two sentence company description for HR context
+  logo?: string;           // company logo path (shown as badge next to company name)
 }
 ```
 
-`TIMELINE_STOPS` array holds 4 entries: 2018 (ASML), 2022 (Restigo), 2023 (Triolla), 2024 (The5ers).
+`TIMELINE_STOPS` array holds 4 entries: 2018 (ASML), 2022 (Restigo), 2023 (Triolla), 2024 (The5ers). Each entry includes `skills`, `image`, `logo`, and `companyContext`.
 
 #### timelineLayout.ts
 
@@ -530,16 +534,16 @@ Arranges stops in a straight line along the Timeline Bridge (+Z axis). Gates are
 **Key Constants:**
 
 - `ARENA_APOTHEM`: `12 × cos(30°) ≈ 10.392`
-- `BRIDGE_LENGTH`: 14 — total bridge span in world units
+- `BRIDGE_LENGTH`: 16 — total bridge span in world units
 - `BRIDGE_NEAR_Z`: `≈ 10.392` (arena side)
-- `BRIDGE_FAR_Z`: `≈ 24.392` (spawn side)
+- `BRIDGE_FAR_Z`: `≈ 26.392` (spawn side)
 - `ROAD_PADDING`: 1.5 — gap between bridge ends and first/last gate
 - `GROUND_Y`: 0.15 — portal Y position on the bridge floor
 
 **Portal orientation:**  
 `rotationY = 0` — portal model pillars span the X axis; opening faces ±Z. Player walks along −Z (toward arena) and passes straight through each arch without turning.
 
-Gates are ~3.67 units apart along Z (`(BRIDGE_LENGTH - 2×ROAD_PADDING) / 3`).
+Gates are ~4.33 units apart along Z (`(BRIDGE_LENGTH - 2×ROAD_PADDING) / 3`).
 
 #### createTimelineCheckpoint.ts
 
@@ -594,32 +598,78 @@ Creates all timeline stops, manages animations and proximity lighting:
 
 ### Gate Panel (`src/ui/gatePanel.ts`)
 
-Floating proximity panel that replaces E-key interaction for timeline gates. Fades in/out at center-right of the viewport as the player approaches or leaves a gate.
+Floating proximity panel for timeline gates. Fades in from the right as the player approaches, showing company context, bullets, and a two-state CTA. Clicking the card or pressing E (when in range) opens the full cinematic overlay.
 
 **Position:** `right: 3vw; top: 50%` — vertically centered, fixed to the right side
 
+**Proximity radius for panel:** `2.5` units (tighter than the global `PROXIMITY_RADIUS = 3.5`) — ensures the panel for one gate fully fades out before the next gate's panel fades in, preventing content overlap between adjacent gates (spacing ≈ 4.33 units on a 16-unit bridge).
+
 **API:**
 - `initGatePanel()` — creates the DOM element once (called during app setup)
-- `updateGatePanel(data: StopData | null, proximityFactor: number)` — called every frame; drives opacity and horizontal slide via the 0–1 `proximityFactor` from `computeProximityFactor()`. Pass `null` or `0` to fade out.
+- `updateGatePanel(data: StopData | null, proximityFactor: number, canInteract?: boolean, onInteract?: () => void)` — called every frame. Drives panel opacity and slide. `canInteract` unlocks the CTA button and card click; `onInteract` is invoked on click or E press.
 
 **Behavior:**
-- Content updates immediately when the active stop changes (`data.id` mismatch)
-- Title is split on ` — ` so the year portion becomes a small cyan badge above the company/role name
-- Only one panel is visible at a time (always shows the closest gate)
-- Fades in with a subtle slide-in from the right (`translateX` 20px → 0 driven by factor)
-- `pointer-events: none` — never blocks scene interaction
+- **Crossfade on gate switch**: when `data.id` changes while the panel is visible, the card fades to `opacity:0` (200ms), swaps content, then fades back in — prevents content pop when walking between gates
+- **Two-state CTA** at panel bottom:
+  - _Approaching_: muted `↑ walk closer to interact` hint (default visible)
+  - _In range_: glowing animated `[E] Open full story →` button (CSS class `.gp-active` triggers slide-up + fade-in)
+  - Transitions between states use CSS `opacity`/`transform` — no `display` toggling
+- Card is `pointer-events: auto` and clickable — triggers `onInteract` callback when in range
+- Title split on ` — ` into year badge + company/role
+- `#controls-hint` (intro control legend) hidden via CSS `body.transition-open #controls-hint` when overlay is open
 
-**Styling:** Dark `#13151f` background, cyan `#00e5cc` accents, 14px radius, subtle cyan border and box-shadow — matches `cvPanel.ts` aesthetic
+**Tilt effect:** Applied to the inner card via `addTiltEffect` with `useGlobalMouse: true`, so the 3D tilt tracks the cursor even though the outer positioner has `pointer-events: none`.
 
 ### Transition System (`src/ui/transition.ts`)
 
-Cinematic overlay system that:
+Cinematic overlay system triggered by pressing E or clicking the gate panel CTA when within `INTERACT_RADIUS` of a timeline gate.
 
-- Smoothly zooms camera to stop position
-- Displays project information in a styled modal
-- Blurs background with backdrop filter
-- Animates camera back to gameplay position on close
-- Supports ESC key and click-outside-to-close
+**Features:**
+- Smoothly zooms camera to stop position, blurs backdrop
+- Displays company logo, year badge, role, period, context paragraph, bullet list, and skill chips
+- `max-height: min(620px, calc(92vh - 2rem))` caps the card; `#cinematic-panel-body` is `overflow-y: auto` so content-heavy cards (e.g. ASML with 6 bullets) scroll rather than overflow the viewport
+- Image panel (`width: 235px`, `align-self: stretch`) stays pinned at full card height while the body column scrolls
+- ESC pill close button (`[ESC] Close ×`) in the top-right of the card; a muted "click backdrop to close" hint appears below the card
+- `body.transition-open` class added on open / removed on close — CSS rule hides `#controls-hint` (intro control legend) during overlay
+- Animates camera back to gameplay position on close (ESC, close button, or backdrop click)
+
+**Skills section (`#cinematic-skills`):**
+- Appears below bullets, separated by a faint divider, labeled "TECH STACK" in small caps
+- Each skill is a rounded pill chip: `rgba(0,229,204,0.06)` background, subtle cyan border
+- Rendered from `data.skills[]`; hidden if no skills provided
+
+### CV Panel (`src/ui/cvPanel.ts`)
+
+Full-résumé modal accessible via the "Resume" pill button in the top-right corner of the screen. Targeted at HR and CTOs viewing the portfolio.
+
+**Opening the panel:** Click the `#cv-btn` pill button (top-right, `z-index: 2000`). ESC or clicking the backdrop closes it.
+
+**DOM structure (flex-column, no nested scroll conflicts):**
+1. `#cv-topbar` — `flex-shrink: 0`, non-scrolling. Contains the `[ESC] Close ×` pill button, always visible.
+2. `#cv-scroll` — `flex: 1; overflow-y: auto`. All content scrolls here.
+3. `#cv-footer` — `flex-shrink: 0`, non-scrolling. Sticky "Download Full CV" CTA always at the bottom.
+
+**Hero section (`#cv-hero`):**
+- Cover photo background: `alex-office.png` at 8% opacity with gradient overlay — adds depth without competing with text
+- Circular avatar (`#cv-avatar`, 78px): `alex-headshot.png`, cyan glowing border
+- Name, title ("Full Stack Engineer · 5+ Years"), 3-line summary
+- Contact row: LinkedIn, Email, Phone (`+972 544 567 302`), Download CV — all as icon+label buttons
+
+**Logos:**
+- Shown inside a white pill (`background: #fff; border-radius: 5px; padding: 2px 7px`) so colored brand logos display correctly on the dark background — no `filter: brightness(0) invert(1)`
+
+**Experience timeline:**
+- Each entry: 3px vertical line (`#00e5cc` + glow for current role) + dot node + body
+- Shows: period, logo pill, company name, role + location, bullet list, per-role skill chips
+- Period extracted via regex from `subtitle` field; sub-line is duration + location
+
+**Font:** **Inter** loaded from Google Fonts (`https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800`) applied to `#cv-overlay` and `#cv-btn`.
+
+**Animation:** Panel scales from `scale(0.96) translateY(16px)` to `scale(1) translateY(0)` with `opacity 0→1` via CSS class toggle (`.cv-visible`) on the overlay. Close removes the class and waits 360ms before `display: none`.
+
+**Images used:**
+- `/public/img/alex-headshot.png` — professional headshot (circular avatar)
+- `/public/img/alex-office.png` — office/desk photo (hero cover background)
 
 ### Collision System (`src/collision/`)
 
@@ -649,9 +699,9 @@ All three zones use the `margin` parameter (character collision radius) so the c
 
 - `SIZE`: 12, `SIDES`: 6
 - `ARENA_APOTHEM`: `≈ 10.392`
-- `BRIDGE_LENGTH`: 14, `BRIDGE_WIDTH`: `≈ 6.235`
-- `BRIDGE_NEAR_Z`: `≈ 10.392`, `BRIDGE_FAR_Z`: `≈ 24.392`
-- `SPAWN_SIZE`: `≈ 3.598`, `SPAWN_CENTER_Z`: `≈ 27.51`
+- `BRIDGE_LENGTH`: 16, `BRIDGE_WIDTH`: `≈ 4.2`
+- `BRIDGE_NEAR_Z`: `≈ 10.392`, `BRIDGE_FAR_Z`: `≈ 26.392`
+- `SPAWN_SIZE`: `≈ 4.606`, `SPAWN_CENTER_Z`: `≈ 30.38`
 
 ## Controls
 
@@ -1035,9 +1085,11 @@ The Timeline Bridge in `createSpawnPad.ts` is a thin glass slab (`BRIDGE_DEPTH =
 Edit `src/scene/timeline/timelineConfig.ts`:
 
 - Add/remove/edit entries in the `TIMELINE_STOPS` array
-- Each entry needs: `id`, `year`, `title`, `subtitle`, `bullets`, and optional `links`
+- Each entry needs: `id`, `year`, `title`, `subtitle`, `bullets`
+- Optional fields: `skills` (chip array shown in cinematic overlay), `image`, `imageCaption`, `companyContext`, `logo`
 - Positions are auto-calculated in `timelineLayout.ts` (straight line along bridge Z axis, evenly spaced)
-- To change spacing or padding, edit `BRIDGE_LENGTH` in `createSpawnPad.ts` and `timelineLayout.ts`, or `ROAD_PADDING` in `timelineLayout.ts`
+- To change bridge length, edit `BRIDGE_LENGTH` in `layoutConstants.ts` (single source of truth — all dependent constants update automatically)
+- To change gate spacing, edit `ROAD_PADDING` in `timelineLayout.ts`
 - To move the bridge to a different hex face, change `BRIDGE_NEAR_Z` to point to the desired apothem and update `bounds.ts` accordingly
 
 **Changing the portal model:**

@@ -19,7 +19,7 @@ export const ARENA_SIDES = 6;
 export const ARENA_APOTHEM = ARENA_SIZE * Math.cos(Math.PI / 6);
 
 /** Bridge length along Z axis. */
-export const BRIDGE_LENGTH = 28;
+export const BRIDGE_LENGTH = 20;
 
 /** Bridge Z at arena end. ≈ 10.392 */
 export const BRIDGE_NEAR_Z = ARENA_APOTHEM;
