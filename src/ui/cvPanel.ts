@@ -1,4 +1,6 @@
 import { TIMELINE_STOPS } from "../scene/timeline/timelineConfig";
+import { initPhotoLightbox, attachZoomHint } from "./photoLightbox";
+import { highlight, injectHighlightStyles } from "./highlightUtils";
 
 let panelEl: HTMLDivElement | null = null;
 let isOpen = false;
@@ -186,16 +188,6 @@ function injectStyles(): void {
       align-items: flex-start;
       gap: 1.2rem;
       padding-top: 0.5rem;
-    }
-    #cv-avatar {
-      flex-shrink: 0;
-      width: 78px;
-      height: 78px;
-      border-radius: 50%;
-      object-fit: cover;
-      object-position: center top;
-      border: 2.5px solid rgba(0,229,204,0.45);
-      box-shadow: 0 0 20px rgba(0,229,204,0.2), 0 4px 16px rgba(0,0,0,0.5);
     }
     #cv-hero-info { flex: 1; min-width: 0; }
     #cv-name {
@@ -408,6 +400,33 @@ function injectStyles(): void {
       color: rgba(255,255,255,0.46);
     }
 
+    /* ── Avatar wrapper ── */
+    #cv-avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+      width: 78px;
+      height: 78px;
+      border-radius: 50%;
+    }
+    #cv-avatar {
+      width: 78px;
+      height: 78px;
+      border-radius: 50%;
+      object-fit: cover;
+      object-position: center top;
+      border: 2.5px solid rgba(0,229,204,0.45);
+      box-shadow: 0 0 20px rgba(0,229,204,0.2), 0 4px 16px rgba(0,0,0,0.5);
+      display: block;
+      transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s, border-color 0.25s;
+      pointer-events: none;
+      user-select: none;
+    }
+    #cv-avatar-wrap:hover #cv-avatar {
+      transform: scale(1.07);
+      border-color: rgba(0,229,204,0.8);
+      box-shadow: 0 0 32px rgba(0,229,204,0.38), 0 4px 20px rgba(0,0,0,0.6);
+    }
+
     /* ── Education ── */
     .cv-edu-row {
       display: grid;
@@ -477,6 +496,7 @@ function injectStyles(): void {
 function createCVPanel(): void {
   loadFont();
   injectStyles();
+  injectHighlightStyles();
 
   // Button
   const btn = document.createElement("button");
@@ -524,14 +544,16 @@ function createCVPanel(): void {
     <div id="cv-hero-cover"></div>
     <div id="cv-hero-cover-fade"></div>
     <div id="cv-hero-row">
-      <img id="cv-avatar" src="/img/alex-headshot.png" alt="Alexander Lazarovich" />
+      <div id="cv-avatar-wrap">
+        <img id="cv-avatar" src="/img/alex-headshot.png" alt="Alexander Lazarovich" draggable="false" />
+      </div>
       <div id="cv-hero-info">
         <h1 id="cv-name">Alexander Lazarovich</h1>
         <p id="cv-title">Full Stack Engineer &nbsp;·&nbsp; 5+ Years</p>
         <p id="cv-summary">
-          Full-stack engineer across semiconductor (ASML/Intel), B2B SaaS, and proprietary trading.
-          Led teams, shipped AI platforms, and architected microservices serving 100K+ active users.
-          Deep React &amp; TypeScript expertise paired with strong backend and cloud infra.
+          Full-stack engineer across semiconductor (<span class="hl-key">ASML/Intel</span>), <span class="hl-key">B2B SaaS</span>, and <span class="hl-key">proprietary trading</span>.
+          <span class="hl-key">Led teams</span>, shipped <span class="hl-key">AI platforms</span>, and architected microservices serving <span class="hl-metric">100K+ active users</span>.
+          Deep <span class="hl-key">React &amp; TypeScript</span> expertise paired with strong backend and cloud infra.
         </p>
         <div id="cv-actions">
           <a class="cv-action-link secondary" href="https://www.linkedin.com/in/alexander-lazarovich/"
@@ -646,7 +668,7 @@ function createCVPanel(): void {
         <div class="cv-exp-title">${company}</div>
         <div class="cv-exp-sub">${role}${subLine ? ` · ${subLine}` : ""}</div>
         <ul class="cv-exp-bullets">
-          ${stop.bullets.map((b) => `<li>${b}</li>`).join("")}
+          ${stop.bullets.map((b) => `<li>${highlight(b)}</li>`).join("")}
         </ul>
         <div class="cv-exp-skills">
           ${(stop.skills ?? []).map((s) => `<span class="cv-exp-skill">${s}</span>`).join("")}
@@ -693,6 +715,15 @@ function createCVPanel(): void {
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
   panelEl = overlay;
+
+  // ── Headshot zoom ─────────────────────────────────────────────────────────
+  initPhotoLightbox();
+  const avatarWrap = panel.querySelector<HTMLDivElement>("#cv-avatar-wrap")!;
+  attachZoomHint(
+    avatarWrap,
+    () => "/img/alex-headshot.png",
+    { shape: "circle", caption: "Alexander Lazarovich · Full Stack Engineer", hintSize: 18 },
+  );
 
   document.addEventListener("keydown", (e) => {
     if (e.code === "Escape" && isOpen) closeCVPanel();

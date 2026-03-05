@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import type { StopData } from "../scene/types";
 import { addTiltEffect } from "./tiltEffect";
+import { highlight, injectHighlightStyles } from "./highlightUtils";
+import { initPhotoLightbox, attachZoomHint } from "./photoLightbox";
 
 const DURATION_MS = 700;
 const EASE_OUT = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -15,6 +17,7 @@ let contentEl: HTMLDivElement | null = null;   // animation wrapper
 let cardEl: HTMLDivElement | null = null;       // visual card + tilt
 let isTransitioning = false;
 let isOpen = false;
+let detachImgZoom: (() => void) | null = null; // cleanup for current image zoom hint
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -148,6 +151,11 @@ function injectStyles(): void {
       flex-shrink: 0;
       align-self: stretch;
       display: none;
+      border-radius: 16px 0 0 16px;
+    }
+    /* zoom hint inherits the rounded left corners of the panel */
+    #cinematic-img-panel .plb-trigger-hint {
+      border-radius: 16px 0 0 16px;
     }
     #cinematic-content.has-image #cinematic-img-panel {
       display: block;
@@ -415,6 +423,7 @@ function getOrCreateOverlay(): {
     return { overlay: overlayEl, content: contentEl, card: cardEl };
 
   injectStyles();
+  injectHighlightStyles();
 
   const overlay = document.createElement("div");
   overlay.id = "cinematic-overlay";
@@ -514,6 +523,8 @@ function getOrCreateOverlay(): {
   overlayEl = overlay;
   contentEl = content;
   cardEl = card;
+
+  initPhotoLightbox();
 
   // Attach tilt to the visual card (pointer-events auto via parent content)
   addTiltEffect(card, {
@@ -627,10 +638,10 @@ export function openTransition(
   }
 
   if (data.companyContext) {
-    contextEl.textContent = data.companyContext;
+    contextEl.innerHTML = highlight(data.companyContext);
     contextEl.classList.add("visible");
   } else {
-    contextEl.textContent = "";
+    contextEl.innerHTML = "";
     contextEl.classList.remove("visible");
   }
 
@@ -645,7 +656,7 @@ export function openTransition(
   }
 
   if (data.bullets && data.bullets.length > 0) {
-    bulletsEl.innerHTML = data.bullets.map((b) => `<li>${b}</li>`).join("");
+    bulletsEl.innerHTML = data.bullets.map((b) => `<li>${highlight(b)}</li>`).join("");
     bulletsEl.style.display = "block";
   } else {
     bulletsEl.innerHTML = "";
@@ -662,12 +673,26 @@ export function openTransition(
     skillsEl.classList.remove("visible");
   }
 
+  // Detach any previous zoom hint before re-attaching
+  detachImgZoom?.();
+  detachImgZoom = null;
+
+  const imgPanelEl = card.querySelector<HTMLDivElement>("#cinematic-img-panel")!;
+
   if (data.image) {
     imgEl.src = data.image;
     imgEl.alt = data.imageCaption ?? company;
     imgCaptionEl.textContent = data.imageCaption ?? "";
     content.classList.add("has-image");
     content.classList.remove("no-image");
+
+    // Attach zoom-in lightbox to the image panel
+    const captionText = data.imageCaption ?? company;
+    detachImgZoom = attachZoomHint(
+      imgPanelEl,
+      () => data.image!,
+      { shape: "rect", caption: captionText, hintSize: 22 },
+    );
   } else {
     imgEl.src = "";
     content.classList.remove("has-image");

@@ -132,6 +132,30 @@ export function hideProgressIndicator(): Promise<void> {
   });
 }
 
+/**
+ * Preloads an array of image URLs using the browser's image cache.
+ * Calls `onEach` after every individual image settles (load or error)
+ * so the progress bar advances in real time.
+ */
+export function preloadImages(
+  paths: string[],
+  onEach?: () => void,
+): Promise<void> {
+  return Promise.all(
+    paths.map(
+      (src) =>
+        new Promise<void>((resolve) => {
+          const img = new window.Image();
+          img.onload = img.onerror = () => {
+            onEach?.();
+            resolve();
+          };
+          img.src = src;
+        }),
+    ),
+  ).then(() => undefined);
+}
+
 // Legacy functions for backwards compatibility (deprecated)
 export function showLoadingScreen(): void {
   createProgressIndicator();

@@ -29,14 +29,14 @@ export class IntroSequence {
   private hintContainer: HTMLElement;
   private camera: PerspectiveCamera;
   private scene: Scene;
-  private character: PlayerCharacter;
+  private character: PlayerCharacter | null;
   private closeupLight: THREE.SpotLight | null = null;
   private isComplete = false;
 
   constructor(
     camera: PerspectiveCamera,
     scene: Scene,
-    character: PlayerCharacter,
+    character: PlayerCharacter | null = null,
   ) {
     this.camera = camera;
     this.scene = scene;
@@ -132,6 +132,7 @@ export class IntroSequence {
     document.body.appendChild(this.cinematicWindow);
 
     this.hintContainer = document.createElement("div");
+    this.hintContainer.id = "controls-hint";
     this.hintContainer.style.cssText = `
       position: fixed;
       bottom: 36px;
@@ -171,6 +172,7 @@ export class IntroSequence {
       case "text": {
         const totalTextDuration = INTRO_LINES.length * LINE_DURATION;
         if (t >= totalTextDuration) {
+          if (!this.character) break; // stall until character is injected
           this.character.playWave(false);
           setTimeout(() => {
             this.cinematicWindow.style.opacity = "0";
@@ -274,6 +276,11 @@ export class IntroSequence {
     this.closeupLight.target.position.set(0, 0.22, 0);
     this.scene.add(this.closeupLight);
     this.scene.add(this.closeupLight.target);
+  }
+
+  /** Inject the player character once it has finished loading. */
+  setCharacter(character: PlayerCharacter): void {
+    this.character = character;
   }
 
   isActive(): boolean {

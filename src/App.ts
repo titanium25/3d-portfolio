@@ -16,6 +16,7 @@ import {
   updateTimelineLighting,
   markStopCompleted,
 } from "./scene/timeline";
+import { TIMELINE_STOPS } from "./scene/timeline/timelineConfig";
 import { initKeyboard, isKeyPressed } from "./controls/keyboardController";
 import {
   checkProximityAndInteract,
@@ -31,8 +32,10 @@ import {
   setTotalAssets,
   assetLoaded,
   hideProgressIndicator,
+  preloadImages,
 } from "./ui/loadingScreen";
 import { initCVPanel } from "./ui/cvPanel";
+import { startOnboarding, updateOnboarding } from "./ui/onboardingHints";
 import type { Stop } from "./scene/types";
 
 const CAMERA_HEIGHT = 3;
@@ -44,11 +47,26 @@ const CAMERA_LERP = 0.045;
 const POST_WAVE_DURATION = 3.0; // seconds for the transition
 
 export async function initApp(container: HTMLElement): Promise<void> {
-  // Calculate total assets: Player (5) + Dog (2) + Portal (1) = 8
+  // ── Collect all images that need preloading ──────────────────────────────
+  // Timeline stop logos + scene photos (derived from config so it stays in sync)
+  const timelineImages: string[] = TIMELINE_STOPS.flatMap((s) => [
+    s.logo,
+    s.image,
+  ]).filter((p): p is string => Boolean(p));
+  // CV panel cover + avatar, and the intro character photo
+  const miscImages: string[] = [
+    "/img/alex-office.png",
+    "/img/alex-headshot.png",
+    "/img/Screenshot_20260209_175259_Photos-removebg-preview.png",
+  ];
+  const ALL_IMAGES = [...timelineImages, ...miscImages];
+
+  // Calculate total assets: Player (5) + Dog (2) + Portal (1) + images
   const PLAYER_ASSETS = 5; // idle model + idle anim + walk + run + wave
   const DOG_ASSETS = 2; // model + walk animation
   const PORTAL_ASSETS = 1; // portal GLB (loaded once, cloned per checkpoint)
-  const TOTAL_ASSETS = PLAYER_ASSETS + DOG_ASSETS + PORTAL_ASSETS;
+  const IMAGE_ASSETS = ALL_IMAGES.length;
+  const TOTAL_ASSETS = PLAYER_ASSETS + DOG_ASSETS + PORTAL_ASSETS + IMAGE_ASSETS;
 
   // Set total and create elegant progress indicator
   setTotalAssets(TOTAL_ASSETS);
@@ -56,37 +74,66 @@ export async function initApp(container: HTMLElement): Promise<void> {
   initCVPanel();
   initGatePanel();
 
+  // ── Scene (synchronous — no awaits needed) ──────────────────────────────
   const { scene, camera, renderer, composer } = createScene(container);
   const ground = createGround(scene);
   const spawnPad = createSpawnPad(scene);
-  
-  // Load character first (needed for intro sequence)
-  const character = await PlayerCharacter.create(scene, assetLoaded);
-  
-  // Start intro sequence immediately - user sees content right away!
-  const intro = new IntroSequence(camera, scene, character);
-  console.log("🎬 Intro started!");
-  
-  // Load remaining assets in parallel with intro
-  let dog: DogCompanion | null = null;
-  let allAssetsLoaded = false;
-  
-  (async () => {
-    dog = await DogCompanion.create(scene, character.group, assetLoaded);
-    allAssetsLoaded = true;
-    console.log("📦 All assets loaded!");
-  })();
 
+  // ── Intro starts IMMEDIATELY — user sees text from frame one ─────────────
+  // Character is injected later via intro.setCharacter() once the model loads.
+  const intro = new IntroSequence(camera, scene);
+  console.log("🎬 Intro started!");
+
+  // ── Stop configuration ────────────────────────────────────────────────────
   const ENABLE_MOCK_STOPS = false;
   const ENABLE_TIMELINE_STOPS = true;
-
   const mockStops: Stop[] = ENABLE_MOCK_STOPS ? createStops(scene) : [];
-  const timelineStops: Stop[] = ENABLE_TIMELINE_STOPS
-    ? await createTimelineStops(scene, assetLoaded)
-    : [];
-  const collisionStops: Stop[] = [...mockStops, ...timelineStops];
-  // Timeline gates use proximity-based floating panel; only building-type stops use E-key
+
+  // Mutable arrays — populated as async loads complete, read each frame
+  let character: PlayerCharacter | null = null;
+  let dog: DogCompanion | null = null;
+  let timelineStops: Stop[] = [];
+  let collisionStops: Stop[] = [...mockStops];
+  // Timeline gates use proximity-based floating panel; only building stops use E-key
   const interactionStops: Stop[] = mockStops;
+  let allAssetsLoaded = false;
+
+  // ── Load all assets in parallel while the intro plays ────────────────────
+  // 1. Images — start first, network-only
+  const imagePromise = preloadImages(ALL_IMAGES, assetLoaded);
+
+  // 2. Player character
+  const characterPromise = PlayerCharacter.create(scene, assetLoaded).then(
+    (c) => {
+      character = c;
+      intro.setCharacter(c); // unblocks text→pullback transition
+      return c;
+    },
+  );
+
+  // 3. Dog — needs character.group, so chain after character
+  const dogPromise = characterPromise.then((c) =>
+    DogCompanion.create(scene, c.group, assetLoaded).then((d) => {
+      dog = d;
+      return d;
+    }),
+  );
+
+  // 4. Timeline stops (portal GLB)
+  const timelinePromise = ENABLE_TIMELINE_STOPS
+    ? createTimelineStops(scene, assetLoaded).then((stops) => {
+        timelineStops = stops;
+        collisionStops = [...mockStops, ...stops];
+      })
+    : Promise.resolve();
+
+  Promise.all([imagePromise, characterPromise, dogPromise, timelinePromise])
+    .then(() => {
+      allAssetsLoaded = true;
+      console.log("📦 All assets loaded!");
+    })
+    .catch((err) => console.error("Asset loading error:", err));
+
   initKeyboard();
   let lastEPressed = false;
   let lastTime = performance.now();
@@ -171,8 +218,9 @@ export async function initApp(container: HTMLElement): Promise<void> {
     }, "#f8c87c");
 
     // Player
-    const playerDebug = character.getDebugInfo();
-    html += buildSection("Player", playerDebug, "#7cf8a4");
+    if (character) {
+      html += buildSection("Player", character.getDebugInfo(), "#7cf8a4");
+    }
 
     // Dog
     if (dog) {
@@ -193,7 +241,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
       orbitControls.enabled = devMode;
       devPanel.style.display = devMode ? "block" : "none";
 
-      if (devMode) {
+      if (devMode && character) {
         const p = character.group.position;
         orbitControls.target.set(p.x, 0.5, p.z);
         orbitControls.update();
@@ -226,27 +274,31 @@ export async function initApp(container: HTMLElement): Promise<void> {
       progressHidden = true;
     }
 
-    // When intro just ended: dog goes behind character in idle
-    if (wasIntroActive && !introActive && dog) {
-      dog.resetToIdleBehindPlayer();
+    // When intro just ended: dog goes behind character in idle + start keyboard tutorial
+    if (wasIntroActive && !introActive) {
+      if (dog) dog.resetToIdleBehindPlayer();
+      startOnboarding();
     }
     wasIntroActive = introActive;
 
     if (introActive) {
-      character.updateMixer(deltaSec);
+      if (character) character.updateMixer(deltaSec);
       if (dog) dog.updateIdleOnly(deltaSec);
     } else if (!isTransitionOpen()) {
-      character.update(deltaSec, collisionStops);
+      if (character) character.update(deltaSec, collisionStops);
       if (dog) dog.update(deltaSec, collisionStops);
+      updateOnboarding(deltaSec);
     }
 
-    if (ENABLE_MOCK_STOPS) {
-      updateStopAnimations(collisionStops, time * 0.001);
-      updateStopLighting(collisionStops, character.group.position);
-    }
-    if (ENABLE_TIMELINE_STOPS) {
-      updateTimelineAnimations(timelineStops, time * 0.001);
-      updateTimelineLighting(timelineStops, character.group.position);
+    if (character) {
+      if (ENABLE_MOCK_STOPS) {
+        updateStopAnimations(collisionStops, time * 0.001);
+        updateStopLighting(collisionStops, character.group.position);
+      }
+      if (ENABLE_TIMELINE_STOPS) {
+        updateTimelineAnimations(timelineStops, time * 0.001);
+        updateTimelineLighting(timelineStops, character.group.position);
+      }
     }
     ground.update(time * 0.001);
     spawnPad.update(time * 0.001);
@@ -254,7 +306,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
     if (devMode) {
       orbitControls.update();
       updateDevHUD();
-    } else if (!introActive && !isTransitionOpen()) {
+    } else if (!introActive && !isTransitionOpen() && character) {
       const isWaving = character.isWaving();
 
       // Detect when wave just ended → start smooth transition
@@ -317,14 +369,14 @@ export async function initApp(container: HTMLElement): Promise<void> {
     const eJustPressed = ePressed && !lastEPressed;
     lastEPressed = ePressed;
 
-    if (!introActive) {
+    if (!introActive && character) {
       // Timeline gates: proximity-based floating panel + E-key / click to open cinematic overlay
       const nearbyGate = getNearbyStop(character.group, timelineStops);
       if (nearbyGate) {
         const factor = computeProximityFactor(nearbyGate.distance);
         const canInteract = nearbyGate.distance < INTERACT_RADIUS;
         const openGateOverlay = () => {
-          if (!isTransitionOpen()) {
+          if (!isTransitionOpen() && character) {
             markStopCompleted(nearbyGate.stop.data.id);
             const worldPos = new THREE.Vector3();
             nearbyGate.stop.group.getWorldPosition(worldPos);
@@ -361,6 +413,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
               updateProximityUI(stop.data, stop.group, distance, camera),
         isTransitionOpen() ? () => {} : hideProximity,
         (stop: Stop) => {
+          if (!character) return;
           hideProximity();
           markStopCompleted(stop.data.id);
           const worldPos = new THREE.Vector3();

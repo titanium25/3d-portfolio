@@ -1,5 +1,6 @@
 import type { StopData } from "../scene/types";
 import { addTiltEffect } from "./tiltEffect";
+import { highlight, injectHighlightStyles } from "./highlightUtils";
 
 // positionerEl — outer div: fixed positioning, opacity, slide-in transition (pointer-events: none)
 // cardEl       — inner div: visual card + tilt + click handler (pointer-events: auto)
@@ -126,6 +127,7 @@ function getOrCreate(): { positioner: HTMLDivElement; card: HTMLDivElement } {
   if (positionerEl && cardEl) return { positioner: positionerEl, card: cardEl };
 
   injectPanelStyles();
+  injectHighlightStyles();
 
   // Outer positioner — positions the card, handles opacity/slide (no pointer-events)
   const positioner = document.createElement("div");
@@ -430,7 +432,7 @@ function populateCard(card: HTMLDivElement, data: StopData): void {
   subtitleEl.textContent = data.subtitle ?? "";
   subtitleEl.style.display = data.subtitle ? "block" : "none";
 
-  contextEl.textContent = data.companyContext ?? "";
+  contextEl.innerHTML = data.companyContext ? highlight(data.companyContext) : "";
   contextEl.style.display = data.companyContext ? "block" : "none";
 
   if (data.bullets && data.bullets.length > 0) {
@@ -438,7 +440,7 @@ function populateCard(card: HTMLDivElement, data: StopData): void {
       .slice(0, 2)
       .map(
         (b) =>
-          `<li style="padding:0.25rem 0 0.25rem 1.1rem;position:relative;font-size:0.76rem;color:rgba(255,255,255,0.72);line-height:1.5"><span style="position:absolute;left:0;color:#00e5cc">▸</span>${b}</li>`,
+          `<li style="padding:0.25rem 0 0.25rem 1.1rem;position:relative;font-size:0.76rem;color:rgba(255,255,255,0.72);line-height:1.5"><span style="position:absolute;left:0;color:#00e5cc">▸</span>${highlight(b)}</li>`,
       )
       .join("");
     bulletsEl.style.display = "block";
