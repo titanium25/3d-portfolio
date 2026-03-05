@@ -376,20 +376,21 @@ export async function initApp(container: HTMLElement): Promise<void> {
         const factor = computeProximityFactor(nearbyGate.distance);
         const canInteract = nearbyGate.distance < INTERACT_RADIUS;
         const openGateOverlay = () => {
-          if (!isTransitionOpen() && character) {
+          const char = character;
+          if (!isTransitionOpen() && char) {
             markStopCompleted(nearbyGate.stop.data.id);
             const worldPos = new THREE.Vector3();
             nearbyGate.stop.group.getWorldPosition(worldPos);
             openTransition(nearbyGate.stop.data, worldPos, camera, undefined, () => ({
               position: new THREE.Vector3(
-                character.group.position.x + CAMERA_OFFSET_X,
+                char.group.position.x + CAMERA_OFFSET_X,
                 CAMERA_HEIGHT,
-                character.group.position.z + CAMERA_DISTANCE,
+                char.group.position.z + CAMERA_DISTANCE,
               ),
               lookAt: new THREE.Vector3(
-                character.group.position.x + CAMERA_OFFSET_X * 0.3,
+                char.group.position.x + CAMERA_OFFSET_X * 0.3,
                 0.5,
-                character.group.position.z + CAMERA_DISTANCE * 0.2,
+                char.group.position.z + CAMERA_DISTANCE * 0.2,
               ),
             }));
           }
@@ -413,21 +414,22 @@ export async function initApp(container: HTMLElement): Promise<void> {
               updateProximityUI(stop.data, stop.group, distance, camera),
         isTransitionOpen() ? () => {} : hideProximity,
         (stop: Stop) => {
-          if (!character) return;
+          const char = character;
+          if (!char) return;
           hideProximity();
           markStopCompleted(stop.data.id);
           const worldPos = new THREE.Vector3();
           stop.group.getWorldPosition(worldPos);
           openTransition(stop.data, worldPos, camera, undefined, () => ({
             position: new THREE.Vector3(
-              character.group.position.x + CAMERA_OFFSET_X,
+              char.group.position.x + CAMERA_OFFSET_X,
               CAMERA_HEIGHT,
-              character.group.position.z + CAMERA_DISTANCE,
+              char.group.position.z + CAMERA_DISTANCE,
             ),
             lookAt: new THREE.Vector3(
-              character.group.position.x + CAMERA_OFFSET_X * 0.3,
+              char.group.position.x + CAMERA_OFFSET_X * 0.3,
               0.5,
-              character.group.position.z + CAMERA_DISTANCE * 0.2,
+              char.group.position.z + CAMERA_DISTANCE * 0.2,
             ),
           }));
         },

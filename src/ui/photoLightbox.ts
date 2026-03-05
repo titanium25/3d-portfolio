@@ -13,7 +13,6 @@ let lbEl: HTMLDivElement | null = null;
 let lbImgEl: HTMLImageElement | null = null;
 let lbCaptionEl: HTMLSpanElement | null = null;
 let lbCloseEl: HTMLButtonElement | null = null;
-let lbEscHint: HTMLSpanElement | null = null;
 let isOpen = false;
 let lastTriggerEl: HTMLElement | null = null;
 
@@ -209,7 +208,6 @@ function createDOM(): void {
   lbImgEl = lb.querySelector<HTMLImageElement>("#plb-img")!;
   lbCaptionEl = lb.querySelector<HTMLSpanElement>("#plb-caption")!;
   lbCloseEl = lb.querySelector<HTMLButtonElement>("#plb-close")!;
-  lbEscHint = lb.querySelector<HTMLSpanElement>("#plb-esc-hint")!;
 
   lbCloseEl.addEventListener("click", (e) => { e.stopPropagation(); closePhotoLightbox(); });
   lb.addEventListener("click", (e) => { if (e.target === lb) closePhotoLightbox(); });
