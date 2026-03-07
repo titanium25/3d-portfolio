@@ -35,6 +35,7 @@ import {
   preloadImages,
 } from "./ui/loadingScreen";
 import { initCVPanel } from "./ui/cvPanel";
+import { initGateUnlockAnimation, triggerGateUnlock } from "./ui/gateUnlockAnimation";
 import { startOnboarding, updateOnboarding } from "./ui/onboardingHints";
 import type { Stop } from "./scene/types";
 
@@ -73,6 +74,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
   createProgressIndicator();
   initCVPanel();
   initGatePanel();
+  initGateUnlockAnimation();
 
   // ── Scene (synchronous — no awaits needed) ──────────────────────────────
   const { scene, camera, renderer, composer } = createScene(container);
@@ -89,11 +91,16 @@ export async function initApp(container: HTMLElement): Promise<void> {
   const ENABLE_TIMELINE_STOPS = true;
   const mockStops: Stop[] = ENABLE_MOCK_STOPS ? createStops(scene) : [];
 
+  // Bike collision stops — groups are synchronously available from createSpawnPad.
+  // stopCollision.ts only reads stop.group, so the cast is safe at runtime.
+  const bikeStop = { group: spawnPad.bikeCollisionGroup } as unknown as Stop;
+  const mtbStop  = { group: spawnPad.mtbCollisionGroup  } as unknown as Stop;
+
   // Mutable arrays — populated as async loads complete, read each frame
   let character: PlayerCharacter | null = null;
   let dog: DogCompanion | null = null;
   let timelineStops: Stop[] = [];
-  let collisionStops: Stop[] = [...mockStops];
+  let collisionStops: Stop[] = [...mockStops, bikeStop, mtbStop];
   // Timeline gates use proximity-based floating panel; only building stops use E-key
   const interactionStops: Stop[] = mockStops;
   let allAssetsLoaded = false;
@@ -123,7 +130,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
   const timelinePromise = ENABLE_TIMELINE_STOPS
     ? createTimelineStops(scene, assetLoaded).then((stops) => {
         timelineStops = stops;
-        collisionStops = [...mockStops, ...stops];
+        collisionStops = [...mockStops, bikeStop, mtbStop, ...stops];
       })
     : Promise.resolve();
 
@@ -378,21 +385,29 @@ export async function initApp(container: HTMLElement): Promise<void> {
         const openGateOverlay = () => {
           const char = character;
           if (!isTransitionOpen() && char) {
-            markStopCompleted(nearbyGate.stop.data.id);
+            const isFirstUnlock = markStopCompleted(nearbyGate.stop.data.id);
             const worldPos = new THREE.Vector3();
             nearbyGate.stop.group.getWorldPosition(worldPos);
-            openTransition(nearbyGate.stop.data, worldPos, camera, undefined, () => ({
-              position: new THREE.Vector3(
-                char.group.position.x + CAMERA_OFFSET_X,
-                CAMERA_HEIGHT,
-                char.group.position.z + CAMERA_DISTANCE,
-              ),
-              lookAt: new THREE.Vector3(
-                char.group.position.x + CAMERA_OFFSET_X * 0.3,
-                0.5,
-                char.group.position.z + CAMERA_DISTANCE * 0.2,
-              ),
-            }));
+            openTransition(
+              nearbyGate.stop.data,
+              worldPos,
+              camera,
+              isFirstUnlock
+                ? () => setTimeout(() => triggerGateUnlock(worldPos, camera), 900)
+                : undefined,
+              () => ({
+                position: new THREE.Vector3(
+                  char.group.position.x + CAMERA_OFFSET_X,
+                  CAMERA_HEIGHT,
+                  char.group.position.z + CAMERA_DISTANCE,
+                ),
+                lookAt: new THREE.Vector3(
+                  char.group.position.x + CAMERA_OFFSET_X * 0.3,
+                  0.5,
+                  char.group.position.z + CAMERA_DISTANCE * 0.2,
+                ),
+              }),
+            );
           }
         };
         updateGatePanel(nearbyGate.stop.data, factor, canInteract, openGateOverlay);

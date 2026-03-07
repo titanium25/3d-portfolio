@@ -263,7 +263,7 @@ export function createTimelineCheckpoint(year: number): CheckpointComponents {
   energyGeom.setAttribute("position", new THREE.BufferAttribute(ePosArray, 3));
   const energyMat = new THREE.PointsMaterial({
     color: COL_ACCENT,
-    size: 0.09,
+    size: 0.04,
     transparent: true,
     opacity: 0.0,
     depthWrite: false,
@@ -271,6 +271,8 @@ export function createTimelineCheckpoint(year: number): CheckpointComponents {
   });
   const energyParticles = new THREE.Points(energyGeom, energyMat);
   group.add(energyParticles);
+
+  // Separate copy so the animation loop doesn't mutate base positions
 
   /* ── 7. Portal fill — energy field inside the arch opening ──── */
 
@@ -371,7 +373,7 @@ export function createTimelineCheckpoint(year: number): CheckpointComponents {
   group.userData.glowDisc = glowDisc;
   group.userData.energyParticles = energyParticles;
   group.userData.energyOffsets = eOffsets;
-  group.userData.energyBasePositions = ePosArray;
+  group.userData.energyBasePositions = new Float32Array(ePosArray);
   group.userData.energyRise = ENERGY_RISE;
   group.userData.portalFillMat = portalFillMat;
 

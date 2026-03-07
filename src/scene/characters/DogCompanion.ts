@@ -4,6 +4,7 @@ import type { Scene } from "three";
 import { BaseCharacter } from "./BaseCharacter";
 import type { MovementInput } from "./types";
 import type { Stop } from "../types";
+import { isInsideMap } from "../bounds";
 
 // ── Dog physics ──────────────────────────────────────────────────────
 const DOG_RADIUS = 0.25;
@@ -277,16 +278,85 @@ export class DogCompanion extends BaseCharacter {
     const rotY = this.target.rotation.y;
     const cos = Math.cos(rotY);
     const sin = Math.sin(rotY);
-    return {
-      x:
-        this.target.position.x -
-        sin * FOLLOW_OFFSET_BEHIND +
-        cos * FOLLOW_OFFSET_SIDE,
-      z:
-        this.target.position.z -
-        cos * FOLLOW_OFFSET_BEHIND -
-        sin * FOLLOW_OFFSET_SIDE,
-    };
+    const desiredX =
+      this.target.position.x -
+      sin * FOLLOW_OFFSET_BEHIND +
+      cos * FOLLOW_OFFSET_SIDE;
+    const desiredZ =
+      this.target.position.z -
+      cos * FOLLOW_OFFSET_BEHIND -
+      sin * FOLLOW_OFFSET_SIDE;
+
+    return this.clampPointInsideMap(
+      desiredX,
+      desiredZ,
+      this.target.position.x,
+      this.target.position.z,
+    );
+  }
+
+  /**
+   * Keep a desired dog position on the playable area by walking it back toward
+   * a known-safe fallback point. This prevents "behind the player" offsets and
+   * separation pushes from placing the dog beyond the platform edge.
+   */
+  private clampPointInsideMap(
+    desiredX: number,
+    desiredZ: number,
+    fallbackX: number,
+    fallbackZ: number,
+  ): { x: number; z: number } {
+    if (isInsideMap(desiredX, desiredZ, this.radius)) {
+      return { x: desiredX, z: desiredZ };
+    }
+
+    let safeX = fallbackX;
+    let safeZ = fallbackZ;
+    if (!isInsideMap(safeX, safeZ, this.radius)) {
+      if (
+        isInsideMap(this.group.position.x, this.group.position.z, this.radius)
+      ) {
+        safeX = this.group.position.x;
+        safeZ = this.group.position.z;
+      } else if (
+        isInsideMap(this.target.position.x, this.target.position.z, this.radius)
+      ) {
+        safeX = this.target.position.x;
+        safeZ = this.target.position.z;
+      } else {
+        return { x: this.group.position.x, z: this.group.position.z };
+      }
+    }
+
+    let insideX = safeX;
+    let insideZ = safeZ;
+    let outsideX = desiredX;
+    let outsideZ = desiredZ;
+
+    for (let i = 0; i < 12; i++) {
+      const midX = (insideX + outsideX) * 0.5;
+      const midZ = (insideZ + outsideZ) * 0.5;
+      if (isInsideMap(midX, midZ, this.radius)) {
+        insideX = midX;
+        insideZ = midZ;
+      } else {
+        outsideX = midX;
+        outsideZ = midZ;
+      }
+    }
+
+    const backX = safeX - insideX;
+    const backZ = safeZ - insideZ;
+    const backLen = Math.hypot(backX, backZ);
+    if (backLen > 0.0001) {
+      const inset = 0.02;
+      return {
+        x: insideX + (backX / backLen) * inset,
+        z: insideZ + (backZ / backLen) * inset,
+      };
+    }
+
+    return { x: insideX, z: insideZ };
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -350,8 +420,16 @@ export class DogCompanion extends BaseCharacter {
     if (dist < MIN_SEPARATION && dist > 0.0001) {
       const nx = dx / dist;
       const nz = dz / dist;
-      this.group.position.x = this.target.position.x + nx * MIN_SEPARATION;
-      this.group.position.z = this.target.position.z + nz * MIN_SEPARATION;
+      const desiredX = this.target.position.x + nx * MIN_SEPARATION;
+      const desiredZ = this.target.position.z + nz * MIN_SEPARATION;
+      const safePos = this.clampPointInsideMap(
+        desiredX,
+        desiredZ,
+        this.group.position.x,
+        this.group.position.z,
+      );
+      this.group.position.x = safePos.x;
+      this.group.position.z = safePos.z;
       const dot = this.velocityX * nx + this.velocityZ * nz;
       if (dot < 0) {
         this.velocityX -= dot * nx;

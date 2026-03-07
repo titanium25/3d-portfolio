@@ -16,8 +16,10 @@ const COL_ACCENT = 0x00e5cc;
 
 const completedStops = new Set<string>();
 
-export function markStopCompleted(id: string): void {
+export function markStopCompleted(id: string): boolean {
+  if (completedStops.has(id)) return false;
   completedStops.add(id);
+  return true;
 }
 
 export function isStopCompleted(id: string): boolean {
@@ -148,20 +150,20 @@ export function updateTimelineAnimations(stops: Stop[], time: number): void {
       portalFillMat.uniforms.time.value = time;
     }
 
-    // Energy particles — rising position animation (always ticks, opacity set by lighting)
+    // Energy particles — slow fixed-speed rise, opacity controlled by proximity lighting
     const energyParticles = stop.group.userData.energyParticles as THREE.Points | undefined;
     const energyOffsets = stop.group.userData.energyOffsets as Float32Array | undefined;
     const energyBasePos = stop.group.userData.energyBasePositions as Float32Array | undefined;
     const energyRise = (stop.group.userData.energyRise as number | undefined) ?? 3.0;
-    const energySpeed = (stop.group.userData.energySpeed as number | undefined) ?? 0.3;
+    const ENERGY_RISE_SPEED = 0.08;
     if (energyParticles && energyOffsets && energyBasePos) {
       const posAttr = energyParticles.geometry.getAttribute("position") as THREE.BufferAttribute;
       for (let j = 0; j < energyOffsets.length; j++) {
         const off = energyOffsets[j];
-        const riseY = ((time * energySpeed + off * 0.159) % 1.0) * energyRise;
+        const riseY = ((time * ENERGY_RISE_SPEED + off * 0.159) % 1.0) * energyRise;
         posAttr.setY(j, riseY);
-        posAttr.setX(j, energyBasePos[j * 3] + Math.sin(time * 0.9 + off) * 0.12);
-        posAttr.setZ(j, energyBasePos[j * 3 + 2] + Math.cos(time * 0.7 + off) * 0.12);
+        posAttr.setX(j, energyBasePos[j * 3] + Math.sin(time * 0.2 + off) * 0.04);
+        posAttr.setZ(j, energyBasePos[j * 3 + 2] + Math.cos(time * 0.15 + off) * 0.04);
       }
       posAttr.needsUpdate = true;
     }
@@ -270,19 +272,22 @@ export function updateTimelineLighting(
       portalModel.scale.setScalar(cs + (targetScale - cs) * 0.08);
     }
 
-    // Energy particles — opacity and rise speed scale with proximity
+    // Energy particles — only opacity scales with proximity (speed is fixed)
     const energyPts = stop.group.userData.energyParticles as THREE.Points | undefined;
     if (energyPts) {
       const eMat = energyPts.material as THREE.PointsMaterial;
       eMat.opacity = t * 0.7 + (completed ? 0.08 : 0);
-      stop.group.userData.energySpeed = 0.25 + t * 0.85;
     }
 
-    // Portal fill opacity — base visibility always on, intensifies on approach
+    // Portal fill opacity — fades OUT when player is inside the portal arch
     const fillMat = stop.group.userData.portalFillMat as THREE.ShaderMaterial | undefined;
     if (fillMat) {
+      const insideThreshold = 1.2;
+      const insideFade = distance < insideThreshold
+        ? Math.max(0, (distance - 0.4) / (insideThreshold - 0.4))
+        : 1.0;
       const fillBase = completed ? 0.12 : 0.06;
-      const fillTarget = fillBase + t * 0.15;
+      const fillTarget = (fillBase + t * 0.15) * insideFade;
       const fillCurrent = fillMat.uniforms.opacity.value as number;
       fillMat.uniforms.opacity.value = fillCurrent + (fillTarget - fillCurrent) * 0.08;
     }

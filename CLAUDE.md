@@ -23,7 +23,7 @@ This is an interactive 3D portfolio experience built with Three.js, TypeScript, 
 
 A two-piece entry zone added below (south, +Z side) the main arena:
 
-- **Spawn Pad**: Hexagonal platform with underglow, Edge Energy Barrier, Void Cascade, and ambient rising particles (35) — matches arena effects. Player spawns at `(0, 0, SPAWN_CENTER_Z)`.
+- **Spawn Pad**: Hexagonal platform with underglow, Edge Energy Barrier (opacity 0.45, height 0.8), Void Cascade, ambient rising particles (50, rise above platform), warm vehicle spotlights, AL monogram, and breathing floor emissive. Player spawns at `(0, 0, SPAWN_CENTER_Z)`.
 - **Timeline Bridge**: Thin glass-like slab (`BRIDGE_DEPTH = 0.25`) with transparent material (no transmission for performance). Same effects as arena plus: center runway strip (flow shader), stream particles (70 flowing toward arena), destination glow at arena end, 4 edge lights, brighter trim. Hosts the 4 timeline portal gates.
 - **Multi-zone bounds**: `isInsideMap()` now checks three zones (arena hex, bridge rectangle, spawn pad hex) composed with OR — character can walk seamlessly between all three.
 - **File**: `src/scene/createSpawnPad.ts` — builds both. `layoutConstants.ts` defines `BRIDGE_WIDTH`. Returns `SpawnPadContext` with `update(time)` for animated effects.
@@ -56,6 +56,28 @@ The hexagonal platform has been transformed from a flat test room into a stylize
 - **Visual Hierarchy**: Center hub (focal, slightly elevated) → Road (directional path) → Inner plate (floor) → Rim (boundary) → Edge barrier (energy wall) → Void cascade (depth below)
 - **Animated Update Loop**: `createGround()` now returns `GroundContext` with `update(time)` — pulses center glow, animates shader uniforms (barrier scanlines, void flow), and drifts particles
 - **Previous features retained**: Road strip, edge pylons, panel lines, trim lines, specular-safe roughness maps, contrast hierarchy
+
+**Gate Unlock Animation System** ✨
+
+A multi-phase particle animation that fires when the player completes a timeline gate for the first time, bridging the 3D world and the 2D Resume button UI. Inspired by XP-orb mechanics from Zelda/mobile games — the world acknowledges the player's action and the "inventory" (resume) grows.
+
+- **Trigger**: Cinematic overlay closes after a first-time gate completion (`markStopCompleted` returns `true`)
+- **Phase 1 — Particle Burst (0–280ms)**: 4 cyan energy motes eject from the gate's projected screen position, scattering outward
+- **Phase 2 — Screen-Space Travel (280–800ms)**: Motes arc along randomized quadratic bezier curves from gate position to the Resume pill button. Each mote has a unique arc (perpendicular offset, staggered arrival) — organic firefly feel, not a straight line
+- **Phase 3 — Button Absorption (800–1200ms)**: Motes converge on the button → elastic scale pulse (1.0 → 1.12 → 1.0) → sonar ring radiates outward → border glow intensifies for 2.5 seconds
+- **Progress Dots**: 4 tiny dots beneath the Resume button text (one per gate); fill in cyan as gates are completed. Persistent across the session, visible at all times after init
+- **Persistent Glow**: After any unlock, the Resume button gains a subtle persistent `cv-btn-has-unlocks` border/shadow enhancement
+- **First-Unlock Tooltip**: On the very first gate ever completed, a tooltip appears below the button: "Your dossier is building…" — fades after 3.2 seconds, never shown again (standard game-design onboarding: teach → trust)
+- **File**: `src/ui/gateUnlockAnimation.ts` — exports `initGateUnlockAnimation()`, `triggerGateUnlock(worldPos, camera)`, `refreshProgressDots()`
+- **Integration**: `App.ts` calls `initGateUnlockAnimation()` at setup; passes `onClosed` callback to `openTransition` with 900ms delay for camera return animation
+
+**Teaching Photo** ✨
+
+The5ers cinematic overlay and resume now show the teaching photo (`/img/alex-teaching.png`) — you standing in front of code, presenting to a team. This is the "Led internal training for 6 teams" bullet come to life.
+
+- **Cinematic overlay**: Appears as the cover image in The5ers gate interaction (side panel, `#cinematic-img-panel`)
+- **Resume Journey tab**: Inline thumbnail in The5ers experience entry with lightbox zoom-on-click, captioned "Architecture training session — The5ers, 2024"
+- **Images**: `/public/img/alex-teaching.png` (photo), replaces previous `the5ers-trading.png` in config
 
 **Character System Overhaul**
 
@@ -121,6 +143,7 @@ src/
     ├── transition.ts       # Cinematic transition overlay (subtitle, bullets, links)
     ├── gatePanel.ts        # Floating proximity panel for timeline gates (center-right)
     ├── proximityUI.ts      # Proximity indicator UI (used by building stops)
+    ├── gateUnlockAnimation.ts # Gate→Resume particle animation + progress dots + tooltip
     ├── loadingScreen.ts    # Loading screen management
     └── popup.ts            # (Legacy) Popup component
 ```
@@ -174,6 +197,7 @@ Abstract base class providing core functionality for all characters:
 **Physics & Movement:**
 
 - Velocity-based steering physics with acceleration/deceleration
+- **Frame-rate independent**: all physics (acceleration, deceleration, position) normalized via `dt = deltaSec × REFERENCE_FPS` (60). At 60 FPS `dt = 1` (unchanged behavior); at lower/higher FPS the character covers the same distance per second. Capped at `dt ≤ 3` to prevent huge jumps on tab-switch.
 - Arcing turns with automatic speed reduction on sharp turns
 - Position updates with map bounds and stop collision checking
 - Configurable steering parameters (steer rate, brake intensity, etc.)
@@ -439,10 +463,13 @@ Builds the entry zone south of the main arena — a hexagonal spawn pad connecte
 
 **Spawn Pad layers:**
 
-1. Body slab, rim ring, inner floor — same pattern as arena (`baseMat`, `floorMat`)
+1. Body slab, rim ring, inner floor — same pattern as arena (`baseMat`, `floorMat` with breathing emissive 0.0–0.03)
 2. Underglow accent ring + PointLight
-3. Edge Energy Barrier (6 hex edges), Void Cascade (6 edges)
-4. Ambient rising particles (35), edge trim lines
+3. Edge Energy Barrier (6 hex edges, `BARRIER_HEIGHT = 0.8`, opacity 0.45), Void Cascade (6 edges)
+4. Ambient rising particles (50, `size: 0.15`, `opacity: 0.7`, rise from below platform to Y = 2.5 above), edge trim lines
+5. **Wayfinding energy conduit** — environmental wayfinding (no text). A flow-shader strip on the pad floor runs from near the centre to the bridge entrance, growing brighter toward the exit. A radial threshold glow + `PointLight` marks the junction. 10 guide particles drift along the conduit toward the bridge, reinforcing directionality through motion. Uses the same visual language as the bridge runway strip.
+6. **Vehicle spotlights** — warm amber (`COL_WARM = 0xffaa44`) PointLights + radial glow discs beneath BMW motorcycle and MTB. Break the monochrome cyan palette with showroom-style warm pools. Lights pulse gently.
+7. **AL monogram** — abstract geometric glyph (canvas-drawn AL mark) at centre floor, very low opacity (0.10), additive blending, slow continuous Y rotation (0.08 rad/s). Reads as a decorative sigil, not literal text.
 
 **Bridge layers:**
 
@@ -582,7 +609,8 @@ Creates all timeline stops, manages animations and proximity lighting:
 **Completion State:**
 
 - `completedStops` Set tracks visited checkpoint IDs
-- `markStopCompleted(id)` / `isStopCompleted(id)` — called from App.ts on interaction
+- `markStopCompleted(id): boolean` — returns `true` on first-time completion (used to trigger gate unlock animation), `false` if already completed
+- `isStopCompleted(id)` — called from App.ts, cvPanel, and gateUnlockAnimation
 - Completed stops get persistent brighter glow
 
 **Per-frame Updates:**
@@ -638,38 +666,102 @@ Cinematic overlay system triggered by pressing E or clicking the gate panel CTA 
 - Each skill is a rounded pill chip: `rgba(0,229,204,0.06)` background, subtle cyan border
 - Rendered from `data.skills[]`; hidden if no skills provided
 
-### CV Panel (`src/ui/cvPanel.ts`)
+### CV Panel — "The Living Dossier" (`src/ui/cvPanel.ts`)
 
-Full-résumé modal accessible via the "Resume" pill button in the top-right corner of the screen. Targeted at HR and CTOs viewing the portfolio.
+Tabbed résumé modal accessible via the "Resume" pill button in the top-right corner. Designed as a **living dossier** that bridges the 3D exploration and a traditional CV — experience sections unlock as the player walks through timeline gates.
 
-**Opening the panel:** Click the `#cv-btn` pill button (top-right, `z-index: 2000`). ESC or clicking the backdrop closes it.
+**Opening the panel:** Click the `#cv-btn` pill button (top-right, `z-index: 2000`). ESC or clicking the backdrop closes it. Dynamic content (unlock states, progress) refreshes on every open.
 
-**DOM structure (flex-column, no nested scroll conflicts):**
-1. `#cv-topbar` — `flex-shrink: 0`, non-scrolling. Contains the `[ESC] Close ×` pill button, always visible.
-2. `#cv-scroll` — `flex: 1; overflow-y: auto`. All content scrolls here.
-3. `#cv-footer` — `flex-shrink: 0`, non-scrolling. Sticky "Download Full CV" CTA always at the bottom.
+**DOM structure (flex-column with tab switching):**
+1. `#cv-topbar` — `flex-shrink: 0`, non-scrolling. Contains the `[ESC] Close ×` pill button.
+2. `#cv-tabs` — Tab bar with 4 buttons: **Overview**, **Journey**, **Stack**, **About**. Active tab has cyan underline indicator. Tab switch triggers CSS fade animation.
+3. `.cv-tab-panel` containers — one per tab, `flex: 1; overflow-y: auto`. Only the active panel is visible (`display: block`).
+4. `#cv-footer` — `flex-shrink: 0`, non-scrolling. Centered "Download Full CV" CTA.
 
-**Hero section (`#cv-hero`):**
-- Cover photo background: `alex-office.png` at 8% opacity with gradient overlay — adds depth without competing with text
-- Circular avatar (`#cv-avatar`, 78px): `alex-headshot.png`, cyan glowing border
-- Name, title ("Full Stack Engineer · 5+ Years"), 3-line summary
-- Contact row: LinkedIn, Email, Phone (`+972 544 567 302`), Download CV — all as icon+label buttons
+**Tab Architecture:**
 
-**Logos:**
-- Shown inside a white pill (`background: #fff; border-radius: 5px; padding: 2px 7px`) so colored brand logos display correctly on the dark background — no `filter: brightness(0) invert(1)`
+| Tab | Content | Purpose |
+|---|---|---|
+| **Overview** | Hero + summary + signature skills (6 chips) + availability badge + contact row + journey progress | The "30-second glance" — most recruiters never need more |
+| **Journey** | Experience timeline with unlock states tied to gate visits, dot-nav | Deep-dive for serious evaluation |
+| **Stack** | Competency map with categorized cards, context labels, core skill highlighting | Technical screeners who need to checkbox-match |
+| **About** | "Working With Me" blurb, education, interests | Culture-fit closer |
 
-**Experience timeline:**
-- Each entry: 3px vertical line (`#00e5cc` + glow for current role) + dot node + body
-- Shows: period, logo pill, company name, role + location, bullet list, per-role skill chips
-- Period extracted via regex from `subtitle` field; sub-line is duration + location
+**Living Dossier Mechanic:**
+- `refreshDynamicContent()` runs on every `openCVPanel()` call
+- Reads `isStopCompleted(id)` from `createTimelineStops.ts` for each timeline entry
+- **Unlocked entries**: normal display; first-time unlocks play a shimmer gradient animation (`cvShimmer` keyframe, 1.4s)
+- **Locked entries**: body at `opacity: 0.35`, `filter: saturate(0.2)`, with a dashed-border hint: "Walk through the [year] gate to see this story come alive"
+- `seenUnlocks` Set tracks which shimmer animations have already played (prevents re-shimmer on re-open)
 
-**Font:** **Inter** loaded from Google Fonts (`https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800`) applied to `#cv-overlay` and `#cv-btn`.
+**Overview Tab (`#cv-tab-overview`):**
+- Hero cover photo: `alex-office.png` at **22% opacity** with stronger 4-stop gradient mask
+- Availability badge: green pulsing dot (`#4ade80`, `cvAvailPulse` animation) + "Open to opportunities · Full-time / Contract" — positioned directly under the title for maximum HR visibility
+- Signature Stack: 6 headline skills (React, TypeScript, Node / NestJS, Nx Monorepo, Redis, Microservices) as cyan-bordered chips
+- Contact pills: `border-color: rgba(255,255,255,0.16)`, `background: rgba(255,255,255,0.04)` — more visible than before against dark background
+- Journey Progress: visual gate timeline showing `●` (completed) / `○` (unexplored) per milestone with connecting lines, e.g. "3 of 4 milestones explored"
 
-**Animation:** Panel scales from `scale(0.96) translateY(16px)` to `scale(1) translateY(0)` with `opacity 0→1` via CSS class toggle (`.cv-visible`) on the overlay. Close removes the class and waits 360ms before `display: none`.
+**Journey Tab (`#cv-tab-journey`):**
+- Experience entries with `data-stop-id` attributes for dynamic unlock tracking
+- Dot-nav (`.cv-dot-nav`): sticky vertical dots on the left edge, one per entry; click scrolls to entry; active dot highlights via scroll event tracking
+- ASML career pivot narrative: italic block beneath the ASML entry with amber left border, framing the semiconductor-to-software reinvention story
+- The5ers inline photo thumbnail: teaching photo (`/img/alex-teaching.png`) with lightbox zoom-on-click via `attachZoomHint`, captioned "Architecture training session — The5ers, 2024"
+- Company logos in white pills, per-role skill chips, highlighted metrics/keywords via `highlightUtils`
+
+**Stack Tab (`#cv-tab-stack`):**
+- Competency map organized as category cards (`.cv-competency-card`) with left cyan accent border
+- 5 categories: Frontend, Backend, Data & Storage, DevOps & Infra, Engineering & Leadership
+- Each card has a context label (e.g. "Node.js primary since 2023, PHP/Laravel at Restigo & Triolla")
+- Core skills marked with `.core` class — stronger background and border for visual hierarchy
+
+**About Tab (`#cv-tab-about`):**
+- "Working With Me" section: blockquote-style card with decorative `"` glyph, describing collaboration style (high-ownership, document-first, mentor-by-pairing)
+- Education: B.Sc. Electrical & Electronics Engineering, Ariel University
+- Beyond the Code: interest tags (Motorcycles, Mountain Biking, 3D / Game Dev, System Design, Travel)
+
+**Font:** **Inter** loaded from Google Fonts applied to `#cv-overlay` and `#cv-btn`.
+
+**Animation:** Panel scales from `scale(0.96) translateY(16px)` to `scale(1) translateY(0)` with `opacity 0→1` via CSS class toggle (`.cv-visible`). Tab switch uses `cvTabFade` keyframe (0.28s ease-out). Close removes the class and waits 360ms before `display: none`.
 
 **Images used:**
 - `/public/img/alex-headshot.png` — professional headshot (circular avatar)
-- `/public/img/alex-office.png` — office/desk photo (hero cover background)
+- `/public/img/alex-office.png` — office/desk photo (hero cover background, 22% opacity)
+- `/public/img/alex-teaching.png` — architecture training session photo (The5ers Journey entry thumbnail, lightbox-zoomable)
+
+### Gate Unlock Animation (`src/ui/gateUnlockAnimation.ts`)
+
+Multi-phase particle animation system that bridges the 3D game world and the 2D Resume button UI. Fires on first-time gate completion.
+
+**Exports:**
+- `initGateUnlockAnimation()` — inject styles, create progress dots beneath Resume button (called once at app setup)
+- `triggerGateUnlock(gateWorldPos, camera)` — project gate 3D position to screen, run full 3-phase animation
+- `refreshProgressDots()` — sync dot fill states with `isStopCompleted()` (called on CV panel open)
+
+**Animation Pipeline:**
+1. Project gate `THREE.Vector3` to screen coordinates via `camera.project()`
+2. Create 4 DOM motes at projected position, scatter outward (280ms burst)
+3. Each mote follows a unique quadratic bezier arc toward `#cv-btn` center (520ms travel, 0.06 stagger per mote)
+4. On arrival: remove motes, elastic scale pulse on button, sonar ring expansion (CSS `gateRingPulse` keyframe), 2.5s sustained glow
+5. Update progress dots, show first-unlock tooltip if applicable
+
+**Progress Dots:**
+- 4 small dots (`#cv-btn-dots`) appended inside `#cv-btn`
+- `.cv-btn-dot.filled` — cyan with glow shadow
+- `#cv-btn.cv-btn-has-unlocks` — persistent border/shadow enhancement
+
+**First-Unlock Tooltip:**
+- `#gate-unlock-tooltip` — fixed-position element below Resume button
+- Shown once per session on the very first gate completion
+- Text: "Your dossier is building…" — fades after 3.2 seconds
+
+**Key Constants:**
+- `MOTE_COUNT`: 4
+- `BURST_MS`: 280 (scatter phase)
+- `TRAVEL_MS`: 520 (bezier arc phase)
+
+**Integration in App.ts:**
+- `markStopCompleted()` returns `boolean` — `true` on first-time completion
+- If first time: `onClosed` callback passed to `openTransition` triggers `triggerGateUnlock` after 900ms delay (waits for camera return animation)
 
 ### Collision System (`src/collision/`)
 
@@ -963,6 +1055,7 @@ Environment map loading handled in `src/scene/environment.ts`:
 
 ## Performance Considerations
 
+- **Frame-rate independent physics**: movement speed is consistent regardless of FPS — avoids slowdowns in visually heavy areas (spawn pad / bridge)
 - Character animations use efficient GLTF clips
 - Bridge uses transparent `MeshStandardMaterial` (not `MeshPhysicalMaterial` transmission) to avoid FPS drops
 - Bridge edge lights limited to 4 (not per-unit along length) for performance

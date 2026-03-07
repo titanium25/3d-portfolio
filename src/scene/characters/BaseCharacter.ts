@@ -17,6 +17,8 @@ const DEFAULT_STEER_RATE_FAST = 7;
 const DEFAULT_SHARP_TURN_BRAKE = 0.35;
 const DEFAULT_STEER_SPEED_THRESHOLD = 0.008;
 
+const REFERENCE_FPS = 60;
+
 // ── Visual defaults ──────────────────────────────────────────────────
 const DEFAULT_TURN_VISUAL_SLOW = 14;
 const DEFAULT_TURN_VISUAL_FAST = 7;
@@ -86,6 +88,7 @@ export abstract class BaseCharacter {
   protected velocityZ = 0;
   protected targetRotationY = 0;
   protected currentLean = 0;
+  protected dt = 1;
 
   // ──────────────────────────────────────────────────────────────────
   //  Construction
@@ -152,6 +155,7 @@ export abstract class BaseCharacter {
    * Runs physics → position → visuals → animation.
    */
   update(deltaSec: number, stops: Stop[]): void {
+    this.dt = Math.min(deltaSec * REFERENCE_FPS, 3);
     const input = this.getMovementInput();
     this.updateVelocity(deltaSec, input);
     this.updatePosition(stops);
@@ -178,6 +182,7 @@ export abstract class BaseCharacter {
   protected updateVelocity(deltaSec: number, input: MovementInput): void {
     const { dirX, dirZ, maxSpeed, hasInput } = input;
     const currentSpeed = Math.hypot(this.velocityX, this.velocityZ);
+    const dt = this.dt;
 
     if (hasInput) {
       if (currentSpeed > this.steerSpeedThreshold) {
@@ -202,21 +207,21 @@ export abstract class BaseCharacter {
         let newSpeed = currentSpeed;
         if (turnSharpness > 0.25) {
           const brakeIntensity = ((turnSharpness - 0.25) / 0.75) * speedRatio;
-          newSpeed *= 1.0 - this.sharpTurnBrake * brakeIntensity;
+          newSpeed *= Math.pow(1.0 - this.sharpTurnBrake * brakeIntensity, dt);
         }
 
         if (newSpeed < maxSpeed) {
-          newSpeed = Math.min(maxSpeed, newSpeed + this.acceleration);
+          newSpeed = Math.min(maxSpeed, newSpeed + this.acceleration * dt);
         } else if (newSpeed > maxSpeed) {
-          newSpeed += (maxSpeed - newSpeed) * this.speedReduceLerp;
+          newSpeed += (maxSpeed - newSpeed) * (1 - Math.pow(1 - this.speedReduceLerp, dt));
         }
 
         this.velocityX = Math.sin(newVelAngle) * newSpeed;
         this.velocityZ = Math.cos(newVelAngle) * newSpeed;
       } else {
         // ── Direct acceleration from standstill ──
-        this.velocityX += dirX * this.acceleration;
-        this.velocityZ += dirZ * this.acceleration;
+        this.velocityX += dirX * this.acceleration * dt;
+        this.velocityZ += dirZ * this.acceleration * dt;
 
         const newSpeed = Math.hypot(this.velocityX, this.velocityZ);
         if (newSpeed > maxSpeed) {
@@ -227,8 +232,9 @@ export abstract class BaseCharacter {
       }
     } else {
       // ── Deceleration (momentum) ──
-      this.velocityX *= this.deceleration;
-      this.velocityZ *= this.deceleration;
+      const decay = Math.pow(this.deceleration, dt);
+      this.velocityX *= decay;
+      this.velocityZ *= decay;
 
       if (Math.hypot(this.velocityX, this.velocityZ) < this.stopThreshold) {
         this.velocityX = 0;
@@ -239,8 +245,9 @@ export abstract class BaseCharacter {
 
   /** Apply position change with optional bounds / stop collision. */
   protected updatePosition(stops: Stop[]): void {
-    const newX = this.group.position.x + this.velocityX;
-    const newZ = this.group.position.z + this.velocityZ;
+    const dt = this.dt;
+    const newX = this.group.position.x + this.velocityX * dt;
+    const newZ = this.group.position.z + this.velocityZ * dt;
 
     let finalX = this.group.position.x;
     let finalZ = this.group.position.z;

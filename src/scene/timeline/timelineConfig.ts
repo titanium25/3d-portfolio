@@ -138,7 +138,7 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
       "Frontend Architecture",
     ],
     logo: "/img/the5ers-logo.png",
-    image: "/img/the5ers-trading.png",
-    imageCaption: "The5ers platform · Raanana, Israel · 2025",
+    image: "/img/alex-teaching.png",
+    imageCaption: "Architecture training session — The5ers, 2024",
   },
 ];

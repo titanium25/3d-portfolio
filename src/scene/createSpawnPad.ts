@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { Scene } from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import {
   BRIDGE_WIDTH,
   BRIDGE_LENGTH,
@@ -17,6 +18,7 @@ import {
 } from "./hexUtils";
 import {
   createNoiseRoughnessMap,
+  createRadialGlowTexture,
   createDotTexture,
 } from "./textureUtils";
 
@@ -58,11 +60,12 @@ const COL_ACCENT = 0x00e5cc;
 
 /* ── Edge effects (mirror createGround) ──────────────────────── */
 
-const BARRIER_HEIGHT       = 0.6;
+const BARRIER_HEIGHT       = 0.8;
 const VOID_CASCADE_HEIGHT  = 2.0;
 const UNDERGLOW_OFFSET     = 0.4;
 
-const SPAWN_PARTICLE_COUNT = 35;
+const SPAWN_PARTICLE_COUNT = 50;
+const COL_WARM = 0xffaa44;
 
 /* Bridge "WOW" constants */
 const BRIDGE_DEPTH = 0.25;
@@ -79,6 +82,61 @@ export interface SpawnPadContext {
   spawnCenter: THREE.Vector3;
   /** Per-frame update for animated effects (barrier, cascade, particles). */
   update(time: number): void;
+  /** Collision proxy for the BMW bike (right side of spawn pad). */
+  bikeCollisionGroup: THREE.Group;
+  /** Collision proxy for the MTB bike (left side of spawn pad). */
+  mtbCollisionGroup: THREE.Group;
+}
+
+const COLLIDER_Y_AXIS = new THREE.Vector3(0, 1, 0);
+
+function configureBikeCollisionFromModel(
+  collisionGroup: THREE.Group,
+  model: THREE.Object3D,
+  anchorX: number,
+  anchorZ: number,
+  yaw: number,
+): void {
+  const bbox = new THREE.Box3().setFromObject(model);
+  const size = bbox.getSize(new THREE.Vector3());
+  const center = bbox.getCenter(new THREE.Vector3());
+
+  const majorAxis = size.x >= size.z ? "x" : "z";
+  const majorSize = majorAxis === "x" ? size.x : size.z;
+  const minorSize = majorAxis === "x" ? size.z : size.x;
+
+  const centerOffset = new THREE.Vector3(center.x, 0, center.z).applyAxisAngle(
+    COLLIDER_Y_AXIS,
+    yaw,
+  );
+  collisionGroup.position.set(anchorX + centerOffset.x, 0, anchorZ + centerOffset.z);
+
+  const collisionRadius = THREE.MathUtils.clamp(
+    minorSize * 0.42 + 0.04,
+    0.16,
+    0.26,
+  );
+  const travel = Math.max(0, majorSize * 0.5 - collisionRadius * 0.75);
+  const desiredStep = Math.max(collisionRadius * 1.15, 0.26);
+  const circleCount = Math.max(
+    2,
+    Math.min(5, Math.ceil((travel * 2) / desiredStep) + 1),
+  );
+
+  const collisionPoints: [number, number][] = [];
+  for (let i = 0; i < circleCount; i++) {
+    const t = circleCount === 1 ? 0.5 : i / (circleCount - 1);
+    const axisOffset = THREE.MathUtils.lerp(-travel, travel, t);
+    const point = new THREE.Vector3(
+      majorAxis === "x" ? axisOffset : 0,
+      0,
+      majorAxis === "z" ? axisOffset : 0,
+    ).applyAxisAngle(COLLIDER_Y_AXIS, yaw);
+    collisionPoints.push([point.x, point.z]);
+  }
+
+  collisionGroup.userData.collisionPoints = collisionPoints;
+  collisionGroup.userData.collisionRadius = collisionRadius;
 }
 
 export function createSpawnPad(scene: Scene): SpawnPadContext {
@@ -103,6 +161,8 @@ export function createSpawnPad(scene: Scene): SpawnPadContext {
     roughnessMap: floorRoughnessMap,
     metalness: 0.08,
     envMapIntensity: 0.5,
+    emissive: COL_ACCENT,
+    emissiveIntensity: 0.0,
   });
 
   const trimMat = new THREE.LineBasicMaterial({
@@ -135,7 +195,7 @@ export function createSpawnPad(scene: Scene): SpawnPadContext {
   const barrierMat = new THREE.ShaderMaterial({
     uniforms: {
       color: { value: new THREE.Color(COL_ACCENT) },
-      opacity: { value: 0.28 },
+      opacity: { value: 0.45 },
       time: { value: 0 },
     },
     vertexShader: `
@@ -363,12 +423,12 @@ export function createSpawnPad(scene: Scene): SpawnPadContext {
   const spawnPPos = new Float32Array(SPAWN_PARTICLE_COUNT * 3);
   for (let i = 0; i < SPAWN_PARTICLE_COUNT; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const r = SPAWN_SIZE * (0.75 + Math.random() * 0.3);
+    const r = SPAWN_SIZE * (0.55 + Math.random() * 0.45);
     spawnParticleBaseX[i] = Math.cos(angle) * r;
     spawnParticleBaseZ[i] = Math.sin(angle) * r;
-    spawnParticleBaseY[i] = -(PLATFORM_DEPTH + 1.0 + Math.random() * 2.0);
+    spawnParticleBaseY[i] = -(PLATFORM_DEPTH + 0.2 + Math.random() * 1.5);
     spawnParticlePhases[i] = Math.random() * Math.PI * 2;
-    spawnParticleSpeeds[i] = 0.06 + Math.random() * 0.1;
+    spawnParticleSpeeds[i] = 0.04 + Math.random() * 0.08;
     spawnPPos[i * 3] = spawnParticleBaseX[i];
     spawnPPos[i * 3 + 1] = spawnParticleBaseY[i];
     spawnPPos[i * 3 + 2] = spawnParticleBaseZ[i];
@@ -378,14 +438,373 @@ export function createSpawnPad(scene: Scene): SpawnPadContext {
   const dotTex = createDotTexture();
   const spawnParticleMat = new THREE.PointsMaterial({
     color: COL_ACCENT,
-    size: 0.06,
+    size: 0.15,
     map: dotTex,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.7,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
   spawnGroup.add(new THREE.Points(spawnParticleGeom, spawnParticleMat));
+
+  /* A-WF. Wayfinding — energy conduit + threshold + guide particles
+   *       Environmental wayfinding: light and motion, no text.
+   *       A glowing energy strip on the pad floor flows from the centre
+   *       toward the bridge entrance.  A brighter threshold glow marks the
+   *       junction, and small particles drift along the path.  The player
+   *       follows the light — same principle as Journey's mountain or
+   *       BotW's shrine glow.
+   */
+
+  const WF_APOTHEM    = SPAWN_SIZE * Math.cos(Math.PI / ARENA_SIDES);
+  const WF_START_Z    = -0.8;          // conduit origin (just off-centre)
+  const WF_END_Z      = -WF_APOTHEM;   // conduit terminus (bridge entrance edge)
+  const WF_LENGTH     = Math.abs(WF_END_Z - WF_START_Z);
+  const WF_CENTER_Z   = (WF_START_Z + WF_END_Z) / 2;
+  const WF_WIDTH      = BRIDGE_WIDTH * 2.0;
+
+  // Flow-shader strip — oversized geometry with Gaussian + smoothstep
+  // fades so alpha reaches zero well before any geometry edge.
+  // UV v=0 → centre side, v=1 → bridge side (after rotateX(-PI/2)).
+  const conduitMat = new THREE.ShaderMaterial({
+    uniforms: {
+      color: { value: new THREE.Color(COL_ACCENT) },
+      time:  { value: 0 },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 color;
+      uniform float time;
+      varying vec2 vUv;
+      void main() {
+        float across   = abs(vUv.x - 0.5) * 2.0;
+        float xFade    = exp(-across * across * 5.0);
+        float startFade = smoothstep(0.0, 0.25, vUv.y);
+        float endFade   = smoothstep(1.0, 0.88, vUv.y);
+        float flow      = 0.5 + 0.5 * sin(vUv.y * 14.0 - time * 2.5);
+        float lengthGrad = 0.08 + 0.92 * vUv.y;
+        float pulse     = 0.9 + 0.1 * sin(time * 0.8);
+        float alpha     = xFade * startFade * endFade * flow * lengthGrad * pulse * 0.4;
+        gl_FragColor    = vec4(color, alpha);
+      }
+    `,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+
+  const WF_PAD_Z = 0.6;
+  const conduitGeom = new THREE.PlaneGeometry(WF_WIDTH, WF_LENGTH + WF_PAD_Z * 2);
+  conduitGeom.rotateX(-Math.PI / 2);
+  const conduitMesh = new THREE.Mesh(conduitGeom, conduitMat);
+  conduitMesh.position.set(0, 0.02, WF_CENTER_Z);
+  spawnGroup.add(conduitMesh);
+
+  // Threshold glow — brighter pool of light at the bridge entrance
+  const thresholdGlowTex = createRadialGlowTexture({
+    r: 0, g: 229, b: 204, peakAlpha: 0.5,
+  });
+  const thresholdMat = new THREE.MeshBasicMaterial({
+    map: thresholdGlowTex,
+    color: COL_ACCENT,
+    transparent: true,
+    opacity: 0.3,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const thresholdGeom = new THREE.PlaneGeometry(BRIDGE_WIDTH * 1.1, 1.2);
+  thresholdGeom.rotateX(-Math.PI / 2);
+  const thresholdGlow = new THREE.Mesh(thresholdGeom, thresholdMat);
+  thresholdGlow.position.set(0, 0.02, WF_END_Z + 0.15);
+  spawnGroup.add(thresholdGlow);
+
+  const thresholdLight = new THREE.PointLight(COL_ACCENT, 1.2, 5, 2);
+  thresholdLight.position.set(0, 0.3, WF_END_Z + 0.1);
+  spawnGroup.add(thresholdLight);
+
+  // Guide particles — small dots flowing along the conduit toward bridge
+  const WF_GUIDE_COUNT = 10;
+  const wfGuidePhases = new Float32Array(WF_GUIDE_COUNT);
+  const wfGuideSpeeds = new Float32Array(WF_GUIDE_COUNT);
+  const wfGuideXDrift = new Float32Array(WF_GUIDE_COUNT);
+  const wfGPos = new Float32Array(WF_GUIDE_COUNT * 3);
+
+  for (let i = 0; i < WF_GUIDE_COUNT; i++) {
+    wfGuidePhases[i] = Math.random();
+    wfGuideSpeeds[i] = 0.12 + Math.random() * 0.08;
+    wfGuideXDrift[i] = (Math.random() - 0.5) * WF_WIDTH * 0.4;
+    const z = WF_START_Z + (WF_END_Z - WF_START_Z) * wfGuidePhases[i];
+    wfGPos[i * 3]     = wfGuideXDrift[i];
+    wfGPos[i * 3 + 1] = 0.06;
+    wfGPos[i * 3 + 2] = z;
+  }
+
+  const wfGuideGeom = new THREE.BufferGeometry();
+  wfGuideGeom.setAttribute("position", new THREE.BufferAttribute(wfGPos, 3));
+  const wfGuideMat = new THREE.PointsMaterial({
+    color: COL_ACCENT,
+    size: 0.07,
+    map: dotTex,
+    transparent: true,
+    opacity: 0.55,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  spawnGroup.add(new THREE.Points(wfGuideGeom, wfGuideMat));
+
+  /* A-MG. Center floor monogram — abstract AL glyph
+   *       Geometric mark at very low opacity with slow rotation.
+   *       Reads as a decorative sigil, not literal text.
+   */
+  const monoSize = 512;
+  const monoCanvas = document.createElement("canvas");
+  monoCanvas.width = monoSize;
+  monoCanvas.height = monoSize;
+  const monoCtx = monoCanvas.getContext("2d")!;
+  monoCtx.clearRect(0, 0, monoSize, monoSize);
+
+  const mc = monoSize / 2;
+  const ms = monoSize * 0.25;
+
+  monoCtx.strokeStyle = "rgba(0, 229, 204, 0.55)";
+  monoCtx.lineWidth = 9;
+  monoCtx.lineCap = "round";
+  monoCtx.lineJoin = "round";
+
+  monoCtx.beginPath();
+  monoCtx.moveTo(mc + ms * 0.55, mc + ms * 0.45);
+  monoCtx.lineTo(mc - ms * 0.3, mc + ms * 0.45);
+  monoCtx.lineTo(mc - ms * 0.3, mc - ms * 0.1);
+  monoCtx.lineTo(mc, mc - ms * 0.5);
+  monoCtx.lineTo(mc + ms * 0.3, mc + ms * 0.05);
+  monoCtx.stroke();
+
+  monoCtx.lineWidth = 5;
+  monoCtx.beginPath();
+  monoCtx.moveTo(mc - ms * 0.12, mc + ms * 0.05);
+  monoCtx.lineTo(mc + ms * 0.12, mc + ms * 0.05);
+  monoCtx.stroke();
+
+  monoCtx.strokeStyle = "rgba(0, 229, 204, 0.15)";
+  monoCtx.lineWidth = 2;
+  monoCtx.beginPath();
+  monoCtx.arc(mc, mc, ms * 0.85, 0, Math.PI * 2);
+  monoCtx.stroke();
+
+  const monoTex = new THREE.CanvasTexture(monoCanvas);
+  const monoGeom = new THREE.PlaneGeometry(3.0, 3.0);
+  monoGeom.rotateX(-Math.PI / 2);
+  const monogramMesh = new THREE.Mesh(monoGeom, new THREE.MeshBasicMaterial({
+    map: monoTex,
+    transparent: true,
+    opacity: 0.10,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  }));
+  monogramMesh.position.set(0, 0.02, 0);
+  spawnGroup.add(monogramMesh);
+
+  /* A9. BMW bike — parked at back-right edge of spawn pad
+   *     Loaded async so it doesn't block the intro sequence.
+   *     Position is in spawnGroup local space (centre = spawn pad centre).
+   */
+
+  // Collision group is created synchronously so App.ts can register it immediately.
+  // A tiny placeholder collider avoids the default stop circle until the GLB loads.
+  const BIKE_LOCAL_X = 2.4;
+  const BIKE_LOCAL_Z = 2.0;
+  const bikeCollisionGroup = new THREE.Group();
+  bikeCollisionGroup.position.set(BIKE_LOCAL_X, 0, BIKE_LOCAL_Z);
+  bikeCollisionGroup.userData.collisionPoints = [[0, 0]];
+  bikeCollisionGroup.userData.collisionRadius = 0.2;
+  spawnGroup.add(bikeCollisionGroup);
+
+  const bikeLight = new THREE.PointLight(COL_WARM, 0.0, 4, 2);
+  bikeLight.position.set(2.4, 0.4, 2.0);
+  spawnGroup.add(bikeLight);
+
+  const warmDiscTex = createRadialGlowTexture({ r: 255, g: 170, b: 68, peakAlpha: 0.4 });
+  const bikeDiscGeom = new THREE.CircleGeometry(1.2, 32);
+  bikeDiscGeom.rotateX(-Math.PI / 2);
+  const bikeDisc = new THREE.Mesh(bikeDiscGeom, new THREE.MeshBasicMaterial({
+    map: warmDiscTex,
+    transparent: true,
+    opacity: 0.20,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  }));
+  bikeDisc.position.set(BIKE_LOCAL_X, 0.015, BIKE_LOCAL_Z);
+  spawnGroup.add(bikeDisc);
+
+  const bikeLoader = new GLTFLoader();
+  bikeLoader.load(
+    "/models/Meshy_AI_BMW_Sharkmouth_Racer_0307150145_texture.glb",
+    (gltf) => {
+      const bike = gltf.scene;
+
+      // Scale
+      const bbox = new THREE.Box3().setFromObject(bike);
+      const modelHeight = bbox.max.y - bbox.min.y;
+      const targetHeight = 1.125;
+      const scale = targetHeight / modelHeight;
+      bike.scale.setScalar(scale);
+
+      // Ground the un-rotated bike at origin (clean baseline)
+      bike.updateMatrixWorld(true);
+      bbox.setFromObject(bike);
+      bike.position.y = -bbox.min.y;
+
+      // Fit the collision proxy from the bike's local-space footprint
+      // before parent transforms (pivot yaw / lean) are applied.
+      configureBikeCollisionFromModel(
+        bikeCollisionGroup,
+        bike,
+        BIKE_LOCAL_X,
+        BIKE_LOCAL_Z,
+        Math.PI / 3,
+      );
+
+      // Wrap in a pivot group — heading and lean as separate Euler axes.
+      // The model's forward axis is local X, so rotation.x = roll (side-lean).
+      // Order 'YXZ': Y (heading) applied first, then X (roll) in the
+      // heading's local frame = rotation around bike's forward axis = pure side-lean.
+      const bikePivot = new THREE.Group();
+      bikePivot.rotation.order = "YXZ";
+      bikePivot.rotation.y = Math.PI / 3;  // parallel to right hex edge
+      bikePivot.rotation.x = 0.12;         // kickstand lean to the left
+
+      bikePivot.add(bike);
+
+      // Place at desired XZ, then re-ground so the lowest leaned point = floor
+      bikePivot.position.set(BIKE_LOCAL_X, 0, BIKE_LOCAL_Z);
+      bikePivot.updateMatrixWorld(true);
+      bbox.setFromObject(bikePivot);
+      bikePivot.position.y += -bbox.min.y;
+
+      bike.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
+      spawnGroup.add(bikePivot);
+
+      // Soft cyan glow beneath the bike once model is in place
+      bikeLight.intensity = 0.9;
+    },
+    undefined,
+    (err) => console.warn("Bike model failed to load:", err),
+  );
+
+  /* A10. MTB bicycle — parked on the opposite hex edge from the BMW.
+   *
+   *  Hex is flat-top.  BMW sits near edge V5→V0 (right-back).
+   *  Opposite edge is V2→V3 (left-front):
+   *    V2 = (−R/2, 0, −R√3/2),  V3 = (−R, 0, 0)
+   *    edge direction = (−0.5, 0, 0.866) → rotY = −π/6 (−30°)
+   *
+   *  MTB parked at (−2.4, 0, −2.0) in spawnGroup local space,
+   *  which is the symmetric mirror of the BMW position (2.4, 0, 2.0)
+   *  reflected through the hex centre.
+   */
+
+  // rotY = −π/6 + π/2 = π/3: rotated 90° from base edge alignment
+  const MTB_ROT_Y   = -Math.PI / 6 + Math.PI / 2;
+  const MTB_LOCAL_X = -2.4;
+  const MTB_LOCAL_Z = -2.0;
+
+  // A tiny placeholder collider avoids the default stop circle until the GLB loads.
+  const mtbCollisionGroup = new THREE.Group();
+  mtbCollisionGroup.position.set(MTB_LOCAL_X, 0, MTB_LOCAL_Z);
+  mtbCollisionGroup.userData.collisionPoints = [[0, 0]];
+  mtbCollisionGroup.userData.collisionRadius = 0.2;
+  spawnGroup.add(mtbCollisionGroup);
+
+  const mtbLight = new THREE.PointLight(COL_WARM, 0.0, 4, 2);
+  mtbLight.position.set(MTB_LOCAL_X, 0.4, MTB_LOCAL_Z);
+  spawnGroup.add(mtbLight);
+
+  const mtbDiscGeom = new THREE.CircleGeometry(1.0, 32);
+  mtbDiscGeom.rotateX(-Math.PI / 2);
+  const mtbDisc = new THREE.Mesh(mtbDiscGeom, new THREE.MeshBasicMaterial({
+    map: warmDiscTex,
+    transparent: true,
+    opacity: 0.20,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  }));
+  mtbDisc.position.set(MTB_LOCAL_X, 0.015, MTB_LOCAL_Z);
+  spawnGroup.add(mtbDisc);
+
+  const mtbLoader = new GLTFLoader();
+  mtbLoader.load(
+    "/models/Meshy_AI_Neon_Platform_MTB_0307152614_texture.glb",
+    (gltf) => {
+      const mtb = gltf.scene;
+
+      // Scale to target height, then scale up 1.2×
+      const bbox = new THREE.Box3().setFromObject(mtb);
+      const modelHeight = bbox.max.y - bbox.min.y;
+      const targetHeight = 1.0;
+      const scale = (targetHeight / modelHeight) * 1.2;
+      mtb.scale.setScalar(scale);
+
+      // Ground the un-rotated bike (clean baseline)
+      mtb.updateMatrixWorld(true);
+      bbox.setFromObject(mtb);
+      mtb.position.y = -bbox.min.y;
+
+      // Fit the collision proxy from the bike's local-space footprint
+      // before parent transforms are applied.
+      configureBikeCollisionFromModel(
+        mtbCollisionGroup,
+        mtb,
+        MTB_LOCAL_X,
+        MTB_LOCAL_Z,
+        MTB_ROT_Y,
+      );
+
+      // Wrap in a pivot group — Y only, MTB stands straight (no lean, no pitch).
+      const mtbPivot = new THREE.Group();
+      mtbPivot.rotation.order = "YXZ";
+      mtbPivot.rotation.y = MTB_ROT_Y;
+
+      mtbPivot.add(mtb);
+
+      // Place, then re-ground so the lowest leaned point = floor
+      mtbPivot.position.set(MTB_LOCAL_X, 0, MTB_LOCAL_Z);
+      mtbPivot.updateMatrixWorld(true);
+      bbox.setFromObject(mtbPivot);
+      const MTB_SINK = 0.06; // Sink slightly into the ground for visual weight
+      mtbPivot.position.y += -bbox.min.y - MTB_SINK;
+
+      mtb.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
+      spawnGroup.add(mtbPivot);
+
+      // Activate accent light once model is in place
+      mtbLight.intensity = 0.9;
+    },
+    undefined,
+    (err) => console.warn("MTB model failed to load:", err),
+  );
 
   group.add(spawnGroup);
 
@@ -559,8 +978,8 @@ export function createSpawnPad(scene: Scene): SpawnPadContext {
 
   /* ── Per-frame update (animated effects) ─────────────────────── */
 
-  const RISE_RANGE = 3.5;
-  const PARTICLE_Y_CEIL = -0.5;
+  const RISE_RANGE = 4.5;
+  const PARTICLE_Y_CEIL = 2.5;
 
   function update(time: number): void {
     barrierMat.uniforms.time.value = time;
@@ -589,6 +1008,32 @@ export function createSpawnPad(scene: Scene): SpawnPadContext {
     for (const l of bridgeEdgeLights) l.intensity = 0.8 * lightPulse;
     for (const l of bridgeEdgeLightsLeft) l.intensity = 0.8 * lightPulse;
     destGlowMat.opacity = 0.28 + Math.sin(time * 0.8) * 0.1;
+
+    // Wayfinding: energy conduit flow + threshold pulse + guide particles
+    conduitMat.uniforms.time.value = time;
+    thresholdMat.opacity = 0.2 + 0.15 * Math.sin(time * 1.2);
+    thresholdLight.intensity = 1.0 + 0.4 * Math.sin(time * 1.0);
+
+    const wfGAttr = wfGuideGeom.getAttribute("position") as THREE.BufferAttribute;
+    const wfFlowSpan = WF_END_Z - WF_START_Z;
+    for (let i = 0; i < WF_GUIDE_COUNT; i++) {
+      const progress = ((time * wfGuideSpeeds[i] + wfGuidePhases[i] * 8) % 1);
+      const z = WF_START_Z + wfFlowSpan * progress;
+      const x = wfGuideXDrift[i] + Math.sin(time * 0.4 + wfGuidePhases[i] * 6) * 0.06;
+      wfGAttr.setXYZ(i, x, 0.06, z);
+    }
+    wfGAttr.needsUpdate = true;
+
+    // Pulse bike accent lights — only visible once models are loaded (intensity > 0)
+    if (bikeLight.intensity > 0) {
+      bikeLight.intensity = 0.9 + Math.sin(time * 1.1) * 0.25;
+    }
+    if (mtbLight.intensity > 0) {
+      mtbLight.intensity = 0.9 + Math.sin(time * 1.1 + Math.PI * 0.6) * 0.25;
+    }
+
+    floorMat.emissiveIntensity = 0.015 + Math.sin(time * 0.6) * 0.015;
+    monogramMesh.rotation.y = time * 0.08;
   }
 
   /* ── Add to scene ────────────────────────────────────────── */
@@ -599,6 +1044,8 @@ export function createSpawnPad(scene: Scene): SpawnPadContext {
     group,
     spawnCenter: new THREE.Vector3(SPAWN_CENTER_X, 0, SPAWN_CENTER_Z),
     update,
+    bikeCollisionGroup,
+    mtbCollisionGroup,
   };
 }
 
