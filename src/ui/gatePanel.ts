@@ -10,6 +10,8 @@ let currentStopId: string | null = null;
 let latestInteractCb: (() => void) | undefined;
 /** True while crossfade is mid-flight — prevents re-triggering. */
 let isSwitching = false;
+/** Tracks whether the one-time first-gate contextual hint has been shown. */
+let firstGatePanelShown = false;
 
 // ── Styles (injected once) ─────────────────────────────────────────────────
 
@@ -117,6 +119,20 @@ function injectPanelStyles(): void {
       transition: filter 0.2s ease, opacity 0.18s ease;
     }
     #gate-panel:hover { filter: brightness(1.06); }
+
+    .gp-first-hint {
+      font-size: 0.6rem;
+      color: rgba(255, 255, 255, 0.3);
+      font-style: italic;
+      margin-top: 0.3rem;
+      text-align: center;
+      animation: fadeIn 0.3s ease;
+      transition: opacity 0.5s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
   `;
   document.head.appendChild(s);
 }
@@ -134,9 +150,9 @@ function getOrCreate(): { positioner: HTMLDivElement; card: HTMLDivElement } {
   positioner.id = "gate-panel-positioner";
   positioner.style.cssText = `
     position: fixed;
-    right: 3vw;
-    top: 50%;
-    transform: translateY(-50%) translateX(20px);
+    right: 2.5vw;
+    bottom: 2.5vh;
+    transform: translateY(20px);
     z-index: 500;
     pointer-events: none;
     opacity: 0;
@@ -286,13 +302,13 @@ function getOrCreate(): { positioner: HTMLDivElement; card: HTMLDivElement } {
       <!-- State A: in interact range → full glowing button -->
       <button id="gate-panel-cta-ready">
         <span id="gate-panel-cta-key">E</span>
-        <span id="gate-panel-cta-label">Open full story</span>
+        <span id="gate-panel-cta-label">Press E or click to explore</span>
         <span id="gate-panel-cta-arrow">→</span>
       </button>
       <!-- State B: in proximity but too far to interact -->
       <div id="gate-panel-cta-hint">
         <span style="opacity:0.5">↑</span>
-        <span>walk closer to interact</span>
+        <span>Walk closer to learn more</span>
       </div>
     </div>
   `;
@@ -342,7 +358,7 @@ export function updateGatePanel(
 
   if (!data || proximityFactor <= 0) {
     positioner.style.opacity = "0";
-    positioner.style.transform = "translateY(-50%) translateX(20px)";
+    positioner.style.transform = "translateY(20px)";
     return;
   }
 
@@ -364,6 +380,22 @@ export function updateGatePanel(
       currentStopId = data.id;
       populateCard(card, data);
     }
+
+    // Show one-time contextual hint on the very first gate panel appearance
+    if (!firstGatePanelShown) {
+      firstGatePanelShown = true;
+      const ctaWrap = card.querySelector<HTMLElement>("#gate-panel-cta-wrap");
+      if (ctaWrap) {
+        const hint = document.createElement("div");
+        hint.className = "gp-first-hint";
+        hint.textContent = "Click the card or press E to learn about this role";
+        ctaWrap.appendChild(hint);
+        setTimeout(() => {
+          hint.style.opacity = "0";
+          setTimeout(() => hint.remove(), 500);
+        }, 6000);
+      }
+    }
   }
 
   // Drive CTA state (update every frame so it reacts to distance changes)
@@ -374,9 +406,9 @@ export function updateGatePanel(
   card.style.cursor = canInteract ? "pointer" : "default";
 
   const clamped = Math.max(0, Math.min(1, proximityFactor));
-  const slideX = (1 - clamped) * 20;
+  const slideY = (1 - clamped) * 20;
   positioner.style.opacity = String(clamped);
-  positioner.style.transform = `translateY(-50%) translateX(${slideX}px)`;
+  positioner.style.transform = `translateY(${slideY}px)`;
 }
 
 // ── Card population ────────────────────────────────────────────────────────

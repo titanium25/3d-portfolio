@@ -26,6 +26,17 @@ export function isStopCompleted(id: string): boolean {
   return completedStops.has(id);
 }
 
+/* ── Gate unlock pulse (3D emissive flash on first completion) ── */
+
+let pulseGateId: string | null = null;
+let pulseStartTime = 0;
+const PULSE_DURATION_MS = 500;
+
+export function pulseGateOnUnlock(stopId: string): void {
+  pulseGateId = stopId;
+  pulseStartTime = performance.now();
+}
+
 /* ── Map timeline data → existing StopData shape ──────────────── */
 
 function mapToStopData(item: TimelineStopData): Stop["data"] {
@@ -290,6 +301,24 @@ export function updateTimelineLighting(
       const fillTarget = (fillBase + t * 0.15) * insideFade;
       const fillCurrent = fillMat.uniforms.opacity.value as number;
       fillMat.uniforms.opacity.value = fillCurrent + (fillTarget - fillCurrent) * 0.08;
+    }
+
+    // Gate unlock pulse — temporary emissive burst that lerps back down
+    if (pulseGateId === stop.data.id) {
+      const elapsed = performance.now() - pulseStartTime;
+      if (elapsed < PULSE_DURATION_MS) {
+        const pulseT = 1.0 - elapsed / PULSE_DURATION_MS;
+        if (modelMats) {
+          for (const mat of modelMats) {
+            mat.emissiveIntensity += pulseT * 2.0;
+          }
+        }
+        if (stop.pointLight) {
+          stop.pointLight.intensity += pulseT * 8.0;
+        }
+      } else {
+        pulseGateId = null;
+      }
     }
   });
 }

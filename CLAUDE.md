@@ -57,19 +57,63 @@ The hexagonal platform has been transformed from a flat test room into a stylize
 - **Animated Update Loop**: `createGround()` now returns `GroundContext` with `update(time)` — pulses center glow, animates shader uniforms (barrier scanlines, void flow), and drifts particles
 - **Previous features retained**: Road strip, edge pylons, panel lines, trim lines, specular-safe roughness maps, contrast hierarchy
 
-**Gate Unlock Animation System** ✨
+**Cinematic Gate Unlock Pipeline** ✨
 
-A multi-phase particle animation that fires when the player completes a timeline gate for the first time, bridging the 3D world and the 2D Resume button UI. Inspired by XP-orb mechanics from Zelda/mobile games — the world acknowledges the player's action and the "inventory" (resume) grows.
+A 4-phase cinematic sequence (~3 seconds) that fires when the player completes a timeline gate for the first time, bridging the 3D world and the 2D Resume button UI. Inspired by exotic weapon unlocks in Destiny and chest-opening in Zelda — the single most memorable micro-interaction in the portfolio.
 
-- **Trigger**: Cinematic overlay closes after a first-time gate completion (`markStopCompleted` returns `true`)
-- **Phase 1 — Particle Burst (0–280ms)**: 4 cyan energy motes eject from the gate's projected screen position, scattering outward
-- **Phase 2 — Screen-Space Travel (280–800ms)**: Motes arc along randomized quadratic bezier curves from gate position to the Resume pill button. Each mote has a unique arc (perpendicular offset, staggered arrival) — organic firefly feel, not a straight line
-- **Phase 3 — Button Absorption (800–1200ms)**: Motes converge on the button → elastic scale pulse (1.0 → 1.12 → 1.0) → sonar ring radiates outward → border glow intensifies for 2.5 seconds
-- **Progress Dots**: 4 tiny dots beneath the Resume button text (one per gate); fill in cyan as gates are completed. Persistent across the session, visible at all times after init
-- **Persistent Glow**: After any unlock, the Resume button gains a subtle persistent `cv-btn-has-unlocks` border/shadow enhancement
-- **First-Unlock Tooltip**: On the very first gate ever completed, a tooltip appears below the button: "Your dossier is building…" — fades after 3.2 seconds, never shown again (standard game-design onboarding: teach → trust)
-- **File**: `src/ui/gateUnlockAnimation.ts` — exports `initGateUnlockAnimation()`, `triggerGateUnlock(worldPos, camera)`, `refreshProgressDots()`
-- **Integration**: `App.ts` calls `initGateUnlockAnimation()` at setup; passes `onClosed` callback to `openTransition` with 900ms delay for camera return animation
+- **Trigger**: Fires immediately when the player presses E on a first-time gate (`markStopCompleted` returns `true`), not on overlay close. App.ts fires `pulseGateOnUnlock(stopId)` for a 3D emissive flash, then calls `playCinematicUnlock()` after 600ms with screen coordinates, metadata, and completion count. Motes fly to the Resume button while the cinematic overlay is opening.
+- **Phase 0 — "The Seal Break" (0–400ms)**: Full-screen vignette flash (`box-shadow: inset 0 0 120px 40px rgba(0,229,204,0.12)`) fades in then out. Simultaneously, `pulseGateOnUnlock()` temporarily boosts the gate's 3D emissive intensity to 1.0 then lerps back over 500ms.
+- **Phase 1 — "Energy Harvest" (400–950ms)**: 6 cyan energy motes (radial-gradient glowing circles with dual cyan+gold shadow) burst outward from the gate's screen position, then each follows a unique quadratic bezier arc toward the Resume button. Staggered launch (50ms intervals), varied sizes (6–10px), varied travel durations (±15%). Micro-sparks (3–4 tiny particles with physics: gravity + drag) spawn on each mote impact.
+- **Phase 2 — "The Absorption" (950–1400ms)**: Button elastic scale pop (`unlockBtnPop` keyframe: 1→1.18→0.97→1), sonar ring expansion from button center, badge briefly flashes white then updates count, sustained glow on button for 2.5s.
+- **Phase 3 — "The Revelation" (1400–2800ms+)**: 200ms pause ("the breath"), then a horizontal scanline sweeps vertically across the screen (350ms). Achievement toast slides in from the right: icon ✦, title "ASML 2018 — **Explored**", subtitle "2 of 4 milestones **explored**". Holds 2.5s, slides out 350ms. On the very first gate ever, a tooltip "Your dossier is building…" appears after the toast.
+- **Phase 4 — 4/4 Completion Bonus**: If all gates are completed: double sonar rings (150ms apart), toast becomes gold-accented "★ Journey Complete — Every chapter of the story, experienced firsthand" with 4s hold, Resume button gains permanent `.cv-btn-complete` gold border/shadow, badge upgrades to "✦" with gold accent.
+- **Count Badge** (`.cv-btn-badge`): A single `position: absolute` notification badge on the top-right corner of the Resume button. Hidden when 0 gates explored. Shows "1"/"2"/"3" as gates are visited. Shows "✦" with gold accent when all 4 are complete. Standard notification badge pattern — universally understood by non-gamers.
+- **Persistent Glow**: After any exploration, the Resume button gains `cv-btn-has-unlocks` border/shadow. After 4/4, gains `cv-btn-complete` with gold accent.
+- **Count Badge** also includes 3D object discoveries — `addDiscoveryToBadge()` increments the count from `discoveryTracker.ts`. Badge shows `gates + discoveries` total.
+- **Journey Tab "New" Indicator**: `markJourneyTabNew()` fires during the revelation phase, adding a pulsing amber dot to the Journey tab button. Cleared when the user clicks the Journey tab (`clearJourneyTabNew()`). Same pattern as the About tab indicator.
+- **Game Toast System** (`showGameToast`): Centralized toast used by both gate unlocks and discoveries. Features: icon column, category label, title, subtitle, optional `hint` line (cyan), shimmer sweep, drain bar, scale spring animation. Exported from `gateUnlockAnimation.ts`.
+- **Discovery Motes** (`playDiscoveryMotes`): 3 amber motes fly from a 3D object's screen position to the Resume button on first-time discovery. Button elastic-pops and gold sonar ring expands on arrival. Calls `markAboutTabNew()` to flag the About tab.
+- **File**: `src/ui/gateUnlockAnimation.ts` — exports `playCinematicUnlock(...)`, `initGateUnlockAnimation()`, `refreshProgressDots()`, `showGameToast(opts)`, `addDiscoveryToBadge()`, `playDiscoveryMotes(x, y)`, `markAboutTabNew()`, `clearAboutTabNew()`, `applyAboutTabNewToDom()`, `markJourneyTabNew()`, `clearJourneyTabNew()`, `applyJourneyTabNewToDom()`
+- **3D Pulse**: `src/scene/timeline/createTimelineStops.ts` — exports `pulseGateOnUnlock(stopId)`, which temporarily boosts emissive intensity and point light in `updateTimelineLighting()` for 500ms
+- **Integration**: `App.ts` calls `initGateUnlockAnimation()` at setup; on first-time gate E press, immediately fires `pulseGateOnUnlock()` then `playCinematicUnlock()` after 600ms (concurrent with overlay opening)
+- **Guard**: `isPlaying` flag prevents double-triggers; async pipeline uses `try/finally` for cleanup
+
+**Click-to-Discover System** ✨
+
+A raycasting-based tooltip and discovery system for 3D objects on the spawn pad. Hovering reveals a tooltip with a "Click to discover →" hint; clicking triggers a discovery reward (toast, motes, badge bump, About tab indicator). After discovery, the hint changes to "✦ Photos in Resume → About tab" to guide the user to the CV panel.
+
+- **Tooltip UI**: A single shared `#world-tooltip` div (fixed-position, `z-index: 1500`) with title, subtitle, dynamic hint line, and a downward caret. Styled with glass-dark background, cyan left-border accent, and backdrop blur.
+- **Raycasting**: Throttled to once every **120 ms**. Module-level `THREE.Raycaster` reused. Leaf mesh list pre-computed at registration. `Map<Mesh, target>` for O(1) lookup.
+- **Smooth positioning**: Tooltip screen position updates **every frame** for smooth tracking.
+- **Click-to-discover**: Clicking a hoverable 3D object calls `markDiscovered(id)` from `discoveryTracker.ts`. First-time discovery triggers: discovery toast (via `showGameToast`), amber motes flying to Resume button (`playDiscoveryMotes`), badge count bump (`addDiscoveryToBadge`), About tab "New" indicator (`markAboutTabNew`).
+- **Dynamic hints**: Undiscovered objects show cyan "Click to discover →"; discovered objects show amber pulsing "✦ Photos in Resume → About tab" (`.has-nav-hint` class). Cursor changes to `pointer` on clickable targets.
+- **Auto-disable during overlays**: Checks `body.transition-open` and `#cv-overlay.cv-visible` each frame.
+- **Registered targets**: BMW S1000RR (emissive boost), MTB bicycle, Meny the dog (`setExcited(true)`), AL monogram (opacity pulse).
+- **File**: `src/ui/worldTooltip.ts` — exports `initWorldTooltip()`, `registerTooltipTarget(target)`, `updateWorldTooltip(camera, domElement)`, `setTooltipsEnabled(boolean)`.
+- **Vehicle callbacks**: `createSpawnPad(scene, options?)` accepts `options.onBikeLoaded` and `options.onMtbLoaded` callbacks. `SpawnPadContext` exposes `monogramMesh`.
+
+**Discovery Tracker** ✨
+
+Session-only state manager for 3D object discoveries on the spawn pad. Tracks which objects have been clicked/discovered, triggers rewards, and provides query API.
+
+- **File**: `src/ui/discoveryTracker.ts`
+- **Discovery IDs**: `bmw`, `mtb`, `meny`, `monogram` (4 total)
+- **`markDiscovered(id)`**: Returns `true` on first-time discovery. Calls `addDiscoveryToBadge()` to bump the Resume button badge, then shows a `showGameToast` with icon, category, title, subtitle, and a `hint` line ("📸 Photos unlocked · Check the About tab") for objects with photos.
+- **`isDiscovered(id)`**: Query function used by CV panel's `refreshDynamicContent` to drive interest card states and photo panel teaser/reveal.
+- **4/4 bonus**: When all 4 objects are discovered, a gold "★ Spawn Pad — Fully Explored" toast fires after 2.9s delay.
+- **Integration**: `App.ts` calls `markDiscovered` inside the `onClick` callback of each `registerTooltipTarget` call.
+
+**Photo Lightbox** ✨
+
+A reusable FLIP-animated zoom lightbox for any image in the portfolio. Used by the CV panel's headshot, journey photos, and About tab hover photo panel.
+
+- **File**: `src/ui/photoLightbox.ts`
+- **Exports**: `initPhotoLightbox()`, `openPhotoLightbox(src, triggerEl, options?)`, `closePhotoLightbox()`, `attachZoomHint(container, getSrc, options?)`.
+- **FLIP animation**: Image expands from trigger element's position to centered full-screen (0.46s spring curve), shrinks back on close.
+- **Shapes**: `circle` (headshot avatar) or `rect` (journey/about photos).
+- **`attachZoomHint`**: Adds `cursor: zoom-in`, hover magnifier `⊕` overlay, and click-to-open listener to any container. Returns a detach function.
+- **Conditional zoom**: Journey photos return empty `getSrc` while locked (`cv-photo-locked`), blocking lightbox open. About photo panel returns empty while in teaser state (not `.cpp-discovered`).
+- **Backdrop**: Blurred dark overlay (`backdrop-filter: blur(24px)`), click or ESC to close. Caption fades in below the image.
 
 **Teaching Photo** ✨
 
@@ -141,9 +185,13 @@ src/
 │
 └── ui/                     # User interface
     ├── transition.ts       # Cinematic transition overlay (subtitle, bullets, links)
-    ├── gatePanel.ts        # Floating proximity panel for timeline gates (center-right)
+    ├── gatePanel.ts        # Floating proximity panel for timeline gates (bottom-right)
     ├── proximityUI.ts      # Proximity indicator UI (used by building stops)
-    ├── gateUnlockAnimation.ts # Gate→Resume particle animation + progress dots + tooltip
+    ├── gateUnlockAnimation.ts # Gate→Resume particle animation + badge + toast + tab indicators
+    ├── discoveryTracker.ts # 3D object discovery state + rewards (BMW, MTB, Meny, Monogram)
+    ├── worldTooltip.ts     # Click-to-discover tooltip system for 3D objects + nav hints
+    ├── photoLightbox.ts    # Reusable FLIP zoom lightbox for any image (circle/rect)
+    ├── cvPanel.ts          # Tabbed résumé modal with photo panels, film strips, live dossier
     ├── loadingScreen.ts    # Loading screen management
     └── popup.ts            # (Legacy) Popup component
 ```
@@ -317,6 +365,7 @@ The dog automatically discovers skeleton bones by name patterns:
 - `updateIdleOnly()`: Update only procedural idle (used during intro)
 - `snapToPlayer()`: Instantly reposition behind player
 - `resetToIdleBehindPlayer()`: Reset to idle state after intro
+- `setExcited(value: boolean)`: Doubles tail-wag frequency and boosts amplitude × 1.3 when `true` — used by the hover tooltip system so Meny visibly reacts to being hovered
 
 #### Character Types (`types.ts`)
 
@@ -484,6 +533,13 @@ Builds the entry zone south of the main arena — a hexagonal spawn pad connecte
 
 **Exported constants:** `SPAWN_PAD_CENTER_X`, `SPAWN_PAD_CENTER_Z`
 
+**Optional `SpawnPadOptions` parameter:**
+`createSpawnPad(scene, options?)` accepts an optional second argument:
+- `options.onBikeLoaded(group: THREE.Group)`: Called with the BMW pivot group once the GLB finishes loading — use to register tooltip targets or post-load effects.
+- `options.onMtbLoaded(group: THREE.Group)`: Called with the MTB pivot group once the GLB finishes loading.
+
+`SpawnPadContext` now also includes `monogramMesh: THREE.Mesh` (the AL monogram, available synchronously) for direct tooltip registration.
+
 ### IntroSequence (`src/scene/introSequence.ts`)
 
 Handles the opening cinematic:
@@ -491,8 +547,9 @@ Handles the opening cinematic:
 1. **Closeup**: Camera focuses on player character
 2. **Text phases**: Terminal-style text appears with typing animation
 3. **Pullback**: Camera smoothly transitions to gameplay position
-4. **Hint**: Control legend appears
-5. **Complete**: Character waves, overlay fades out
+4. **Hint**: Control legend (`#controls-hint`) appears — "WASD / Arrows • Shift run • E interact • M map". Simultaneously, `showPortalHintWithDelay()` schedules a contextual hint.
+5. **Portal Hint** (1.5s after controls, persists 4s): A muted italic line (`#portal-hint`) fades in — "Approach the glowing portals ahead to explore career milestones". Gives the player a clear goal before the first session begins. Auto-fades out and removes itself from the DOM.
+6. **Complete**: Character waves, overlay fades out
 
 The intro uses a retro terminal aesthetic with green text, CRT scanlines, and typing effects.
 
@@ -639,9 +696,10 @@ Floating proximity panel for timeline gates. Fades in from the right as the play
 **Behavior:**
 - **Crossfade on gate switch**: when `data.id` changes while the panel is visible, the card fades to `opacity:0` (200ms), swaps content, then fades back in — prevents content pop when walking between gates
 - **Two-state CTA** at panel bottom:
-  - _Approaching_: muted `↑ walk closer to interact` hint (default visible)
-  - _In range_: glowing animated `[E] Open full story →` button (CSS class `.gp-active` triggers slide-up + fade-in)
+  - _Approaching_: muted `↑ Walk closer to learn more` hint (default visible)
+  - _In range_: glowing animated `Press E or click to explore →` button (CSS class `.gp-active` triggers slide-up + fade-in)
   - Transitions between states use CSS `opacity`/`transform` — no `display` toggling
+- **First-gate contextual hint** (`.gp-first-hint`): on the very first gate panel appearance in the session (`firstGatePanelShown` module-level boolean), a small italic line appears below the CTA: "Click the card or press E to learn about this role". Auto-fades after 6 seconds (`setTimeout` sets `opacity: 0; transition: opacity 0.5s`), never shown again.
 - Card is `pointer-events: auto` and clickable — triggers `onInteract` callback when in range
 - Title split on ` — ` into year badge + company/role
 - `#controls-hint` (intro control legend) hidden via CSS `body.transition-open #controls-hint` when overlay is open
@@ -687,25 +745,30 @@ Tabbed résumé modal accessible via the "Resume" pill button in the top-right c
 | **Stack** | Competency map with categorized cards, context labels, core skill highlighting | Technical screeners who need to checkbox-match |
 | **About** | "Working With Me" blurb, education, interests | Culture-fit closer |
 
-**Living Dossier Mechanic:**
+**Living Dossier Mechanic — Enhancement Model:**
+
+All CV content is **always fully visible**. Gate exploration adds visual *enhancements* rather than unlocking hidden content — this ensures non-gamer HR recruiters see a complete resume on first open.
+
 - `refreshDynamicContent()` runs on every `openCVPanel()` call
 - Reads `isStopCompleted(id)` from `createTimelineStops.ts` for each timeline entry
-- **Unlocked entries**: normal display; first-time unlocks play a shimmer gradient animation (`cvShimmer` keyframe, 1.4s)
-- **Locked entries**: body at `opacity: 0.35`, `filter: saturate(0.2)`, with a dashed-border hint: "Walk through the [year] gate to see this story come alive"
+- **Explored entries**: get a `✦ Explored` badge (`.cv-explored-badge`, cyan, with `cvBadgePop` elastic scale animation) appended to `.cv-exp-meta`, and the timeline line is upgraded to `.active` (glowing cyan) — purely additive enhancement
+- **Unexplored entries**: fully normal display — no degradation, no hidden content, no lock hints
+- **Shimmer animation** (`cvShimmer` keyframe, 1.4s): fires once on the first time a completed entry is seen since the panel opened
 - `seenUnlocks` Set tracks which shimmer animations have already played (prevents re-shimmer on re-open)
+- No `cv-locked` class or lock-hint HTML exists — the system has been removed entirely
 
 **Overview Tab (`#cv-tab-overview`):**
 - Hero cover photo: `alex-office.png` at **22% opacity** with stronger 4-stop gradient mask
 - Availability badge: green pulsing dot (`#4ade80`, `cvAvailPulse` animation) + "Open to opportunities · Full-time / Contract" — positioned directly under the title for maximum HR visibility
 - Signature Stack: 6 headline skills (React, TypeScript, Node / NestJS, Nx Monorepo, Redis, Microservices) as cyan-bordered chips
 - Contact pills: `border-color: rgba(255,255,255,0.16)`, `background: rgba(255,255,255,0.04)` — more visible than before against dark background
-- Journey Progress: visual gate timeline showing `●` (completed) / `○` (unexplored) per milestone with connecting lines, e.g. "3 of 4 milestones explored"
+- Journey Progress (`#cv-progress`): **hidden when 0 gates explored** (clean, professional). Shows a plain text line when 1+ gates explored: `"✦ N career milestone(s) explored in the interactive world"`. Special case: `"✦ All 4 career milestones explored … — full journey complete"`. No dot/gate visualization.
 
 **Journey Tab (`#cv-tab-journey`):**
 - Experience entries with `data-stop-id` attributes for dynamic unlock tracking
-- Dot-nav (`.cv-dot-nav`): sticky vertical dots on the left edge, one per entry; click scrolls to entry; active dot highlights via scroll event tracking
-- ASML career pivot narrative: italic block beneath the ASML entry with amber left border, framing the semiconductor-to-software reinvention story
-- The5ers inline photo thumbnail: teaching photo (`/img/alex-teaching.png`) with lightbox zoom-on-click via `attachZoomHint`, captioned "Architecture training session — The5ers, 2024"
+- Dot-nav (`.cv-dot-nav`): sticky vertical dots on the left edge, one per entry; click scrolls to entry; active dot highlights via scroll event tracking. `.completed` adds subtle cyan border accent — purely additive. Year tooltip on hover.
+- **Journey photo teaser**: Each experience photo starts with `.cv-photo-locked` (blurred image + 🔒 "Walk through the gate" overlay). Gate completion removes the lock class (0.5s smooth transition). Zoom hint is blocked while locked (`getSrc` returns empty). Photos use `attachZoomHint` for FLIP lightbox zoom when unlocked.
+- ASML career pivot narrative: italic block beneath the ASML entry with amber left border
 - Company logos in white pills, per-role skill chips, highlighted metrics/keywords via `highlightUtils`
 
 **Stack Tab (`#cv-tab-stack`):**
@@ -715,53 +778,121 @@ Tabbed résumé modal accessible via the "Resume" pill button in the top-right c
 - Core skills marked with `.core` class — stronger background and border for visual hierarchy
 
 **About Tab (`#cv-tab-about`):**
-- "Working With Me" section: blockquote-style card with decorative `"` glyph, describing collaboration style (high-ownership, document-first, mentor-by-pairing)
+- "Working With Me" section: blockquote-style card with decorative curly quotes, describing collaboration style
 - Education: B.Sc. Electrical & Electronics Engineering, Ariel University
-- Beyond the Code: interest tags (Motorcycles, Mountain Biking, 3D / Game Dev, System Design, Travel)
+- **Beyond the Code**: 3×3 grid of interest cards (`.cv-interests-grid`), each with emoji icon, label, subtitle. Cards with `data-discovery-id` show a "↗ In 3D world" / "✓ Found it" pill badge. Cards with `data-photo-album` show a **film strip indicator** (`.cv-card-film-strip`) at the bottom: locked state shows 🔒 + dim frames + "discover to unlock"; discovered/always-open shows 📷 + cyan glowing frames + "hover to view".
+- **Hover Photo Panel** (`#cv-photo-panel`): Fixed-position panel appears on hover over photo-enabled cards. **Teaser state** (undiscovered): softly blurred photo (`blur(7px)`) with ⬡ icon, "Hidden" badge, CRT scanlines, shimmer sweep. **Gallery state** (discovered or always-open like LEGO): swipeable gallery with `<`/`>` nav buttons, dot indicators, captions, and FLIP lightbox zoom on image click. Photos use `objectPosition` for per-image crop control.
+- **Discovery photos**: `/public/img/discoveries/` — `bmw-real-1.png`, `bmw-real-2.png`, `mtb-riding.png`, `mtb-bike.png`, `meny-1.png`, `meny-2.png`, `lego-bmw.png`, `lego-yamaha.png`
+- Game wink callout: "And yes — this entire portfolio is a playable video game."
 
 **Font:** **Inter** loaded from Google Fonts applied to `#cv-overlay` and `#cv-btn`.
 
 **Animation:** Panel scales from `scale(0.96) translateY(16px)` to `scale(1) translateY(0)` with `opacity 0→1` via CSS class toggle (`.cv-visible`). Tab switch uses `cvTabFade` keyframe (0.28s ease-out). Close removes the class and waits 360ms before `display: none`.
 
+**Download CTA (`#cv-footer-dl`):**
+Full-width button with 3 concurrent animations: `cvDlBreath` (2.8s glow pulsing), `cvDlShimmer` (4s diagonal light sweep), `cvDlIconBounce` (download arrow bounce). Lift on hover, press feedback on click. Impossible to miss — HR always sees the download action.
+
 **Images used:**
-- `/public/img/alex-headshot.png` — professional headshot (circular avatar)
+- `/public/img/alex-headshot.png` — professional headshot (circular avatar, lightbox-zoomable)
 - `/public/img/alex-office.png` — office/desk photo (hero cover background, 22% opacity)
-- `/public/img/alex-teaching.png` — architecture training session photo (The5ers Journey entry thumbnail, lightbox-zoomable)
+- `/public/img/alex-teaching.png` — architecture training session photo (Journey entry thumbnail, lightbox-zoomable)
+- `/public/img/discoveries/` — BMW, MTB, Meny, LEGO photo albums for About tab hover panel
 
-### Gate Unlock Animation (`src/ui/gateUnlockAnimation.ts`)
+### World Tooltip System (`src/ui/worldTooltip.ts`)
 
-Multi-phase particle animation system that bridges the 3D game world and the 2D Resume button UI. Fires on first-time gate completion.
+Raycasting-based hover tooltip system for 3D objects on the spawn pad. A single shared DOM element appears above 3D objects when the mouse hovers over them, with personality-driven text and reactive 3D animations per object.
+
+**Exports:**
+- `initWorldTooltip()` — creates the `#world-tooltip` DOM element and injects styles. Call once at setup.
+- `registerTooltipTarget(target: TooltipTarget)` — registers a 3D object as hoverable. Can be called at any time (safe to call from async load callbacks). Pre-computes a flat mesh list for fast raycasting.
+- `updateWorldTooltip(camera, domElement)` — call every frame. Handles throttled raycasting (120 ms), per-frame smooth positioning, and auto-disable during overlays.
+- `setTooltipsEnabled(value: boolean)` — explicit enable/disable (e.g., during cutscenes).
+
+**`TooltipTarget` interface:**
+```typescript
+interface TooltipTarget {
+  object: THREE.Object3D;   // root group to raycast against
+  title: string;            // bold white headline
+  subtitle: string;         // muted smaller text
+  onHoverStart?: () => void; // reactive 3D animation on enter
+  onHoverEnd?: () => void;   // restores original state on leave
+  onClick?: () => void;      // called on click (discovery trigger)
+  discoveryId?: string;      // drives dynamic hint text (click to discover / photos in Resume)
+  yOffset?: number;         // world-units above object origin (default 0.5)
+}
+```
+
+**Performance design:**
+- Module-level `THREE.Raycaster` reused; never allocated per frame
+- Leaf mesh list pre-computed at registration (`registerTooltipTarget` traverses once)
+- `Map<THREE.Mesh, target>` for O(1) hit-to-target lookup
+- Raycasting throttled to **120 ms**; tooltip positioning runs every frame
+- Objects beyond 20 world units from camera are excluded
+- Auto-hides when `body.transition-open` or `#cv-overlay.cv-visible` is detected (no cross-module coupling)
+
+**Registered Easter egg targets (in App.ts):**
+
+| Object | Title | Subtitle | Reactive Animation |
+|---|---|---|---|
+| BMW S1000RR pivot | "BMW S1000RR · 2014" | "199hp of weekend therapy 🏍️" | Emissive boost on all meshes (stored/restored per mesh) |
+| MTB bicycle pivot | "Friday Morning Ritual" | "80km before the world wakes up 🚴" | None |
+| `dog.group` | "Meny 🐾" | "Alaskan Malamute · Chief Morale Officer" | `dog.setExcited(true)` → faster + bigger tail wag |
+| `monogramMesh` | "Alexander Lazarovich" | "Ra'anana, Israel · Full-stack engineer" | Opacity pulse (0.10 → 0.45) |
+
+### Cinematic Gate Unlock Animation (`src/ui/gateUnlockAnimation.ts`)
+
+4-phase cinematic animation pipeline (~3 seconds) that bridges the 3D game world and the 2D Resume button UI. Fires on first-time gate completion. All animation elements are ephemeral DOM nodes (created, animated, removed). Uses `requestAnimationFrame` for mote travel and CSS animations for everything else.
 
 **Exports:**
 - `initGateUnlockAnimation()` — inject styles, create progress dots beneath Resume button (called once at app setup)
-- `triggerGateUnlock(gateWorldPos, camera)` — project gate 3D position to screen, run full 3-phase animation
+- `playCinematicUnlock(gateScreenX, gateScreenY, stopId, stopYear, stopCompany, completedCount, totalGates)` — async function that orchestrates all 4 phases sequentially. Has `isPlaying` guard to prevent double-triggers.
 - `refreshProgressDots()` — sync dot fill states with `isStopCompleted()` (called on CV panel open)
 
 **Animation Pipeline:**
-1. Project gate `THREE.Vector3` to screen coordinates via `camera.project()`
-2. Create 4 DOM motes at projected position, scatter outward (280ms burst)
-3. Each mote follows a unique quadratic bezier arc toward `#cv-btn` center (520ms travel, 0.06 stagger per mote)
-4. On arrival: remove motes, elastic scale pulse on button, sonar ring expansion (CSS `gateRingPulse` keyframe), 2.5s sustained glow
-5. Update progress dots, show first-unlock tooltip if applicable
 
-**Progress Dots:**
-- 4 small dots (`#cv-btn-dots`) appended inside `#cv-btn`
-- `.cv-btn-dot.filled` — cyan with glow shadow
-- `#cv-btn.cv-btn-has-unlocks` — persistent border/shadow enhancement
+| Phase | Name | Timing | Effect |
+|---|---|---|---|
+| 0 | The Seal Break | 0–400ms | Full-screen vignette flash (cyan inset box-shadow, fade in→out) |
+| 1 | Energy Harvest | 400–950ms | 6 motes burst from gate screen position, arc along unique bezier curves to Resume button. Micro-sparks (3–4 physics particles) on each impact |
+| 2 | The Absorption | 950–1400ms | Button elastic pop (`unlockBtnPop` keyframe), sonar ring expansion, badge flash then count update, 2.5s sustained glow |
+| 3 | The Revelation | 1400–2800ms+ | 200ms pause, scanline sweep (vertical), achievement toast slides in from right (holds 2.5s normal / 4s for 4/4), first-unlock tooltip if applicable |
+| 4 | 4/4 Bonus | On final gate | Double sonar, gold-accented "Journey Complete" toast, badge upgrades to "✦" gold, permanent `.cv-btn-complete` gold border |
+
+**Mote System (Phase 1):**
+- 6 motes (`MOTE_COUNT`), each a `div.unlock-mote` with radial-gradient glow and dual cyan+gold box-shadow
+- Burst scatter: 250ms, cubic ease-out from gate position
+- Bezier travel: ~500ms (±15% variance), staggered launch (50ms intervals)
+- Quadratic bezier with randomized control point (perpendicular offset ±80px)
+- Size variation: 6–10px, scale shrinks to 0.6× on arrival
+- Each arrival spawns 3–4 `.unlock-spark` physics particles (gravity, drag, 300ms lifetime)
+
+**Toast System (Phase 3):**
+- `.unlock-toast` — slides in from right via CSS transition (`translateX(120%) → translateX(0)`)
+- Normal: `✦ ASML 2018 — Explored` / `2 of 4 milestones explored`
+- Final: `★ Journey Complete` / `Every chapter of the story, experienced firsthand` with `.is-final` gold accent
+- Hold: 2.5s normal, 4s final. Slide-out 350ms, then DOM removal.
+
+**Count Badge (`.cv-btn-badge`):**
+- Single `position: absolute` notification badge, `top: -4px; right: -4px` on the Resume button
+- Shows "1"/"2"/"3" as gates are explored; "✦" with gold accent when 4/4 complete
+- Hidden (not rendered) when 0 gates explored — Resume button looks clean for non-gamers
+- `cvBadgePop` elastic scale animation on creation; `is-complete` CSS class for gold state
+- `refreshProgressDots()` creates/updates/removes the badge element dynamically
+- `#cv-btn.cv-btn-has-unlocks` — persistent border/shadow enhancement after any gate
+- `#cv-btn.cv-btn-complete` — permanent gold accent after 4/4 completion
 
 **First-Unlock Tooltip:**
 - `#gate-unlock-tooltip` — fixed-position element below Resume button
-- Shown once per session on the very first gate completion
+- Shown once per session on the very first gate completion (`completedCount === 1`)
 - Text: "Your dossier is building…" — fades after 3.2 seconds
 
-**Key Constants:**
-- `MOTE_COUNT`: 4
-- `BURST_MS`: 280 (scatter phase)
-- `TRAVEL_MS`: 520 (bezier arc phase)
+**3D Gate Pulse (`createTimelineStops.ts`):**
+- `pulseGateOnUnlock(stopId)` — sets module-level `pulseGateId` and `pulseStartTime`
+- `updateTimelineLighting()` checks for active pulse: boosts emissive intensity by `pulseT * 2.0` and point light by `pulseT * 8.0`, lerping down over 500ms
 
 **Integration in App.ts:**
 - `markStopCompleted()` returns `boolean` — `true` on first-time completion
-- If first time: `onClosed` callback passed to `openTransition` triggers `triggerGateUnlock` after 900ms delay (waits for camera return animation)
+- If first time: `onClosed` callback extracts company name from `TIMELINE_STOPS` config (`title.split(' — ')[0]`), projects gate world position `(x, 1.5, z)` to screen coordinates, calls `pulseGateOnUnlock(stopId)` + `playCinematicUnlock(...)` after 900ms delay (waits for camera return animation)
 
 ### Collision System (`src/collision/`)
 

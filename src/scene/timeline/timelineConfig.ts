@@ -8,6 +8,9 @@ export interface TimelineStopData {
   skills?: string[];
   image?: string;
   imageCaption?: string;
+  /** Optional override for the Journey tab inline photo (falls back to `image`). */
+  journeyImage?: string;
+  journeyCaption?: string;
   /** One–two sentence context about the company — helps HR understand the domain. */
   companyContext?: string;
   /** Company logo path (shown as badge next to company name). */
@@ -107,6 +110,8 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
     logo: "/img/triolla-logo.png",
     image: "/img/triolla-office.png",
     imageCaption: "Triolla HQ · Raanana, Israel",
+    journeyImage: "/img/alex-teaching.png",
+    journeyCaption: "Architecture training session · Triolla, 2023",
   },
   {
     id: "the5ers",
@@ -138,7 +143,9 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
       "Frontend Architecture",
     ],
     logo: "/img/the5ers-logo.png",
-    image: "/img/alex-teaching.png",
-    imageCaption: "Architecture training session — The5ers, 2024",
+    image: "/img/the5ers-trading.png",
+    imageCaption: "The5ers trading platform · 2024",
+    journeyImage: "/img/alex-office.png",
+    journeyCaption: "At the office — The5ers, 2024",
   },
 ];

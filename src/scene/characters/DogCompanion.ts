@@ -139,6 +139,9 @@ export class DogCompanion extends BaseCharacter {
   private runGaitTime = 0; // accumulated time for run oscillations
   private baseY = 0; // ground-level Y for bounce reference
 
+  // ── Hover excitement (tooltip hover state) ─────────────────────────
+  private _excited = false;
+
   // ──────────────────────────────────────────────────────────────────
   //  Construction
   // ──────────────────────────────────────────────────────────────────
@@ -765,15 +768,18 @@ export class DogCompanion extends BaseCharacter {
 
     // ── Pass 2: Procedural effects on top of the rest pose ──────────
 
-    // Tail wag — each successive bone gets a staggered, larger wag
+    // Tail wag — each successive bone gets a staggered, larger wag.
+    // Excitement (hover) doubles frequency and boosts amplitude × 1.3.
+    const wagSpeedMult = this._excited ? 2.0 : 1.0;
+    const wagAmpMult = this._excited ? 1.3 : 1.0;
     for (let i = 0; i < this.tailBones.length; i++) {
       const { bone } = this.tailBones[i];
       const chainFactor = (i + 1) / this.tailBones.length;
-      const phase = t * TAIL_WAG_SPEED - i * 0.6;
+      const phase = t * TAIL_WAG_SPEED * wagSpeedMult - i * 0.6;
 
       _euler.set(
         TAIL_CURL_BIAS * chainFactor * blend,
-        Math.sin(phase) * TAIL_WAG_AMPLITUDE * chainFactor * blend,
+        Math.sin(phase) * TAIL_WAG_AMPLITUDE * wagAmpMult * chainFactor * blend,
         0,
       );
       _qProc.setFromEuler(_euler);
@@ -853,6 +859,14 @@ export class DogCompanion extends BaseCharacter {
   }
 
   /** Instantly reposition the dog behind the player. */
+  /**
+   * When true, the tail wag frequency and amplitude are boosted — the dog
+   * visibly reacts to being hovered over (like a real dog noticing attention).
+   */
+  setExcited(value: boolean): void {
+    this._excited = value;
+  }
+
   snapToPlayer(): void {
     const behind = this.getBehindPosition();
     this.group.position.x = behind.x;

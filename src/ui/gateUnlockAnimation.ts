@@ -1,18 +1,27 @@
-import * as THREE from "three";
 import { TIMELINE_STOPS } from "../scene/timeline/timelineConfig";
 import { isStopCompleted } from "../scene/timeline/createTimelineStops";
 
 /* ── Configuration ──────────────────────────────────────────── */
 
-const MOTE_COUNT = 4;
-const BURST_MS = 280;
-const TRAVEL_MS = 520;
+const MOTE_COUNT = 6;
 
 /* ── State ──────────────────────────────────────────────────── */
 
 let stylesInjected = false;
-let dotsCreated = false;
 let firstTooltipShown = false;
+let isPlaying = false;
+
+/* ── Helpers ────────────────────────────────────────────────── */
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getButtonCenter(): { x: number; y: number } {
+  const btn = document.getElementById("cv-btn")!;
+  const rect = btn.getBoundingClientRect();
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+}
 
 /* ── Styles ─────────────────────────────────────────────────── */
 
@@ -23,32 +32,92 @@ function injectStyles(): void {
   const s = document.createElement("style");
   s.id = "gate-unlock-styles";
   s.textContent = `
-    #cv-btn-dots {
-      display: flex;
-      gap: 3px;
-      justify-content: center;
-      margin-top: 2px;
-    }
-    .cv-btn-dot {
-      width: 4px;
-      height: 4px;
+    .cv-btn-badge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
-      background: rgba(255,255,255,0.15);
-      transition: background 0.4s ease, box-shadow 0.4s ease;
+      background: radial-gradient(circle at 40% 35%, rgba(0,229,204,0.35) 0%, rgba(0,229,204,0.12) 70%), #0a0e14;
+      border: 1.5px solid rgba(0,229,204,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      font-weight: 800;
+      color: #00e5cc;
+      font-family: 'Inter', system-ui, sans-serif;
+      pointer-events: none;
+      animation: cvBadgePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow:
+        0 0 0 3px #0a0e14,
+        0 0 8px rgba(0,229,204,0.4),
+        0 0 20px rgba(0,229,204,0.15),
+        inset 0 0 6px rgba(0,229,204,0.1);
+      text-shadow: 0 0 6px rgba(0,229,204,0.6);
+      overflow: hidden;
     }
-    .cv-btn-dot.filled {
-      background: #00e5cc;
-      box-shadow: 0 0 6px rgba(0,229,204,0.5);
+    .cv-btn-badge::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    .cv-btn-badge::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(
+        105deg,
+        transparent 40%,
+        rgba(255,255,255,0.12) 45%,
+        rgba(255,255,255,0.2) 50%,
+        rgba(255,255,255,0.12) 55%,
+        transparent 60%
+      );
+      animation: cvBadgeSweep 3s ease-in-out 1s infinite;
+      pointer-events: none;
+    }
+    @keyframes cvBadgeSweep {
+      0%, 100% { transform: translateX(-80%) rotate(25deg); }
+      50%      { transform: translateX(80%) rotate(25deg); }
+    }
+    .cv-btn-badge.is-complete {
+      border-color: rgba(251, 191, 36, 0.65);
+      color: #fbbf24;
+      background: radial-gradient(circle at 40% 35%, rgba(251,191,36,0.3) 0%, rgba(251,191,36,0.08) 70%), #0a0e14;
+      box-shadow:
+        0 0 0 3px #0a0e14,
+        0 0 10px rgba(251,191,36,0.45),
+        0 0 24px rgba(251,191,36,0.15),
+        inset 0 0 6px rgba(251,191,36,0.12);
+      text-shadow: 0 0 6px rgba(251,191,36,0.6);
+      animation: cvBadgePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), cvBadgeGlow 2s ease-in-out infinite;
+    }
+    @keyframes cvBadgePop {
+      0%   { transform: scale(0); opacity: 0; }
+      50%  { transform: scale(1.25); }
+      70%  { transform: scale(0.92); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes cvBadgeGlow {
+      0%, 100% { box-shadow: 0 0 0 3px #0a0e14, 0 0 8px rgba(251,191,36,0.35), 0 0 20px rgba(251,191,36,0.1), inset 0 0 6px rgba(251,191,36,0.08); }
+      50%      { box-shadow: 0 0 0 3px #0a0e14, 0 0 14px rgba(251,191,36,0.55), 0 0 32px rgba(251,191,36,0.2), inset 0 0 8px rgba(251,191,36,0.15); }
     }
 
     #cv-btn.cv-btn-has-unlocks {
       border-color: rgba(0,229,204,0.5);
       box-shadow: 0 0 18px rgba(0,229,204,0.2);
     }
-
-    @keyframes gateRingPulse {
-      0%   { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
-      100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }
+    #cv-btn.cv-btn-complete {
+      border-color: rgba(251, 191, 36, 0.35) !important;
+      box-shadow: 0 0 16px rgba(251,191,36,0.12), 0 0 16px rgba(0,229,204,0.15) !important;
     }
 
     #gate-unlock-tooltip {
@@ -74,43 +143,357 @@ function injectStyles(): void {
       opacity: 1;
       transform: translateY(0);
     }
+
+    .unlock-mote {
+      position: fixed;
+      border-radius: 50%;
+      background: radial-gradient(circle, #fff 0%, #00e5cc 40%, rgba(0,229,204,0) 70%);
+      box-shadow: 0 0 12px 4px rgba(0,229,204,0.6), 0 0 24px 8px rgba(251,191,36,0.15);
+      pointer-events: none;
+      z-index: 2050;
+    }
+    /* Amber motes for discovery (vs cyan for gate) */
+    .unlock-mote-discovery {
+      background: radial-gradient(circle, #fff 0%, #fbbf24 40%, rgba(251,191,36,0) 70%);
+      box-shadow: 0 0 10px 3px rgba(251,191,36,0.7), 0 0 20px 6px rgba(251,191,36,0.2);
+    }
+    /* About tab "new" indicator */
+    .cv-tab-btn-new {
+      position: relative;
+    }
+    .cv-tab-new-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #fbbf24;
+      box-shadow: 0 0 6px rgba(251,191,36,0.9), 0 0 12px rgba(251,191,36,0.4);
+      margin-left: 5px;
+      vertical-align: middle;
+      animation: tabNewPulse 1.6s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes tabNewPulse {
+      0%, 100% { transform: scale(1);    opacity: 0.7; }
+      50%       { transform: scale(1.35); opacity: 1; }
+    }
+    .cv-tab-btn-new {
+      color: rgba(255,255,255,0.85) !important;
+    }
+
+    .unlock-spark {
+      position: fixed;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: #00e5cc;
+      pointer-events: none;
+      z-index: 2051;
+    }
+
+    @keyframes unlockBtnPop {
+      0%   { transform: translateY(-1px) scale(1); }
+      25%  { transform: translateY(-2px) scale(1.18); }
+      55%  { transform: translateY(0) scale(0.97); }
+      100% { transform: translateY(-1px) scale(1); }
+    }
+    .cv-btn-absorbing {
+      animation: unlockBtnPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+    }
+
+    @keyframes unlockSonar {
+      0%   { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+    }
+    .unlock-sonar {
+      position: fixed;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 229, 204, 0.8);
+      pointer-events: none;
+      z-index: 2049;
+      animation: unlockSonar 0.6s ease-out forwards;
+    }
+
+    .unlock-scanline {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 2048;
+      background: linear-gradient(to bottom,
+        transparent 49.5%,
+        rgba(255,255,255,0.08) 49.8%,
+        rgba(0,229,204,0.25) 50%,
+        rgba(255,255,255,0.08) 50.2%,
+        transparent 50.5%
+      );
+      animation: unlockScanSweep 0.35s ease-in-out forwards;
+    }
+    @keyframes unlockScanSweep {
+      0%   { transform: translateY(-100vh); opacity: 0.8; }
+      50%  { opacity: 1; }
+      100% { transform: translateY(100vh); opacity: 0; }
+    }
+
+    /* ── Game notification toast ── */
+    .unlock-toast {
+      position: fixed;
+      top: 4.5rem;
+      right: 1.25rem;
+      z-index: 2052;
+      display: flex;
+      align-items: stretch;
+      width: 308px;
+      border-radius: 12px;
+      background: rgba(8, 12, 18, 0.97);
+      border: 1px solid rgba(0,229,204,0.16);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow:
+        0 24px 64px rgba(0,0,0,0.75),
+        0 0 0 1px rgba(0,229,204,0.05),
+        0 0 48px rgba(0,229,204,0.05);
+      overflow: hidden;
+      transform: translateX(calc(100% + 2rem)) scale(0.88);
+      opacity: 0;
+      transition:
+        transform 0.52s cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 0.32s ease;
+    }
+    .unlock-toast.visible {
+      transform: translateX(0) scale(1);
+      opacity: 1;
+      box-shadow:
+        0 24px 64px rgba(0,0,0,0.75),
+        0 0 0 1px rgba(0,229,204,0.1),
+        0 0 48px rgba(0,229,204,0.1),
+        0 0 96px rgba(0,229,204,0.04);
+    }
+
+    /* Icon column */
+    .toast-icon-col {
+      width: 56px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,229,204,0.08);
+      border-right: 1px solid rgba(0,229,204,0.12);
+      position: relative;
+    }
+    .toast-icon-col::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(0,229,204,0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .toast-icon-glyph {
+      font-size: 1.35rem;
+      color: #00e5cc;
+      text-shadow: 0 0 10px rgba(0,229,204,1), 0 0 24px rgba(0,229,204,0.6);
+      position: relative;
+      z-index: 1;
+      animation: toastIconPop 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.18s both;
+    }
+    @keyframes toastIconPop {
+      0%   { transform: scale(0.2) rotate(-20deg); opacity: 0; }
+      65%  { transform: scale(1.2) rotate(4deg); }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    /* Body */
+    .toast-body {
+      flex: 1;
+      padding: 0.62rem 0.9rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.12rem;
+      min-width: 0;
+    }
+    .toast-category {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.44rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(0,229,204,0.55);
+      margin-bottom: 0.1rem;
+    }
+    .unlock-toast-title {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.81rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.95);
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .unlock-toast-sub {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.63rem;
+      color: rgba(255,255,255,0.38);
+      font-weight: 500;
+    }
+    .toast-hint {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.58rem;
+      font-weight: 600;
+      color: rgba(0,229,204,0.75);
+      margin-top: 5px;
+      letter-spacing: 0.02em;
+    }
+
+    /* Shimmer sweep — plays once on entry */
+    .toast-shimmer {
+      position: absolute;
+      top: 0; bottom: 0;
+      left: 56px; right: 0;
+      background: linear-gradient(
+        105deg,
+        transparent 0%,
+        rgba(0,229,204,0.06) 35%,
+        rgba(0,229,204,0.18) 50%,
+        rgba(0,229,204,0.06) 65%,
+        transparent 100%
+      );
+      animation: toastShimmer 0.85s ease-out 0.4s both;
+      pointer-events: none;
+    }
+    @keyframes toastShimmer {
+      from { transform: translateX(-120%); opacity: 1; }
+      to   { transform: translateX(200%); opacity: 0; }
+    }
+
+    /* Drain bar — shows remaining hold time */
+    .toast-drain {
+      position: absolute;
+      bottom: 0;
+      left: 56px;
+      right: 0;
+      height: 2px;
+      background: rgba(255,255,255,0.04);
+    }
+    .toast-drain-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, rgba(0,229,204,0.15) 0%, #00e5cc 100%);
+      transform-origin: left;
+      animation: toastDrain var(--hold-ms, 2500ms) linear 0.5s forwards;
+    }
+    @keyframes toastDrain {
+      from { transform: scaleX(1); }
+      to   { transform: scaleX(0); }
+    }
+
+    /* ── Final / gold state ── */
+    .unlock-toast.is-final {
+      border-color: rgba(251,191,36,0.18);
+      box-shadow:
+        0 24px 64px rgba(0,0,0,0.75),
+        0 0 0 1px rgba(251,191,36,0.06),
+        0 0 48px rgba(251,191,36,0.06);
+    }
+    .unlock-toast.is-final.visible {
+      box-shadow:
+        0 24px 64px rgba(0,0,0,0.75),
+        0 0 0 1px rgba(251,191,36,0.12),
+        0 0 48px rgba(251,191,36,0.14),
+        0 0 96px rgba(251,191,36,0.04);
+    }
+    .unlock-toast.is-final .toast-icon-col {
+      background: rgba(251,191,36,0.1);
+      border-right-color: rgba(251,191,36,0.15);
+    }
+    .unlock-toast.is-final .toast-icon-col::before {
+      background: radial-gradient(circle at center, rgba(251,191,36,0.2) 0%, transparent 70%);
+    }
+    .unlock-toast.is-final .toast-icon-glyph {
+      color: #fbbf24;
+      text-shadow: 0 0 10px rgba(251,191,36,1), 0 0 24px rgba(251,191,36,0.6);
+    }
+    .unlock-toast.is-final .toast-category { color: rgba(251,191,36,0.6); }
+    .unlock-toast.is-final .toast-shimmer {
+      background: linear-gradient(
+        105deg,
+        transparent 0%,
+        rgba(251,191,36,0.06) 35%,
+        rgba(251,191,36,0.18) 50%,
+        rgba(251,191,36,0.06) 65%,
+        transparent 100%
+      );
+    }
+    .unlock-toast.is-final .toast-drain-fill {
+      background: linear-gradient(90deg, rgba(251,191,36,0.15) 0%, #fbbf24 100%);
+    }
+
   `;
   document.head.appendChild(s);
 }
 
-/* ── Progress dots beneath the Resume button ────────────────── */
+/* ── Count badge on the Resume button ───────────────────────── */
 
-function ensureDots(): void {
-  if (dotsCreated) return;
+function getBadgeEl(): HTMLElement | null {
+  return document.getElementById("cv-btn-badge");
+}
+
+function ensureBadge(): HTMLElement | null {
   const btn = document.getElementById("cv-btn");
-  if (!btn) return;
-  dotsCreated = true;
+  if (!btn) return null;
 
-  const wrap = document.createElement("div");
-  wrap.id = "cv-btn-dots";
-  for (let i = 0; i < TIMELINE_STOPS.length; i++) {
-    const dot = document.createElement("div");
-    dot.className = "cv-btn-dot";
-    dot.dataset.idx = String(i);
-    wrap.appendChild(dot);
+  let badge = document.getElementById("cv-btn-badge");
+  if (!badge) {
+    badge = document.createElement("div");
+    badge.id = "cv-btn-badge";
+    badge.className = "cv-btn-badge";
+    btn.appendChild(badge);
   }
-  btn.appendChild(wrap);
+  return badge;
+}
+
+// Tracks discoveries added externally (from discoveryTracker) to include in badge count
+let discoveryBadgeCount = 0;
+
+/** Call after each 3D object discovery to bump the Resume button badge. */
+export function addDiscoveryToBadge(): void {
+  discoveryBadgeCount++;
+  refreshProgressDots();
 }
 
 export function refreshProgressDots(): void {
-  ensureDots();
-
-  let count = 0;
-  TIMELINE_STOPS.forEach((stop, i) => {
-    const dot = document.querySelector(`.cv-btn-dot[data-idx="${i}"]`);
-    if (dot && isStopCompleted(stop.id)) {
-      dot.classList.add("filled");
-      count++;
-    }
-  });
-
   const btn = document.getElementById("cv-btn");
-  if (btn) btn.classList.toggle("cv-btn-has-unlocks", count > 0);
+  if (!btn) return;
+
+  const gateCount = TIMELINE_STOPS.filter((s) => isStopCompleted(s.id)).length;
+  const total = gateCount + discoveryBadgeCount;
+
+  if (total === 0) {
+    getBadgeEl()?.remove();
+    btn.classList.remove("cv-btn-has-unlocks");
+    return;
+  }
+
+  const badge = ensureBadge();
+  if (!badge) return;
+
+  const isFull = gateCount === TIMELINE_STOPS.length;
+  const newText = isFull ? "✦" : String(total);
+
+  // Animate the number change with a quick scale bump
+  if (badge.textContent !== newText) {
+    badge.textContent = newText;
+    badge.style.animation = "none";
+    void badge.offsetHeight;
+    badge.style.animation = "";
+  }
+
+  badge.classList.toggle("is-complete", isFull);
+  btn.classList.add("cv-btn-has-unlocks");
 }
 
 /* ── First-unlock tooltip ───────────────────────────────────── */
@@ -141,178 +524,589 @@ function showFirstUnlockTooltip(): void {
   }, 3200);
 }
 
-/* ── Mote animation (3D gate → 2D Resume button) ───────────── */
+/* ── Phase 0: "The Seal Break" — screen vignette flash ─────── */
 
-export function triggerGateUnlock(
-  gateWorldPos: THREE.Vector3,
-  camera: THREE.PerspectiveCamera,
-): void {
+function playVignetteFlash(): Promise<void> {
+  return new Promise((resolve) => {
+    const vignette = document.createElement("div");
+    vignette.style.cssText = `
+      position: fixed; inset: 0; pointer-events: none; z-index: 1999;
+      box-shadow: inset 0 0 120px 40px rgba(0, 229, 204, 0.12);
+      opacity: 0;
+      transition: opacity 200ms ease-in;
+    `;
+    document.body.appendChild(vignette);
+
+    requestAnimationFrame(() => {
+      vignette.style.opacity = "1";
+      setTimeout(() => {
+        vignette.style.transition = "opacity 200ms ease-out";
+        vignette.style.opacity = "0";
+        setTimeout(() => {
+          vignette.remove();
+          resolve();
+        }, 200);
+      }, 200);
+    });
+  });
+}
+
+/* ── Phase 1: "Energy Harvest" — mote burst + bezier travel ── */
+
+function playEnergyHarvest(startX: number, startY: number): Promise<void> {
+  return new Promise((resolve) => {
+    const btn = document.getElementById("cv-btn");
+    if (!btn) {
+      resolve();
+      return;
+    }
+
+    const target = getButtonCenter();
+
+    interface Mote {
+      el: HTMLDivElement;
+      bx: number;
+      by: number;
+      cx: number;
+      cy: number;
+      delay: number;
+      duration: number;
+      size: number;
+      arrived: boolean;
+    }
+
+    const motes: Mote[] = [];
+
+    for (let i = 0; i < MOTE_COUNT; i++) {
+      const el = document.createElement("div");
+      el.className = "unlock-mote";
+      const size = 6 + Math.random() * 4;
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.opacity = "0";
+      document.body.appendChild(el);
+
+      const angle =
+        (Math.PI * 2 * i) / MOTE_COUNT + (Math.random() - 0.5) * 0.6;
+      const dist = 25 + Math.random() * 40;
+      const bx = startX + Math.cos(angle) * dist;
+      const by = startY + Math.sin(angle) * dist;
+
+      const mx = (bx + target.x) / 2;
+      const my = (by + target.y) / 2;
+      const perpAngle =
+        Math.atan2(target.y - by, target.x - bx) + Math.PI / 2;
+      const arcOff = (Math.random() - 0.5) * 160;
+      const cx = mx + Math.cos(perpAngle) * arcOff;
+      const cy = my + Math.sin(perpAngle) * arcOff - 40 - Math.random() * 40;
+
+      const delay = i * 50;
+      const duration = 500 * (0.85 + Math.random() * 0.3);
+
+      motes.push({ el, bx, by, cx, cy, delay, duration, size, arrived: false });
+    }
+
+    const BURST_DUR = 250;
+    const t0 = performance.now();
+    let arrivedCount = 0;
+
+    function tick(): void {
+      const elapsed = performance.now() - t0;
+      let allDone = true;
+
+      for (const m of motes) {
+        if (m.arrived) continue;
+        const localTime = elapsed - m.delay;
+
+        if (localTime < 0) {
+          allDone = false;
+          continue;
+        }
+
+        if (localTime < BURST_DUR) {
+          allDone = false;
+          const t = localTime / BURST_DUR;
+          const e = 1 - (1 - t) ** 3;
+          const x = startX + (m.bx - startX) * e;
+          const y = startY + (m.by - startY) * e;
+          m.el.style.left = `${x - m.size / 2}px`;
+          m.el.style.top = `${y - m.size / 2}px`;
+          m.el.style.opacity = String(0.3 + t * 0.7);
+        } else {
+          const travelTime = localTime - BURST_DUR;
+          if (travelTime < m.duration) {
+            allDone = false;
+            const raw = travelTime / m.duration;
+            const e =
+              raw < 0.5
+                ? 2 * raw * raw
+                : 1 - (-2 * raw + 2) ** 2 / 2;
+
+            const omt = 1 - e;
+            const x =
+              omt * omt * m.bx + 2 * omt * e * m.cx + e * e * target.x;
+            const y =
+              omt * omt * m.by + 2 * omt * e * m.cy + e * e * target.y;
+            const scale = 1 - e * 0.4;
+
+            m.el.style.left = `${x - m.size / 2}px`;
+            m.el.style.top = `${y - m.size / 2}px`;
+            m.el.style.transform = `scale(${scale})`;
+            m.el.style.opacity = String(1 - e * 0.2);
+          } else if (!m.arrived) {
+            m.arrived = true;
+            arrivedCount++;
+            spawnSparks(target.x, target.y, 3 + Math.floor(Math.random() * 2));
+            m.el.remove();
+          }
+        }
+      }
+
+      if (allDone || arrivedCount >= MOTE_COUNT) {
+        motes.forEach((m) => m.el.parentNode && m.el.remove());
+        resolve();
+      } else {
+        requestAnimationFrame(tick);
+      }
+    }
+
+    requestAnimationFrame(tick);
+  });
+}
+
+/* ── Micro-sparks on mote impact ─────────────────────────────── */
+
+function spawnSparks(x: number, y: number, count: number): void {
+  for (let i = 0; i < count; i++) {
+    const spark = document.createElement("div");
+    spark.className = "unlock-spark";
+    document.body.appendChild(spark);
+
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 50 + Math.random() * 80;
+    let vx = Math.cos(angle) * speed;
+    let vy = Math.sin(angle) * speed - 30;
+    let sx = x;
+    let sy = y;
+    const t0 = performance.now();
+    let lastT = t0;
+
+    function animateSpark(): void {
+      const now = performance.now();
+      const dt = (now - lastT) / 1000;
+      lastT = now;
+      const elapsed = now - t0;
+
+      if (elapsed > 300) {
+        spark.remove();
+        return;
+      }
+
+      sx += vx * dt;
+      sy += vy * dt;
+      vy += 400 * dt;
+      vx *= 1 - 2 * dt;
+
+      spark.style.left = `${sx}px`;
+      spark.style.top = `${sy}px`;
+      spark.style.opacity = String(1 - elapsed / 300);
+      requestAnimationFrame(animateSpark);
+    }
+    requestAnimationFrame(animateSpark);
+  }
+}
+
+/* ── Phase 2: "The Absorption" — button pop, sonar, dot flash ── */
+
+function playAbsorption(_stopId: string): Promise<void> {
+  return new Promise((resolve) => {
+    const btn = document.getElementById("cv-btn");
+    if (!btn) {
+      resolve();
+      return;
+    }
+
+    btn.classList.add("cv-btn-absorbing");
+    setTimeout(() => btn.classList.remove("cv-btn-absorbing"), 500);
+
+    const center = getButtonCenter();
+    const sonar = document.createElement("div");
+    sonar.className = "unlock-sonar";
+    sonar.style.left = `${center.x}px`;
+    sonar.style.top = `${center.y}px`;
+    document.body.appendChild(sonar);
+    setTimeout(() => sonar.remove(), 650);
+
+    // Brief badge flash then update count
+    const badge = getBadgeEl();
+    if (badge) {
+      badge.style.background = "rgba(255,255,255,0.9)";
+      badge.style.color = "#000";
+      setTimeout(() => {
+        badge.style.background = "";
+        badge.style.color = "";
+        refreshProgressDots();
+      }, 150);
+    } else {
+      refreshProgressDots();
+    }
+
+    btn.style.boxShadow =
+      "0 0 32px rgba(0,229,204,0.5), 0 0 56px rgba(0,229,204,0.2)";
+    btn.style.borderColor = "rgba(0,229,204,0.8)";
+    setTimeout(() => {
+      btn.style.boxShadow = "";
+      btn.style.borderColor = "";
+    }, 2500);
+
+    setTimeout(resolve, 450);
+  });
+}
+
+/* ── Shared game toast ───────────────────────────────────────── */
+
+export interface GameToastOptions {
+  icon: string;
+  category: string;
+  title: string;
+  subtitle: string;
+  hint?: string;       // optional reward line shown below subtitle in cyan
+  isFinal?: boolean;
+  holdMs?: number;
+}
+
+let activeToastEl: HTMLElement | null = null;
+let activeToastTimer: ReturnType<typeof setTimeout> | null = null;
+
+export async function showGameToast(opts: GameToastOptions): Promise<void> {
   injectStyles();
-  ensureDots();
+
+  // Dismiss any existing toast instantly before showing new one
+  if (activeToastEl) {
+    const prev = activeToastEl;
+    activeToastEl = null;
+    prev.classList.remove("visible");
+    if (activeToastTimer) { clearTimeout(activeToastTimer); activeToastTimer = null; }
+    await wait(180);
+    prev.remove();
+  }
+
+  const holdMs = opts.holdMs ?? 2500;
+  const toast = document.createElement("div");
+  toast.className = `unlock-toast${opts.isFinal ? " is-final" : ""}`;
+  toast.innerHTML = `
+    <div class="toast-icon-col">
+      <span class="toast-icon-glyph">${opts.icon}</span>
+    </div>
+    <div class="toast-body">
+      <div class="toast-category">${opts.category}</div>
+      <div class="unlock-toast-title">${opts.title}</div>
+      <div class="unlock-toast-sub">${opts.subtitle}</div>
+      ${opts.hint ? `<div class="toast-hint">${opts.hint}</div>` : ""}
+    </div>
+    <div class="toast-shimmer"></div>
+    <div class="toast-drain">
+      <div class="toast-drain-fill" style="--hold-ms: ${holdMs}ms"></div>
+    </div>
+  `;
+  document.body.appendChild(toast);
+  activeToastEl = toast;
+
+  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add("visible")));
+
+  await wait(holdMs + 500);
+
+  toast.classList.remove("visible");
+  await wait(420);
+  if (activeToastEl === toast) { activeToastEl = null; }
+  toast.remove();
+}
+
+/* ── Phase 3: "The Revelation" — scanline, toast ──────────────── */
+
+async function playRevelation(
+  stopCompany: string,
+  stopYear: number,
+  completedCount: number,
+  totalGates: number,
+): Promise<void> {
+  await wait(200);
+
+  const scanline = document.createElement("div");
+  scanline.className = "unlock-scanline";
+  document.body.appendChild(scanline);
+  setTimeout(() => scanline.remove(), 400);
+
+  await wait(300);
+
+  const isFinal = completedCount === totalGates;
+  const holdMs = isFinal ? 4000 : 2500;
+
+  const toastPromise = showGameToast({
+    icon: isFinal ? "\u2605" : "\u2726",
+    category: isFinal ? "JOURNEY COMPLETE" : "MILESTONE EXPLORED",
+    title: isFinal ? "Journey Complete" : `${stopCompany} ${stopYear} \u2014 Explored`,
+    subtitle: isFinal
+      ? "Every chapter of the story, experienced firsthand"
+      : `${completedCount} of ${totalGates} milestones explored`,
+    isFinal,
+    holdMs,
+  });
+
+  // Mark Journey tab as having new content
+  markJourneyTabNew();
+
+  if (isFinal) {
+    await wait(400);
+    playCompletionBonus();
+  }
+
+  await toastPromise;
+
+  if (completedCount === 1) {
+    showFirstUnlockTooltip();
+  }
+}
+
+/* ── Phase 4: 4/4 Completion Bonus ────────────────────────────── */
+
+function playCompletionBonus(): void {
+  const btn = document.getElementById("cv-btn");
+  if (!btn) return;
+
+  const center = getButtonCenter();
+
+  const sonar1 = document.createElement("div");
+  sonar1.className = "unlock-sonar";
+  sonar1.style.left = `${center.x}px`;
+  sonar1.style.top = `${center.y}px`;
+  document.body.appendChild(sonar1);
+  setTimeout(() => sonar1.remove(), 650);
+
+  setTimeout(() => {
+    const sonar2 = document.createElement("div");
+    sonar2.className = "unlock-sonar";
+    sonar2.style.left = `${center.x}px`;
+    sonar2.style.top = `${center.y}px`;
+    document.body.appendChild(sonar2);
+    setTimeout(() => sonar2.remove(), 650);
+  }, 150);
+
+  // Update badge to complete star and apply gold accent
+  refreshProgressDots();
+
+  btn.classList.add("cv-btn-complete");
+}
+
+/* ── Main cinematic pipeline ──────────────────────────────────── */
+
+export async function playCinematicUnlock(
+  gateScreenX: number,
+  gateScreenY: number,
+  stopId: string,
+  stopYear: number,
+  stopCompany: string,
+  completedCount: number,
+  totalGates: number,
+): Promise<void> {
+  if (isPlaying) return;
+  isPlaying = true;
+
+  try {
+    // Phase 0: "The Seal Break"
+    await playVignetteFlash();
+
+    // Phase 1: "Energy Harvest"
+    await playEnergyHarvest(gateScreenX, gateScreenY);
+
+    // Phase 2: "The Absorption"
+    await playAbsorption(stopId);
+
+    // Phase 3: "The Revelation"
+    await playRevelation(stopCompany, stopYear, completedCount, totalGates);
+  } finally {
+    isPlaying = false;
+  }
+}
+
+/* ── Discovery motes + About tab indicator ───────────────────── */
+
+let aboutTabNewPending = false;
+
+/** Add pulsing "new" indicator to the About tab. Call once per discovery. */
+export function markAboutTabNew(): void {
+  aboutTabNewPending = true;
+  applyAboutTabNewToDom();
+}
+
+/** Remove indicator — call when user clicks the About tab. */
+export function clearAboutTabNew(): void {
+  aboutTabNewPending = false;
+  document.querySelectorAll(".cv-tab-new-dot").forEach((el) => el.remove());
+  const aboutBtn = document.querySelector<HTMLElement>('.cv-tab-btn[data-tab="about"]');
+  if (aboutBtn) aboutBtn.classList.remove("cv-tab-btn-new");
+}
+
+/** Should be called on CV panel open — applies indicator if still pending. */
+export function applyAboutTabNewToDom(): void {
+  if (!aboutTabNewPending) return;
+  const aboutBtn = document.querySelector<HTMLElement>('.cv-tab-btn[data-tab="about"]');
+  if (!aboutBtn) return;
+  aboutBtn.classList.add("cv-tab-btn-new");
+  if (!aboutBtn.querySelector(".cv-tab-new-dot")) {
+    const dot = document.createElement("span");
+    dot.className = "cv-tab-new-dot";
+    aboutBtn.appendChild(dot);
+  }
+}
+
+export function shouldShowAboutTabNew(): boolean {
+  return aboutTabNewPending;
+}
+
+// ── Journey tab "New" indicator ─────────────────────────────────────────────
+let journeyTabNewPending = false;
+
+/** Call after a gate is completed to put a pulsing dot on the Journey tab. */
+export function markJourneyTabNew(): void {
+  journeyTabNewPending = true;
+  applyJourneyTabNewToDom();
+}
+
+/** Remove the dot — call when user clicks the Journey tab. */
+export function clearJourneyTabNew(): void {
+  journeyTabNewPending = false;
+  document.querySelectorAll(".cv-tab-journey-new-dot").forEach((el) => el.remove());
+  const btn = document.querySelector<HTMLElement>('.cv-tab-btn[data-tab="journey"]');
+  if (btn) btn.classList.remove("cv-tab-btn-new");
+}
+
+/** Apply the indicator if still pending — call on CV panel open. */
+export function applyJourneyTabNewToDom(): void {
+  if (!journeyTabNewPending) return;
+  const btn = document.querySelector<HTMLElement>('.cv-tab-btn[data-tab="journey"]');
+  if (!btn) return;
+  btn.classList.add("cv-tab-btn-new");
+  if (!btn.querySelector(".cv-tab-journey-new-dot")) {
+    const dot = document.createElement("span");
+    dot.className = "cv-tab-new-dot cv-tab-journey-new-dot";
+    btn.appendChild(dot);
+  }
+}
+
+/**
+ * Lightweight discovery mote burst: 3 amber motes fly from the 3D object's
+ * screen position to the Resume button, then pulse the button and mark the
+ * About tab as new.
+ */
+export function playDiscoveryMotes(fromX: number, fromY: number): void {
+  injectStyles();
 
   const btn = document.getElementById("cv-btn");
   if (!btn) return;
 
-  // Project gate 3D position to screen coordinates
-  const proj = gateWorldPos.clone().project(camera);
-  const sx = (proj.x * 0.5 + 0.5) * window.innerWidth;
-  const sy = (-proj.y * 0.5 + 0.5) * window.innerHeight;
+  const target = getButtonCenter();
+  const DISC_MOTE_COUNT = 3;
 
-  // Resume button center
-  const br = btn.getBoundingClientRect();
-  const ex = br.left + br.width / 2;
-  const ey = br.top + br.height / 2;
-
-  // Mote container
-  const ctr = document.createElement("div");
-  ctr.style.cssText =
-    "position:fixed;inset:0;z-index:1999;pointer-events:none;overflow:hidden;";
-  document.body.appendChild(ctr);
-
-  interface Mote {
+  interface DMote {
     el: HTMLDivElement;
-    bx: number;
-    by: number;
-    cx: number;
-    cy: number;
-    delay: number;
+    bx: number; by: number;
+    cx: number; cy: number;
+    delay: number; duration: number;
+    size: number; arrived: boolean;
   }
 
-  const motes: Mote[] = [];
+  const motes: DMote[] = [];
 
-  for (let i = 0; i < MOTE_COUNT; i++) {
+  for (let i = 0; i < DISC_MOTE_COUNT; i++) {
     const el = document.createElement("div");
-    const sz = 5 + Math.random() * 4;
-    el.style.cssText = `
-      position:absolute;left:0;top:0;
-      width:${sz}px;height:${sz}px;border-radius:50%;
-      background:#00e5cc;
-      box-shadow:0 0 ${8 + sz}px ${2 + sz / 2}px rgba(0,229,204,0.5),
-                 0 0 ${18 + sz}px ${4 + sz}px rgba(0,229,204,0.15);
-      opacity:0;will-change:transform,opacity;
-    `;
-    ctr.appendChild(el);
+    el.className = "unlock-mote unlock-mote-discovery";
+    const size = 5 + Math.random() * 3;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.opacity = "0";
+    document.body.appendChild(el);
 
-    // Burst scatter direction
-    const angle =
-      (Math.PI * 2 * i) / MOTE_COUNT + (Math.random() - 0.5) * 0.6;
-    const dist = 20 + Math.random() * 35;
-    const bx = sx + Math.cos(angle) * dist;
-    const by = sy + Math.sin(angle) * dist;
+    const angle = (Math.PI * 2 * i) / DISC_MOTE_COUNT + (Math.random() - 0.5) * 0.8;
+    const dist = 20 + Math.random() * 30;
+    const bx = fromX + Math.cos(angle) * dist;
+    const by = fromY + Math.sin(angle) * dist;
 
-    // Bezier control point for the arc
-    const mx = (bx + ex) / 2;
-    const my = (by + ey) / 2;
-    const perpAngle = Math.atan2(ey - by, ex - bx) + Math.PI / 2;
-    const arcOff = (Math.random() - 0.5) * 160;
+    const mx = (bx + target.x) / 2;
+    const my = (by + target.y) / 2;
+    const perpAngle = Math.atan2(target.y - by, target.x - bx) + Math.PI / 2;
+    const arcOff = (Math.random() - 0.5) * 120;
     const cx = mx + Math.cos(perpAngle) * arcOff;
-    const cy = my + Math.sin(perpAngle) * arcOff - 50 - Math.random() * 50;
+    const cy = my + Math.sin(perpAngle) * arcOff - 30 - Math.random() * 30;
 
-    motes.push({ el, bx, by, cx, cy, delay: i * 0.06 });
+    motes.push({
+      el, bx, by, cx, cy,
+      delay: i * 70,
+      duration: 480 * (0.85 + Math.random() * 0.3),
+      size,
+      arrived: false,
+    });
   }
 
+  const BURST_DUR = 200;
   const t0 = performance.now();
+  let arrivedCount = 0;
 
   function tick(): void {
-    const dt = performance.now() - t0;
+    const elapsed = performance.now() - t0;
+    let allDone = true;
 
     for (const m of motes) {
-      if (dt < BURST_MS) {
-        // Phase 1: burst scatter
-        const t = dt / BURST_MS;
+      if (m.arrived) continue;
+      const localTime = elapsed - m.delay;
+      if (localTime < 0) { allDone = false; continue; }
+
+      if (localTime < BURST_DUR) {
+        allDone = false;
+        const t = localTime / BURST_DUR;
         const e = 1 - (1 - t) ** 3;
-        const x = sx + (m.bx - sx) * e;
-        const y = sy + (m.by - sy) * e;
-        m.el.style.transform = `translate(${x}px, ${y}px) translate(-50%,-50%)`;
+        m.el.style.left = `${fromX + (m.bx - fromX) * e - m.size / 2}px`;
+        m.el.style.top  = `${fromY + (m.by - fromY) * e - m.size / 2}px`;
         m.el.style.opacity = String(0.3 + t * 0.7);
       } else {
-        // Phase 2: arc travel to button
-        const raw = (dt - BURST_MS) / TRAVEL_MS;
-        const staggered = Math.max(
-          0,
-          Math.min(1, (raw - m.delay) / (1 - (MOTE_COUNT - 1) * 0.06)),
-        );
-        const e =
-          staggered < 0.5
-            ? 2 * staggered * staggered
-            : 1 - (-2 * staggered + 2) ** 2 / 2;
+        const travelTime = localTime - BURST_DUR;
+        if (travelTime < m.duration) {
+          allDone = false;
+          const raw = travelTime / m.duration;
+          const e = raw < 0.5 ? 2 * raw * raw : 1 - (-2 * raw + 2) ** 2 / 2;
+          const omt = 1 - e;
+          m.el.style.left = `${omt * omt * m.bx + 2 * omt * e * m.cx + e * e * target.x - m.size / 2}px`;
+          m.el.style.top  = `${omt * omt * m.by + 2 * omt * e * m.cy + e * e * target.y - m.size / 2}px`;
+          m.el.style.transform = `scale(${1 - e * 0.4})`;
+          m.el.style.opacity = String(1 - e * 0.25);
+        } else if (!m.arrived) {
+          m.arrived = true;
+          arrivedCount++;
+          spawnSparks(target.x, target.y, 2);
+          m.el.remove();
 
-        const omt = 1 - e;
-        const x = omt * omt * m.bx + 2 * omt * e * m.cx + e * e * ex;
-        const y = omt * omt * m.by + 2 * omt * e * m.cy + e * e * ey;
-        const scale = 1 - e * 0.5;
+          // Last mote lands → pulse button + mark About tab
+          if (arrivedCount === DISC_MOTE_COUNT) {
+            btn?.classList.add("cv-btn-absorbing");
+            setTimeout(() => btn?.classList.remove("cv-btn-absorbing"), 450);
 
-        m.el.style.transform = `translate(${x}px, ${y}px) translate(-50%,-50%) scale(${scale})`;
-        m.el.style.opacity = String(1 - e * 0.3);
+            // Small sonar ring in amber
+            const sonar = document.createElement("div");
+            sonar.className = "unlock-sonar";
+            sonar.style.cssText = `left:${target.x}px;top:${target.y}px;border-color:rgba(251,191,36,0.7);`;
+            document.body.appendChild(sonar);
+            setTimeout(() => sonar.remove(), 650);
+
+            markAboutTabNew();
+          }
+        }
       }
     }
 
-    if (dt < BURST_MS + TRAVEL_MS) {
-      requestAnimationFrame(tick);
-    } else {
-      ctr.remove();
-      absorb();
-    }
+    if (!allDone && arrivedCount < DISC_MOTE_COUNT) requestAnimationFrame(tick);
   }
 
   requestAnimationFrame(tick);
-
-  /* Phase 3: button absorption */
-  function absorb(): void {
-    if (!btn) return;
-
-    // Elastic scale pulse
-    btn.style.transition =
-      "transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease, border-color 0.2s ease";
-    btn.style.transform = "translateY(-1px) scale(1.12)";
-    btn.style.boxShadow =
-      "0 0 32px rgba(0,229,204,0.5), 0 0 56px rgba(0,229,204,0.2)";
-    btn.style.borderColor = "rgba(0,229,204,0.8)";
-    btn.style.animation = "none";
-
-    // Sonar ring pulse
-    const ring = document.createElement("div");
-    const rr = btn.getBoundingClientRect();
-    ring.style.cssText = `
-      position:fixed;z-index:2001;pointer-events:none;
-      left:${rr.left + rr.width / 2}px;
-      top:${rr.top + rr.height / 2}px;
-      width:${rr.width + 20}px;height:${rr.height + 20}px;
-      border-radius:28px;
-      border:2px solid rgba(0,229,204,0.6);
-      animation:gateRingPulse 0.65s ease-out forwards;
-      transform:translate(-50%,-50%);
-    `;
-    document.body.appendChild(ring);
-
-    // Settle button scale
-    setTimeout(() => {
-      btn.style.transform = "";
-      btn.style.transition =
-        "transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease";
-    }, 250);
-
-    setTimeout(() => ring.remove(), 700);
-
-    // Update progress dots
-    refreshProgressDots();
-
-    // Sustained glow then fade to persistent state
-    setTimeout(() => {
-      btn.style.boxShadow = "";
-      btn.style.borderColor = "";
-      btn.style.transition = "";
-      btn.style.animation = "";
-    }, 2500);
-
-    // First unlock tooltip (only on the very first gate ever)
-    const completed = TIMELINE_STOPS.filter((s) =>
-      isStopCompleted(s.id),
-    ).length;
-    if (completed === 1) {
-      showFirstUnlockTooltip();
-    }
-  }
 }
 
 /* ── Init (call once during app setup) ──────────────────────── */
@@ -320,7 +1114,6 @@ export function triggerGateUnlock(
 export function initGateUnlockAnimation(): void {
   injectStyles();
   setTimeout(() => {
-    ensureDots();
     refreshProgressDots();
   }, 200);
 }

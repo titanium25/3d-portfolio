@@ -15,6 +15,8 @@ import {
   updateTimelineAnimations,
   updateTimelineLighting,
   markStopCompleted,
+  isStopCompleted,
+  pulseGateOnUnlock,
 } from "./scene/timeline";
 import { TIMELINE_STOPS } from "./scene/timeline/timelineConfig";
 import { initKeyboard, isKeyPressed } from "./controls/keyboardController";
@@ -35,8 +37,14 @@ import {
   preloadImages,
 } from "./ui/loadingScreen";
 import { initCVPanel } from "./ui/cvPanel";
-import { initGateUnlockAnimation, triggerGateUnlock } from "./ui/gateUnlockAnimation";
+import { initGateUnlockAnimation, playCinematicUnlock } from "./ui/gateUnlockAnimation";
 import { startOnboarding, updateOnboarding } from "./ui/onboardingHints";
+import {
+  initWorldTooltip,
+  registerTooltipTarget,
+  updateWorldTooltip,
+} from "./ui/worldTooltip";
+import { markDiscovered } from "./ui/discoveryTracker";
 import type { Stop } from "./scene/types";
 
 const CAMERA_HEIGHT = 3;
@@ -75,11 +83,73 @@ export async function initApp(container: HTMLElement): Promise<void> {
   initCVPanel();
   initGatePanel();
   initGateUnlockAnimation();
+  initWorldTooltip();
 
   // ── Scene (synchronous — no awaits needed) ──────────────────────────────
   const { scene, camera, renderer, composer } = createScene(container);
   const ground = createGround(scene);
-  const spawnPad = createSpawnPad(scene);
+  const spawnPad = createSpawnPad(scene, {
+    onBikeLoaded: (group) => {
+      registerTooltipTarget({
+        object: group,
+        title: "BMW S1000RR · 2014",
+        subtitle: "199hp of weekend therapy 🏍️",
+        yOffset: 1.2,
+        discoveryId: "bmw",
+        onClick: () => markDiscovered("bmw"),
+        onHoverStart: () => {
+          group.traverse((child) => {
+            const mesh = child as THREE.Mesh;
+            if (!mesh.isMesh) return;
+            const mat = mesh.material as THREE.MeshStandardMaterial;
+            if (!mat?.emissive) return;
+            if (child.userData._origEmissive === undefined) {
+              child.userData._origEmissive = mat.emissiveIntensity;
+            }
+            mat.emissiveIntensity = 0.5;
+          });
+        },
+        onHoverEnd: () => {
+          group.traverse((child) => {
+            const mesh = child as THREE.Mesh;
+            if (!mesh.isMesh) return;
+            const mat = mesh.material as THREE.MeshStandardMaterial;
+            if (mat?.emissive && child.userData._origEmissive !== undefined) {
+              mat.emissiveIntensity = child.userData._origEmissive;
+            }
+          });
+        },
+      });
+    },
+    onMtbLoaded: (group) => {
+      registerTooltipTarget({
+        object: group,
+        title: "Friday Morning Ritual",
+        subtitle: "80km before the world wakes up 🚴",
+        yOffset: 1.0,
+        discoveryId: "mtb",
+        onClick: () => markDiscovered("mtb"),
+      });
+    },
+  });
+
+  // ── Monogram tooltip (synchronous — mesh is ready immediately) ───────────
+  registerTooltipTarget({
+    object: spawnPad.monogramMesh,
+    title: "Alexander Lazarovich",
+    subtitle: "Ra'anana, Israel · Full-stack engineer",
+    yOffset: 0.3,
+    discoveryId: "monogram",
+    onClick: () => markDiscovered("monogram"),
+    onHoverStart: () => {
+      const mat = spawnPad.monogramMesh.material as THREE.MeshBasicMaterial;
+      if (mat) mat.opacity = 0.45;
+    },
+    onHoverEnd: () => {
+      const mat = spawnPad.monogramMesh.material as THREE.MeshBasicMaterial;
+      if (mat) mat.opacity = 0.10;
+    },
+  });
 
   // ── Intro starts IMMEDIATELY — user sees text from frame one ─────────────
   // Character is injected later via intro.setCharacter() once the model loads.
@@ -122,6 +192,27 @@ export async function initApp(container: HTMLElement): Promise<void> {
   const dogPromise = characterPromise.then((c) =>
     DogCompanion.create(scene, c.group, assetLoaded).then((d) => {
       dog = d;
+
+      // SkinnedMesh raycasting is unreliable — bounding spheres are computed from
+      // the bind-pose geometry and don't track bone-deformed vertices. Use an
+      // invisible proxy sphere parented to the dog's group instead.
+      const dogProxy = new THREE.Mesh(
+        new THREE.SphereGeometry(0.45, 8, 6),
+        new THREE.MeshBasicMaterial({ visible: false }),
+      );
+      dogProxy.position.y = 0.3; // mid-body height for the dog
+      d.group.add(dogProxy);
+
+      registerTooltipTarget({
+        object: dogProxy,
+        title: "Meny 🐾",
+        subtitle: "Alaskan Malamute · Chief Morale Officer",
+        yOffset: 0.8,
+        discoveryId: "meny",
+        onClick: () => markDiscovered("meny"),
+        onHoverStart: () => d.setExcited(true),
+        onHoverEnd: () => d.setExcited(false),
+      });
       return d;
     }),
   );
@@ -385,16 +476,52 @@ export async function initApp(container: HTMLElement): Promise<void> {
         const openGateOverlay = () => {
           const char = character;
           if (!isTransitionOpen() && char) {
-            const isFirstUnlock = markStopCompleted(nearbyGate.stop.data.id);
+            const stopId = nearbyGate.stop.data.id;
+            const isFirstUnlock = markStopCompleted(stopId);
             const worldPos = new THREE.Vector3();
             nearbyGate.stop.group.getWorldPosition(worldPos);
+
+            // Fire cinematic unlock on activation (E press), not on close
+            if (isFirstUnlock) {
+              const entry = TIMELINE_STOPS.find((s) => s.id === stopId);
+              const company = entry
+                ? entry.title.split(" \u2014 ")[0]
+                : "";
+              const year = entry ? entry.year : 0;
+
+              pulseGateOnUnlock(stopId);
+              const gatePos = new THREE.Vector3(
+                worldPos.x,
+                1.5,
+                worldPos.z,
+              );
+              gatePos.project(camera);
+              const screenX =
+                (gatePos.x * 0.5 + 0.5) * window.innerWidth;
+              const screenY =
+                (-gatePos.y * 0.5 + 0.5) * window.innerHeight;
+              const completed = TIMELINE_STOPS.filter((s) =>
+                isStopCompleted(s.id),
+              ).length;
+
+              setTimeout(() => {
+                playCinematicUnlock(
+                  screenX,
+                  screenY,
+                  stopId,
+                  year,
+                  company,
+                  completed,
+                  TIMELINE_STOPS.length,
+                );
+              }, 600);
+            }
+
             openTransition(
               nearbyGate.stop.data,
               worldPos,
               camera,
-              isFirstUnlock
-                ? () => setTimeout(() => triggerGateUnlock(worldPos, camera), 900)
-                : undefined,
+              undefined,
               () => ({
                 position: new THREE.Vector3(
                   char.group.position.x + CAMERA_OFFSET_X,
@@ -451,6 +578,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
       );
     }
 
+    updateWorldTooltip(camera, renderer.domElement);
     composer.render();
   }
 

@@ -2,13 +2,37 @@ import { TIMELINE_STOPS } from "../scene/timeline/timelineConfig";
 import { isStopCompleted } from "../scene/timeline/createTimelineStops";
 import { initPhotoLightbox, attachZoomHint } from "./photoLightbox";
 import { highlight, injectHighlightStyles } from "./highlightUtils";
-import { refreshProgressDots } from "./gateUnlockAnimation";
+import { refreshProgressDots, applyAboutTabNewToDom, clearAboutTabNew, applyJourneyTabNewToDom, clearJourneyTabNew } from "./gateUnlockAnimation";
+import { isDiscovered } from "./discoveryTracker";
 
 let panelEl: HTMLDivElement | null = null;
 let isOpen = false;
 
 // Track which unlocks the user has already seen (for shimmer animation)
 const seenUnlocks = new Set<string>();
+
+// ── Discovery photo data ──────────────────────────────────────────────────────
+
+interface PhotoEntry { src: string; caption: string; objectPosition?: string; }
+
+const CARD_PHOTOS: Record<string, PhotoEntry[]> = {
+  bmw: [
+    { src: "/img/discoveries/bmw-real-1.png", caption: "Tel Aviv nightride · 199hp of \"I should not be doing this on a Tuesday\"", objectPosition: "center bottom" },
+    { src: "/img/discoveries/bmw-real-2.png", caption: "The Shark wrap · yes, the dentist asked if I have a death wish",            objectPosition: "center center" },
+  ],
+  mtb: [
+    { src: "/img/discoveries/mtb-riding.png", caption: "05:30 AM · 80 km done before my first standup",                              objectPosition: "center 75%" },
+    { src: "/img/discoveries/mtb-bike.png",   caption: "Full-carbon hardtail · weighs less than my node_modules folder",              objectPosition: "center 60%" },
+  ],
+  lego: [
+    { src: "/img/discoveries/lego-bmw.png",    caption: "BMW M1000RR Technic · 1,920 pieces · 0 leftover (I counted twice)",          objectPosition: "center center" },
+    { src: "/img/discoveries/lego-yamaha.png", caption: "Yamaha MT-10 Technic · built with the twins, they did the stickers",          objectPosition: "center center" },
+  ],
+  meny: [
+    { src: "/img/discoveries/meny-1.png", caption: "Meny at the park · 45 kg of floof and zero personal space awareness",             objectPosition: "center 20%" },
+    { src: "/img/discoveries/meny-2.png", caption: "Posing for the camera · he knows exactly what he's doing",                         objectPosition: "center 15%" },
+  ],
+};
 
 // ── Fonts ────────────────────────────────────────────────────────────────────
 
@@ -366,7 +390,6 @@ function injectStyles(): void {
 
     /* ── Journey progress indicator ── */
     #cv-progress {
-      position: relative;
       padding: 1rem 0 0.2rem;
       border-top: 1px solid rgba(255,255,255,0.06);
     }
@@ -376,55 +399,13 @@ function injectStyles(): void {
       letter-spacing: 0.14em;
       text-transform: uppercase;
       color: rgba(0,229,204,0.45);
-      margin: 0 0 0.7rem;
+      margin: 0 0 0.35rem;
     }
-    #cv-progress-gates {
-      display: flex;
-      align-items: center;
-      gap: 0;
-    }
-    .cv-pg-gate {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.3rem;
-      flex-shrink: 0;
-    }
-    .cv-pg-dot {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.03);
-      transition: all 0.3s ease;
-    }
-    .cv-pg-gate.completed .cv-pg-dot {
-      border-color: #00e5cc;
-      background: rgba(0,229,204,0.25);
-      box-shadow: 0 0 10px rgba(0,229,204,0.4);
-    }
-    .cv-pg-year {
-      font-size: 0.58rem;
-      font-weight: 600;
-      color: rgba(255,255,255,0.22);
-      letter-spacing: 0.04em;
-    }
-    .cv-pg-gate.completed .cv-pg-year { color: rgba(0,229,204,0.7); }
-    .cv-pg-connector {
-      flex: 1;
-      height: 2px;
-      background: rgba(255,255,255,0.06);
-      min-width: 28px;
-      margin: 0 0.3rem;
-      margin-bottom: 1.2rem;
-      transition: background 0.3s;
-    }
-    .cv-pg-connector.completed { background: rgba(0,229,204,0.35); }
     #cv-progress-count {
-      margin-top: 0.6rem;
-      font-size: 0.68rem;
-      color: rgba(255,255,255,0.3);
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.55);
       font-weight: 500;
+      margin: 0;
     }
     #cv-progress-count span { color: #00e5cc; font-weight: 700; }
 
@@ -479,33 +460,29 @@ function injectStyles(): void {
     }
     .cv-exp-entry:last-child { padding-bottom: 0; }
 
-    /* Locked (unexplored) state */
-    .cv-exp-entry.cv-locked .cv-exp-body {
-      opacity: 0.35;
-      filter: saturate(0.2);
-    }
-    .cv-exp-entry.cv-locked .cv-exp-line { opacity: 0.4; }
-    .cv-lock-hint {
-      display: none;
+    /* ── Explored badge ── */
+    .cv-explored-badge {
+      display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
-      margin-top: 0.5rem;
-      padding: 0.45rem 0.7rem;
-      background: rgba(0,229,204,0.04);
-      border: 1px dashed rgba(0,229,204,0.18);
-      border-radius: 8px;
-      font-size: 0.68rem;
-      font-style: italic;
-      color: rgba(0,229,204,0.6);
-      line-height: 1.5;
+      gap: 0.2rem;
+      padding: 0.12rem 0.45rem;
+      background: rgba(0,229,204,0.08);
+      border: 1px solid rgba(0,229,204,0.25);
+      border-radius: 10px;
+      font-size: 0.56rem;
+      font-weight: 700;
+      color: rgba(0,229,204,0.75);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      animation: cvBadgePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-    .cv-exp-entry.cv-locked .cv-lock-hint { display: flex; }
-    .cv-lock-hint svg {
-      flex-shrink: 0;
-      opacity: 0.7;
+    @keyframes cvBadgePop {
+      0%   { transform: scale(0); opacity: 0; }
+      60%  { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
     }
 
-    /* Unlock shimmer animation */
+    /* Shimmer animation (still plays on newly-explored entries) */
     @keyframes cvShimmer {
       0%   { background-position: -200% center; }
       100% { background-position: 200% center; }
@@ -612,37 +589,93 @@ function injectStyles(): void {
       position: sticky;
       top: 0;
       float: left;
-      width: 24px;
+      width: 28px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0;
       padding: 1.6rem 0 1rem;
-      margin-left: 0.5rem;
+      margin-left: 0.15rem;
+      margin-right: 0.65rem;
       z-index: 5;
     }
     .cv-dot-nav-item {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.08);
-      border: 1.5px solid rgba(255,255,255,0.12);
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
-      transition: all 0.25s ease;
       position: relative;
+      z-index: 2;
     }
-    .cv-dot-nav-item:hover {
+    .cv-dot-nav-item::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+      border: 1.5px solid rgba(255,255,255,0.12);
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      flex-shrink: 0;
+    }
+    .cv-dot-nav-item:hover::before {
       background: rgba(0,229,204,0.2);
       border-color: rgba(0,229,204,0.5);
-      transform: scale(1.3);
+      transform: scale(1.35);
+      box-shadow: 0 0 10px rgba(0,229,204,0.25);
     }
-    .cv-dot-nav-item.active {
-      background: rgba(0,229,204,0.35);
+    .cv-dot-nav-item.active::before {
+      width: 9px;
+      height: 9px;
+      background: rgba(0,229,204,0.4);
       border-color: #00e5cc;
-      box-shadow: 0 0 8px rgba(0,229,204,0.4);
+      box-shadow: 0 0 10px rgba(0,229,204,0.5);
+      animation: cvDotPulse 2.4s ease-in-out infinite;
     }
-    .cv-dot-nav-item.completed {
-      border-color: rgba(0,229,204,0.3);
+    @keyframes cvDotPulse {
+      0%, 100% { box-shadow: 0 0 6px rgba(0,229,204,0.3); }
+      50%       { box-shadow: 0 0 14px rgba(0,229,204,0.6); }
+    }
+    .cv-dot-nav-item.completed::before {
+      background: rgba(0,229,204,0.15);
+      border-color: rgba(0,229,204,0.35);
+    }
+    /* Connecting rail behind dots */
+    .cv-dot-nav-rail {
+      position: absolute;
+      top: 1.6rem;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1px;
+      background: linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.06) 10%, rgba(255,255,255,0.06) 90%, transparent 100%);
+      z-index: 1;
+      pointer-events: none;
+    }
+    /* Year tooltip on hover */
+    .cv-dot-nav-item .cv-dot-year {
+      position: absolute;
+      left: calc(100% + 2px);
+      top: 50%;
+      transform: translateY(-50%) translateX(-4px);
+      opacity: 0;
+      padding: 0.15rem 0.4rem;
+      background: rgba(6, 10, 20, 0.92);
+      border: 1px solid rgba(0,229,204,0.2);
+      border-radius: 5px;
+      font-size: 0.54rem;
+      font-weight: 700;
+      color: rgba(0,229,204,0.8);
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    .cv-dot-nav-item:hover .cv-dot-year {
+      opacity: 1;
+      transform: translateY(-50%) translateX(0);
     }
 
     /* ── Stack tab: competency cards ── */
@@ -718,21 +751,34 @@ function injectStyles(): void {
       font-size: 0.82rem;
       line-height: 1.72;
       color: rgba(255,255,255,0.6);
-      padding: 0.8rem 1rem;
-      background: rgba(0,229,204,0.03);
-      border: 1px solid rgba(0,229,204,0.1);
-      border-radius: 10px;
+      padding: 1.4rem 1.3rem 1.1rem 1.6rem;
+      background: rgba(0,229,204,0.025);
+      border: 1px solid rgba(0,229,204,0.08);
+      border-left: 3px solid rgba(0,229,204,0.3);
+      border-radius: 0 10px 10px 0;
       position: relative;
     }
     .cv-working-with-me::before {
-      content: '"';
+      content: '\u201C';
       position: absolute;
-      top: -0.2rem;
-      left: 0.6rem;
-      font-size: 2.5rem;
-      color: rgba(0,229,204,0.15);
-      font-family: Georgia, serif;
+      top: 0.55rem;
+      left: 0.45rem;
+      font-size: 3.2rem;
+      color: rgba(0,229,204,0.12);
+      font-family: Georgia, 'Times New Roman', serif;
       line-height: 1;
+      pointer-events: none;
+    }
+    .cv-working-with-me::after {
+      content: '\u201D';
+      position: absolute;
+      bottom: 0.1rem;
+      right: 0.65rem;
+      font-size: 3.2rem;
+      color: rgba(0,229,204,0.07);
+      font-family: Georgia, 'Times New Roman', serif;
+      line-height: 1;
+      pointer-events: none;
     }
     .cv-working-with-me strong { color: rgba(255,255,255,0.85); font-weight: 600; }
 
@@ -762,56 +808,288 @@ function injectStyles(): void {
     #cv-edu-title { font-size: 0.93rem; font-weight: 700; color: #fff; margin: 0 0 0.12rem; }
     #cv-edu-sub { font-size: 0.74rem; color: rgba(255,255,255,0.38); margin: 0; }
 
-    /* Interests */
-    .cv-interests-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-      margin-top: 0.3rem;
+    /* Interests grid */
+    .cv-interests-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
     }
-    .cv-interest-tag {
-      display: inline-flex;
+    .cv-interest-card {
+      display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 0.3rem;
-      padding: 0.25rem 0.65rem;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 20px;
+      gap: 0.25rem;
+      padding: 0.7rem 0.4rem 0.55rem;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+      text-align: center;
+      transition: border-color 0.25s, background 0.25s, transform 0.25s, box-shadow 0.25s;
+      cursor: default;
+      position: relative;
+      overflow: hidden;
+    }
+    .cv-interest-card:hover {
+      background: rgba(0,229,204,0.05);
+      border-color: rgba(0,229,204,0.22);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,229,204,0.08);
+    }
+    .cv-interest-card-icon {
+      font-size: 1.3rem;
+      line-height: 1;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .cv-interest-card:hover .cv-interest-card-icon {
+      transform: scale(1.15);
+    }
+    .cv-interest-card-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.6);
+      letter-spacing: 0.02em;
+    }
+    .cv-interest-card-sub {
+      font-size: 0.52rem;
+      color: rgba(255,255,255,0.25);
+      line-height: 1.3;
+    }
+    /* Hover-reveal detail line */
+    .cv-interest-detail {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      font-size: 0.52rem;
+      font-style: italic;
+      color: rgba(0,229,204,0.55);
+      line-height: 1.35;
+      transition: max-height 0.3s ease, opacity 0.25s ease, margin 0.3s ease;
+      margin-top: 0;
+    }
+    .cv-interest-card:hover .cv-interest-detail {
+      max-height: 2.5rem;
+      opacity: 1;
+      margin-top: 0.2rem;
+    }
+    /* 3D world link badge — text pill, always readable */
+    .cv-interest-world {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(0,229,204,0.07);
+      border: 1px solid rgba(0,229,204,0.2);
+      font-size: 0.47rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      color: rgba(0,229,204,0.5);
+      white-space: nowrap;
+      transition: opacity 0.2s, background 0.25s, border-color 0.25s, color 0.25s, box-shadow 0.25s;
+    }
+    /* Discovered state — card visited in 3D world */
+    .cv-interest-card.cv-discovered {
+      border-color: rgba(0,229,204,0.2);
+      background: rgba(0,229,204,0.05);
+    }
+    .cv-interest-card.cv-discovered .cv-interest-world {
+      background: rgba(0,229,204,0.15);
+      border-color: rgba(0,229,204,0.5);
+      color: #00e5cc;
+      box-shadow: 0 0 8px rgba(0,229,204,0.35);
+    }
+    @keyframes cvDiscoverPop {
+      0%   { transform: scale(0.75) translateY(-2px); opacity: 0; }
+      65%  { transform: scale(1.1)  translateY(0);   opacity: 1; }
+      100% { transform: scale(1)    translateY(0);   opacity: 1; }
+    }
+    .cv-interest-card.cv-discovered-new .cv-interest-world {
+      animation: cvDiscoverPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    /* ── Film strip photo indicator (bottom of photo cards) ── */
+    .cv-card-film-strip {
+      align-self: stretch;
+      margin-top: auto;
+      margin-left: -0.4rem;
+      margin-right: -0.4rem;
+      margin-bottom: -0.55rem;
+      padding: 5px 9px 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      background: rgba(0,0,0,0.18);
+      transition: background 0.3s, border-top-color 0.3s;
+    }
+    .cfs-icon {
+      font-size: 0.7rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .cfs-frames {
+      display: flex;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .cfs-frame {
+      width: 9px;
+      height: 7px;
+      border-radius: 2px;
+      border: 1px solid;
+      transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+    }
+    .cfs-text {
+      font-size: 0.46rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      flex: 1;
+      text-align: right;
+      transition: color 0.3s;
+    }
+
+    /* Locked (undiscovered) */
+    .cv-interest-card[data-discovery-id]:not(.cv-discovered) .cv-card-film-strip {
+      border-top-color: rgba(255,255,255,0.04);
+    }
+    .cv-interest-card[data-discovery-id]:not(.cv-discovered) .cfs-icon::before { content: "🔒"; }
+    .cv-interest-card[data-discovery-id]:not(.cv-discovered) .cfs-frame {
+      border-color: rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.02);
+    }
+    .cv-interest-card[data-discovery-id]:not(.cv-discovered) .cfs-text {
+      color: rgba(255,255,255,0.18);
+      content: "discover to unlock";
+    }
+    .cv-interest-card[data-discovery-id]:not(.cv-discovered) .cfs-text::before { content: "discover to unlock"; }
+
+    /* Unlocked (discovered OR no discovery gate, e.g. LEGO) */
+    .cv-interest-card.cv-discovered .cv-card-film-strip,
+    .cv-interest-card:not([data-discovery-id])[data-photo-album] .cv-card-film-strip {
+      border-top-color: rgba(0,229,204,0.15);
+      background: rgba(0,229,204,0.05);
+    }
+    .cv-interest-card.cv-discovered .cfs-icon::before,
+    .cv-interest-card:not([data-discovery-id])[data-photo-album] .cfs-icon::before { content: "📷"; }
+    .cv-interest-card.cv-discovered .cfs-frame,
+    .cv-interest-card:not([data-discovery-id])[data-photo-album] .cfs-frame {
+      border-color: rgba(0,229,204,0.5);
+      background: rgba(0,229,204,0.1);
+      box-shadow: 0 0 4px rgba(0,229,204,0.25);
+    }
+    .cv-interest-card.cv-discovered .cfs-text,
+    .cv-interest-card:not([data-discovery-id])[data-photo-album] .cfs-text {
+      color: rgba(0,229,204,0.65);
+    }
+    .cv-interest-card.cv-discovered .cfs-text::before,
+    .cv-interest-card:not([data-discovery-id])[data-photo-album] .cfs-text::before { content: "hover to view"; }
+
+    /* Hover shimmer on unlocked strip */
+    .cv-interest-card.cv-discovered:hover .cv-card-film-strip,
+    .cv-interest-card:not([data-discovery-id])[data-photo-album]:hover .cv-card-film-strip {
+      background: rgba(0,229,204,0.1);
+      border-top-color: rgba(0,229,204,0.25);
+    }
+    .cv-interest-card.cv-discovered:hover .cfs-frame,
+    .cv-interest-card:not([data-discovery-id])[data-photo-album]:hover .cfs-frame {
+      box-shadow: 0 0 6px rgba(0,229,204,0.45);
+    }
+
+    .cv-beyond-wink {
+      margin-top: 0.8rem;
+      padding: 0.5rem 0.7rem;
+      background: rgba(0,229,204,0.03);
+      border: 1px solid rgba(0,229,204,0.08);
+      border-radius: 8px;
       font-size: 0.68rem;
-      color: rgba(255,255,255,0.5);
+      font-style: italic;
+      color: rgba(255,255,255,0.3);
+      text-align: center;
     }
 
     /* ── Footer ── */
     #cv-footer {
       flex-shrink: 0;
-      padding: 0.9rem 2rem 1.2rem;
+      padding: 0.85rem 1.5rem 1.1rem;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.75rem;
-      background: rgba(0,229,204,0.025);
-      border-top: 1px solid rgba(0,229,204,0.08);
+      background: rgba(0,0,0,0.35);
+      border-top: 1px solid rgba(0,229,204,0.1);
     }
     #cv-footer-dl {
-      display: inline-flex;
+      position: relative;
+      display: flex;
       align-items: center;
-      gap: 0.45rem;
-      padding: 0.55rem 1.3rem;
-      background: rgba(0,229,204,0.1);
-      border: 1px solid rgba(0,229,204,0.38);
-      border-radius: 10px;
-      color: #00e5cc;
+      justify-content: center;
+      gap: 0.55rem;
+      width: 100%;
+      padding: 0.75rem 1.5rem;
+      background: linear-gradient(135deg, rgba(0,229,204,0.18) 0%, rgba(0,180,160,0.22) 100%);
+      border: 1px solid rgba(0,229,204,0.55);
+      border-radius: 12px;
+      color: #fff;
       text-decoration: none;
-      font-size: 0.79rem;
+      font-size: 0.85rem;
       font-weight: 700;
       font-family: 'Inter', system-ui, sans-serif;
-      letter-spacing: 0.03em;
-      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      overflow: hidden;
+      box-shadow: 0 0 18px rgba(0,229,204,0.18), inset 0 1px 0 rgba(255,255,255,0.08);
+      animation: cvDlBreath 2.8s ease-in-out infinite;
+      transition: transform 0.12s ease, box-shadow 0.2s;
+    }
+    @keyframes cvDlBreath {
+      0%,100% { box-shadow: 0 0 14px rgba(0,229,204,0.2), 0 4px 24px rgba(0,229,204,0.08), inset 0 1px 0 rgba(255,255,255,0.08); }
+      50%      { box-shadow: 0 0 32px rgba(0,229,204,0.45), 0 6px 32px rgba(0,229,204,0.2), inset 0 1px 0 rgba(255,255,255,0.08); }
+    }
+    /* Shimmer sweep that repeats every 4s */
+    #cv-footer-dl::before {
+      content: "";
+      position: absolute;
+      top: 0; bottom: 0;
+      left: -100%;
+      width: 60%;
+      background: linear-gradient(
+        105deg,
+        transparent 20%,
+        rgba(255,255,255,0.12) 50%,
+        transparent 80%
+      );
+      animation: cvDlShimmer 4s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes cvDlShimmer {
+      0%    { left: -80%; opacity: 0; }
+      8%    { opacity: 1; }
+      40%   { left: 110%; opacity: 0; }
+      100%  { left: 110%; opacity: 0; }
+    }
+    /* Bouncing download icon */
+    .cv-dl-icon {
+      display: flex;
+      align-items: center;
+      animation: cvDlIconBounce 2.8s ease-in-out infinite;
+      color: #00e5cc;
+      flex-shrink: 0;
+    }
+    @keyframes cvDlIconBounce {
+      0%,100% { transform: translateY(0); }
+      45%     { transform: translateY(3px); }
+      60%     { transform: translateY(-1px); }
+    }
+    .cv-dl-label {
+      position: relative;
+      z-index: 1;
+      color: #e8fffe;
+      text-shadow: 0 0 14px rgba(0,229,204,0.55);
     }
     #cv-footer-dl:hover {
-      background: rgba(0,229,204,0.2);
-      border-color: rgba(0,229,204,0.65);
-      box-shadow: 0 0 16px rgba(0,229,204,0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 0 40px rgba(0,229,204,0.55), 0 8px 32px rgba(0,229,204,0.25), inset 0 1px 0 rgba(255,255,255,0.12);
+    }
+    #cv-footer-dl:active {
+      transform: translateY(0) scale(0.98);
     }
 
     /* ── Inline experience photo ── */
@@ -822,11 +1100,13 @@ function injectStyles(): void {
       max-width: 180px;
       border: 1px solid rgba(255,255,255,0.08);
       transition: border-color 0.2s;
+      position: relative;
     }
     .cv-exp-photo:hover { border-color: rgba(0,229,204,0.3); }
     .cv-exp-photo img {
       width: 100%;
       display: block;
+      transition: filter 0.5s ease, transform 0.5s ease;
     }
     .cv-exp-photo-caption {
       font-size: 0.6rem;
@@ -834,6 +1114,51 @@ function injectStyles(): void {
       padding: 0.3rem 0.5rem;
       font-style: italic;
       background: rgba(0,0,0,0.3);
+    }
+
+    /* ── Journey photo lock / teaser ── */
+    /* Suppress zoom affordance while locked */
+    .cv-exp-photo.cv-photo-locked.plb-trigger { cursor: default; }
+    .cv-exp-photo.cv-photo-locked .plb-trigger-hint { display: none !important; }
+    /* Also suppress zoom on the photo panel in teaser state */
+    #cv-photo-panel:not(.cpp-discovered).plb-trigger { cursor: default; }
+    #cv-photo-panel:not(.cpp-discovered) .plb-trigger-hint { display: none !important; }
+
+    .cv-exp-photo.cv-photo-locked img {
+      filter: blur(7px) brightness(0.32) saturate(0.35);
+      transform: scale(1.06);
+    }
+    .cv-photo-teaser {
+      display: none;
+      position: absolute;
+      inset: 0;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      z-index: 2;
+      padding: 0 10px;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent, transparent 3px,
+        rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 4px
+      );
+    }
+    .cv-exp-photo.cv-photo-locked .cv-photo-teaser { display: flex; }
+    .cv-photo-teaser-icon {
+      font-size: 1rem;
+      line-height: 1;
+      filter: drop-shadow(0 0 6px rgba(0,229,204,0.7));
+      animation: cppIconPulse 2s ease-in-out infinite;
+    }
+    .cv-photo-teaser-text {
+      font-size: 0.44rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: rgba(0,229,204,0.6);
+      text-align: center;
+      line-height: 1.4;
     }
   `;
   document.head.appendChild(s);
@@ -995,10 +1320,12 @@ function createCVPanel(): void {
   footer.id = "cv-footer";
   footer.innerHTML = `
     <a id="cv-footer-dl" href="/AL_CV_TH5_v1.pdf" download="Alexander_Lazarovich_CV.pdf">
-      <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-        <path d="M7 1v8M4 7l3 3 3-3M1 12h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      Download Full CV
+      <span class="cv-dl-icon">
+        <svg width="15" height="15" viewBox="0 0 14 14" fill="none">
+          <path d="M7 1v8M4 7l3 3 3-3M1 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="cv-dl-label">Download Full CV</span>
     </a>
   `;
   panel.appendChild(footer);
@@ -1019,14 +1346,20 @@ function createCVPanel(): void {
   // ── Setup dot-nav scroll tracking ──────────────────────────────────────────
   setupDotNav();
 
-  const the5ersPhotoEl = document.getElementById("cv-the5ers-photo");
-  if (the5ersPhotoEl) {
-    attachZoomHint(
-      the5ersPhotoEl,
-      () => "/img/alex-teaching.png",
-      { shape: "rect", caption: "Architecture training session — The5ers, 2024", hintSize: 16 },
-    );
-  }
+  // Attach lightbox zoom to all experience photos — blocked while still locked
+  TIMELINE_STOPS.forEach((stop) => {
+    const photoSrc = stop.journeyImage ?? stop.image;
+    const photoCap = stop.journeyCaption ?? stop.imageCaption;
+    if (!photoSrc) return;
+    const photoEl = panel.querySelector<HTMLDivElement>(`[data-photo-id="${stop.id}"]`);
+    if (photoEl) {
+      attachZoomHint(
+        photoEl,
+        () => photoEl.classList.contains("cv-photo-locked") ? "" : photoSrc,
+        { shape: "rect", caption: photoCap ?? "", hintSize: 16 },
+      );
+    }
+  });
 
   document.addEventListener("keydown", (e) => {
     if (e.code === "Escape" && isOpen) closeCVPanel();
@@ -1113,26 +1446,16 @@ function buildOverviewTab(): HTMLDivElement {
 function buildProgressHTML(): string {
   const count = getCompletedCount();
   const total = TIMELINE_STOPS.length;
+  if (count === 0) return "";
 
-  let gatesHtml = "";
-  TIMELINE_STOPS.forEach((stop, i) => {
-    const completed = isStopCompleted(stop.id);
-    if (i > 0) {
-      const connectorDone = isStopCompleted(TIMELINE_STOPS[i - 1].id) && completed;
-      gatesHtml += `<div class="cv-pg-connector${connectorDone ? " completed" : ""}"></div>`;
-    }
-    gatesHtml += `
-      <div class="cv-pg-gate${completed ? " completed" : ""}">
-        <div class="cv-pg-dot"></div>
-        <span class="cv-pg-year">${stop.year}</span>
-      </div>
-    `;
-  });
+  const isFull = count === total;
+  const label = isFull
+    ? `All ${count} career milestones explored in the interactive world — full journey complete`
+    : `${count} career milestone${count > 1 ? "s" : ""} explored in the interactive world`;
 
   return `
-    <p id="cv-progress-label">Journey Progress</p>
-    <div id="cv-progress-gates">${gatesHtml}</div>
-    <p id="cv-progress-count"><span>${count}</span> of ${total} milestones explored</p>
+    <p id="cv-progress-label">3D World</p>
+    <p id="cv-progress-count">✦ <span>${count}</span> ${label.slice(String(count).length)}</p>
   `;
 }
 
@@ -1141,10 +1464,13 @@ function buildJourneyTab(): HTMLDivElement {
   panel.className = "cv-tab-panel";
   panel.id = "cv-tab-journey";
 
-  // Dot nav
+  // Dot nav with connecting rail
   const dotNav = document.createElement("div");
   dotNav.className = "cv-dot-nav";
   dotNav.id = "cv-journey-dots";
+  const rail = document.createElement("div");
+  rail.className = "cv-dot-nav-rail";
+  dotNav.appendChild(rail);
 
   const expSection = document.createElement("div");
   expSection.className = "cv-section";
@@ -1180,10 +1506,16 @@ function buildJourneyTab(): HTMLDivElement {
         </div>`
       : "";
 
-    const photoHtml = stop.id === "the5ers"
-      ? `<div class="cv-exp-photo" id="cv-the5ers-photo">
-           <img src="/img/alex-teaching.png" alt="Architecture training session" />
-           <div class="cv-exp-photo-caption">Architecture training session — The5ers, 2024</div>
+    const photoSrc = stop.journeyImage ?? stop.image;
+    const photoCap = stop.journeyCaption ?? stop.imageCaption;
+    const photoHtml = photoSrc
+      ? `<div class="cv-exp-photo cv-photo-locked" data-photo-id="${stop.id}">
+           <div class="cv-photo-teaser">
+             <span class="cv-photo-teaser-icon">🔒</span>
+             <span class="cv-photo-teaser-text">Approach the gate in the world,<br>then press E or click the card</span>
+           </div>
+           <img src="${photoSrc}" alt="${photoCap ?? ""}" />
+           ${photoCap ? `<div class="cv-exp-photo-caption">${photoCap}</div>` : ""}
          </div>`
       : "";
 
@@ -1208,22 +1540,18 @@ function buildJourneyTab(): HTMLDivElement {
         </div>
         ${photoHtml}
         ${pivotHtml}
-        <div class="cv-lock-hint">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-            <path d="M5 7V5a3 3 0 0 1 6 0v2"/>
-            <rect x="3" y="7" width="10" height="7" rx="1.5"/>
-          </svg>
-          Walk through the ${stop.year} gate to see this story come alive
-        </div>
       </div>
     `;
     expList.appendChild(entry);
 
-    // Dot nav item
+    // Dot nav item with year tooltip
     const dot = document.createElement("div");
     dot.className = "cv-dot-nav-item";
     dot.dataset.stopId = stop.id;
-    dot.title = `${stop.year} · ${company}`;
+    const yearLabel = document.createElement("span");
+    yearLabel.className = "cv-dot-year";
+    yearLabel.textContent = String(stop.year);
+    dot.appendChild(yearLabel);
     dot.onclick = () => {
       entry.scrollIntoView({ behavior: "smooth", block: "center" });
     };
@@ -1306,18 +1634,81 @@ function buildAboutTab(): HTMLDivElement {
   `;
   panel.appendChild(eduSection);
 
-  // Interests
+  // Interests — visual grid, no wall of text
   const interestsSection = document.createElement("div");
   interestsSection.className = "cv-about-section";
   interestsSection.innerHTML = `
     <p class="cv-section-label">Beyond the Code</p>
-    <div class="cv-interests-row">
-      <span class="cv-interest-tag">🏍️ Motorcycles</span>
-      <span class="cv-interest-tag">🚵 Mountain Biking</span>
-      <span class="cv-interest-tag">🎮 3D / Game Dev</span>
-      <span class="cv-interest-tag">📐 System Design</span>
-      <span class="cv-interest-tag">✈️ Travel</span>
+    <p style="font-size:0.78rem;line-height:1.65;color:rgba(255,255,255,0.48);margin:0 0 0.9rem;">
+      When I'm not shipping features — building LEGO cities with the twins,
+      hiking with <strong style="color:rgba(255,255,255,0.72)">Meny the Malamute</strong> (yes, that's him in the 3D world),
+      or pushing 80&nbsp;km on a Friday morning ride.
+    </p>
+    <div class="cv-interests-grid">
+      <div class="cv-interest-card" data-discovery-id="bmw" data-photo-album="bmw">
+        <span class="cv-interest-world">↗ In 3D world</span>
+        <span class="cv-interest-card-icon">🏍️</span>
+        <span class="cv-interest-card-label">BMW S1000RR</span>
+        <span class="cv-interest-card-sub">199hp weekend therapy</span>
+        <span class="cv-interest-detail">Hover over the bike on the spawn pad</span>
+        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text"></span></div>
+      </div>
+      <div class="cv-interest-card" data-discovery-id="mtb" data-photo-album="mtb">
+        <span class="cv-interest-world">↗ In 3D world</span>
+        <span class="cv-interest-card-icon">🚴</span>
+        <span class="cv-interest-card-label">80km Rides</span>
+        <span class="cv-interest-card-sub">Friday mornings</span>
+        <span class="cv-interest-detail">MTB parked on the spawn pad</span>
+        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text"></span></div>
+      </div>
+      <div class="cv-interest-card">
+        <span class="cv-interest-card-icon">💪</span>
+        <span class="cv-interest-card-label">Gym</span>
+        <span class="cv-interest-card-sub">5 days a week</span>
+        <span class="cv-interest-detail">Discipline that carries into code</span>
+      </div>
+      <div class="cv-interest-card" data-discovery-id="meny" data-photo-album="meny">
+        <span class="cv-interest-world">↗ In 3D world</span>
+        <span class="cv-interest-card-icon">🐾</span>
+        <span class="cv-interest-card-label">Meny</span>
+        <span class="cv-interest-card-sub">Alaskan Malamute</span>
+        <span class="cv-interest-detail">He's following you in the 3D world</span>
+        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text"></span></div>
+      </div>
+      <div class="cv-interest-card">
+        <span class="cv-interest-card-icon">👨‍👧‍👦</span>
+        <span class="cv-interest-card-label">Twins</span>
+        <span class="cv-interest-card-sub">Tomer & Alma</span>
+        <span class="cv-interest-detail">My best debugging partners</span>
+      </div>
+      <div class="cv-interest-card" data-discovery-id="monogram">
+        <span class="cv-interest-world">↗ In 3D world</span>
+        <span class="cv-interest-card-icon">🎮</span>
+        <span class="cv-interest-card-label">Game Dev</span>
+        <span class="cv-interest-card-sub">Side passion</span>
+        <span class="cv-interest-detail">Find the AL monogram on the spawn pad</span>
+      </div>
+      <div class="cv-interest-card" data-photo-album="lego">
+        <span class="cv-interest-card-icon">🧱</span>
+        <span class="cv-interest-card-label">LEGO</span>
+        <span class="cv-interest-card-sub">Cities with the twins</span>
+        <span class="cv-interest-detail">Hover to see the builds</span>
+        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text"></span></div>
+      </div>
+      <div class="cv-interest-card">
+        <span class="cv-interest-card-icon">🎸</span>
+        <span class="cv-interest-card-label">Classic Rock</span>
+        <span class="cv-interest-card-sub">Always playing</span>
+        <span class="cv-interest-detail">Best debugging soundtrack</span>
+      </div>
+      <div class="cv-interest-card">
+        <span class="cv-interest-card-icon">✈️</span>
+        <span class="cv-interest-card-label">Travel</span>
+        <span class="cv-interest-card-sub">Thailand, northern Israel</span>
+        <span class="cv-interest-detail">Every trip is a research project</span>
+      </div>
     </div>
+    <div class="cv-beyond-wink">And yes — this entire portfolio is a playable video game. I couldn't resist.</div>
   `;
   panel.appendChild(interestsSection);
 
@@ -1340,6 +1731,9 @@ function switchTab(tabId: string): void {
       (panel as HTMLElement).style.animation = "";
     }
   });
+  // Clear "new" indicator when user reaches the About tab
+  if (tabId === "about")   clearAboutTabNew();
+  if (tabId === "journey") clearJourneyTabNew();
 }
 
 // ── Dot nav scroll tracking ──────────────────────────────────────────────────
@@ -1382,30 +1776,59 @@ function refreshDynamicContent(): void {
     progressEl.innerHTML = buildProgressHTML();
   }
 
-  // Update experience entry unlock states in Journey tab
+  // Update experience entries — add Explored badge + shimmer for completed stops
   document.querySelectorAll<HTMLElement>(".cv-exp-entry[data-stop-id]").forEach((entry) => {
     const id = entry.dataset.stopId!;
     const completed = isStopCompleted(id);
+    const metaEl = entry.querySelector<HTMLElement>(".cv-exp-meta");
+    const lineEl = entry.querySelector<HTMLElement>(".cv-exp-line");
 
-    if (completed) {
-      entry.classList.remove("cv-locked");
+    if (completed && metaEl && lineEl) {
+      // Add explored badge if not already present
+      if (!metaEl.querySelector(".cv-explored-badge")) {
+        const badge = document.createElement("span");
+        badge.className = "cv-explored-badge";
+        badge.textContent = "✦ Explored";
+        metaEl.appendChild(badge);
+      }
+      // Upgrade timeline line to glowing cyan
+      lineEl.classList.add("active");
 
-      // Play shimmer if this is a newly-seen unlock
+      // Shimmer on newly-seen completions
       if (!seenUnlocks.has(id)) {
         seenUnlocks.add(id);
         entry.classList.add("cv-shimmer");
         setTimeout(() => entry.classList.remove("cv-shimmer"), 1500);
       }
-    } else {
-      entry.classList.add("cv-locked");
-      entry.classList.remove("cv-shimmer");
     }
+    // Unlock photo teaser when gate is completed
+    const photo = entry.querySelector<HTMLElement>(".cv-exp-photo.cv-photo-locked");
+    if (completed && photo) photo.classList.remove("cv-photo-locked");
   });
 
   // Update dot-nav completion state
   document.querySelectorAll<HTMLElement>(".cv-dot-nav-item[data-stop-id]").forEach((dot) => {
     const id = dot.dataset.stopId!;
     dot.classList.toggle("completed", isStopCompleted(id));
+  });
+
+  // Update interest cards with 3D discovery state
+  document.querySelectorAll<HTMLElement>(".cv-interest-card[data-discovery-id]").forEach((card) => {
+    const id = card.dataset.discoveryId!;
+    const wasDiscovered = card.classList.contains("cv-discovered");
+    const nowDiscovered = isDiscovered(id);
+    const badge = card.querySelector<HTMLElement>(".cv-interest-world");
+    if (nowDiscovered) {
+      if (!wasDiscovered) {
+        card.classList.add("cv-discovered", "cv-discovered-new");
+        setTimeout(() => card.classList.remove("cv-discovered-new"), 500);
+      } else {
+        card.classList.add("cv-discovered");
+      }
+      if (badge) badge.textContent = "✓ Found it";
+    } else {
+      if (badge) badge.textContent = "↗ In 3D world";
+    }
   });
 }
 
@@ -1419,6 +1842,12 @@ function openCVPanel(): void {
   panelEl.style.display = "flex";
   requestAnimationFrame(() => requestAnimationFrame(() => {
     panelEl!.classList.add("cv-visible");
+    // Attach photo panel hovers + restore pending About tab indicator
+    setTimeout(() => {
+      initPhotoPanelHovers();
+      applyAboutTabNewToDom();
+      applyJourneyTabNewToDom();
+    }, 60);
   }));
 }
 
@@ -1426,7 +1855,464 @@ function closeCVPanel(): void {
   if (!panelEl) return;
   isOpen = false;
   panelEl.classList.remove("cv-visible");
+  hidePhotoPanel();
   setTimeout(() => { if (!isOpen) panelEl!.style.display = "none"; }, 360);
+}
+
+// ── Discovery Photo Panel ─────────────────────────────────────────────────────
+
+let photoPanelEl: HTMLDivElement | null = null;
+let photoGalleryImg: HTMLImageElement | null = null;
+let photoTeaserImg: HTMLImageElement | null = null;
+let photoCaptionEl: HTMLDivElement | null = null;
+let photoDotsEl: HTMLDivElement | null = null;
+let photoPrevBtn: HTMLButtonElement | null = null;
+let photoNextBtn: HTMLButtonElement | null = null;
+
+let currentPhotoAlbum: PhotoEntry[] = [];
+let currentPhotoIdx = 0;
+let currentPhotoCaption = "";
+let photoHideTimer: ReturnType<typeof setTimeout> | null = null;
+
+function injectPhotoPanelStyles(): void {
+  if (document.getElementById("cv-photo-panel-styles")) return;
+  const s = document.createElement("style");
+  s.id = "cv-photo-panel-styles";
+  s.textContent = `
+    /* Base font — must be explicit because panel is outside #cv-overlay */
+    #cv-photo-panel,
+    #cv-photo-panel * {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      box-sizing: border-box;
+    }
+
+    #cv-photo-panel {
+      position: fixed;
+      z-index: 3500;
+      width: 248px;
+      border-radius: 12px;
+      background: rgba(8, 12, 18, 0.97);
+      border: 1px solid rgba(0,229,204,0.15);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 20px 56px rgba(0,0,0,0.75), 0 0 0 1px rgba(0,229,204,0.05);
+      overflow: hidden;
+      opacity: 0;
+      transform: scale(0.94) translateY(8px);
+      transition: opacity 0.18s ease, transform 0.24s cubic-bezier(0.34,1.56,0.64,1);
+      pointer-events: none;
+    }
+    #cv-photo-panel.cpp-visible {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      pointer-events: auto;
+    }
+
+    /* ── Image area ── */
+    .cpp-img-area {
+      position: relative;
+      width: 100%;
+      height: 200px;
+      overflow: hidden;
+      background: #080c12;
+    }
+    .cpp-gallery-img,
+    .cpp-teaser-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .cpp-gallery-img-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      cursor: zoom-in;
+    }
+    .cpp-gallery-img { transition: opacity 0.28s ease; }
+
+    /* ── Teaser ── */
+    .cpp-teaser-img {
+      filter: blur(7px) brightness(0.45) saturate(0.5);
+      transform: scale(1.06);
+    }
+    .cpp-teaser-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 16px;
+      /* subtle CRT scanlines */
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(0,0,0,0.14) 3px,
+        rgba(0,0,0,0.14) 4px
+      );
+    }
+    .cpp-teaser-icon {
+      font-size: 1.5rem;
+      line-height: 1;
+      color: rgba(0,229,204,0.85);
+      text-shadow: 0 0 16px rgba(0,229,204,0.9), 0 0 32px rgba(0,229,204,0.4);
+      animation: cppIconPulse 2s ease-in-out infinite;
+      user-select: none;
+    }
+    @keyframes cppIconPulse {
+      0%, 100% { opacity: 0.65; transform: scale(1); }
+      50%       { opacity: 1;   transform: scale(1.08); }
+    }
+    .cpp-teaser-badge {
+      font-size: 0.5rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(0,229,204,0.6);
+      border: 1px solid rgba(0,229,204,0.2);
+      padding: 2px 9px;
+      border-radius: 20px;
+      background: rgba(0,229,204,0.06);
+    }
+    .cpp-teaser-hint {
+      font-size: 0.55rem;
+      font-weight: 400;
+      color: rgba(255,255,255,0.32);
+      text-align: center;
+      line-height: 1.5;
+      font-style: italic;
+    }
+    /* Shimmer sweep */
+    .cpp-teaser-shimmer {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        110deg,
+        transparent 25%,
+        rgba(0,229,204,0.06) 50%,
+        transparent 75%
+      );
+      background-size: 250% 100%;
+      animation: cppSweep 3.2s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes cppSweep {
+      0%   { background-position: 250% 0; }
+      100% { background-position: -250% 0; }
+    }
+
+    /* ── Gallery nav ── */
+    /* Dark scrim so nav buttons are always readable against any photo */
+    .cpp-img-area::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 56px;
+      background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 1;
+    }
+    .cpp-gallery-nav {
+      position: absolute;
+      bottom: 10px;
+      left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      z-index: 2;
+    }
+    .cpp-nav-btn {
+      background: rgba(0,0,0,0.72);
+      border: 1px solid rgba(255,255,255,0.28);
+      color: rgba(255,255,255,0.9);
+      font-size: 1rem;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      padding: 0;
+      transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+    .cpp-nav-btn:hover {
+      background: rgba(0,229,204,0.22);
+      border-color: rgba(0,229,204,0.65);
+      color: #00e5cc;
+      box-shadow: 0 0 10px rgba(0,229,204,0.35);
+    }
+    .cpp-nav-btn:disabled { opacity: 0.18; cursor: default; box-shadow: none; }
+    .cpp-dots { display: flex; gap: 6px; align-items: center; }
+    .cpp-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+      transition: background 0.2s, transform 0.2s;
+    }
+    .cpp-dot.active {
+      background: #00e5cc;
+      transform: scale(1.35);
+      box-shadow: 0 0 6px rgba(0,229,204,0.8);
+    }
+
+    /* ── Caption ── */
+    .cpp-caption {
+      padding: 9px 14px 11px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .cpp-caption-label {
+      font-size: 0.44rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(0,229,204,0.45);
+      margin-bottom: 2px;
+    }
+    .cpp-caption-text {
+      font-size: 0.6rem;
+      font-weight: 400;
+      font-style: italic;
+      color: rgba(255,255,255,0.45);
+      line-height: 1.45;
+    }
+
+    /* ── States ── */
+    #cv-photo-panel.cpp-discovered .cpp-teaser-wrap { display: none; }
+    #cv-photo-panel.cpp-discovered .cpp-gallery-wrap { display: flex; }
+    #cv-photo-panel:not(.cpp-discovered) .cpp-teaser-wrap { display: block; }
+    #cv-photo-panel:not(.cpp-discovered) .cpp-gallery-wrap { display: none; }
+  `;
+  document.head.appendChild(s);
+}
+
+function createPhotoPanel(): HTMLDivElement {
+  if (photoPanelEl) return photoPanelEl;
+  injectPhotoPanelStyles();
+
+  photoPanelEl = document.createElement("div");
+  photoPanelEl.id = "cv-photo-panel";
+
+  const imgArea = document.createElement("div");
+  imgArea.className = "cpp-img-area";
+
+  // Teaser wrap
+  const teaserWrap = document.createElement("div");
+  teaserWrap.className = "cpp-teaser-wrap";
+
+  photoTeaserImg = document.createElement("img");
+  photoTeaserImg.className = "cpp-teaser-img";
+  photoTeaserImg.alt = "";
+
+  const teaserOverlay = document.createElement("div");
+  teaserOverlay.className = "cpp-teaser-overlay";
+  teaserOverlay.innerHTML = `
+    <div class="cpp-teaser-icon">⬡</div>
+    <div class="cpp-teaser-badge">Hidden</div>
+    <div class="cpp-teaser-hint">Find this object in the 3D world<br>then click it to reveal</div>
+  `;
+  const shimmer = document.createElement("div");
+  shimmer.className = "cpp-teaser-shimmer";
+
+  teaserWrap.appendChild(photoTeaserImg);
+  teaserWrap.appendChild(teaserOverlay);
+  teaserWrap.appendChild(shimmer);
+
+  // Gallery wrap
+  const galleryWrap = document.createElement("div");
+  galleryWrap.className = "cpp-gallery-wrap";
+  galleryWrap.style.cssText = "flex-direction:column;width:100%;";
+
+  const galleryImgWrap = document.createElement("div");
+  galleryImgWrap.className = "cpp-gallery-img-wrap";
+
+  photoGalleryImg = document.createElement("img");
+  photoGalleryImg.className = "cpp-gallery-img";
+  photoGalleryImg.style.cssText = "position:relative;";
+  photoGalleryImg.alt = "";
+
+  galleryImgWrap.appendChild(photoGalleryImg);
+
+  const nav = document.createElement("div");
+  nav.className = "cpp-gallery-nav";
+
+  photoPrevBtn = document.createElement("button");
+  photoPrevBtn.className = "cpp-nav-btn";
+  photoPrevBtn.textContent = "‹";
+  photoPrevBtn.addEventListener("click", (e) => { e.stopPropagation(); navigatePhoto(-1); });
+
+  photoDotsEl = document.createElement("div");
+  photoDotsEl.className = "cpp-dots";
+
+  photoNextBtn = document.createElement("button");
+  photoNextBtn.className = "cpp-nav-btn";
+  photoNextBtn.textContent = "›";
+  photoNextBtn.addEventListener("click", (e) => { e.stopPropagation(); navigatePhoto(1); });
+
+  nav.appendChild(photoPrevBtn);
+  nav.appendChild(photoDotsEl);
+  nav.appendChild(photoNextBtn);
+  galleryWrap.appendChild(galleryImgWrap);
+  galleryWrap.appendChild(nav);
+
+  imgArea.appendChild(teaserWrap);
+  imgArea.appendChild(galleryWrap);
+
+  photoCaptionEl = document.createElement("div");
+  photoCaptionEl.className = "cpp-caption";
+
+  photoPanelEl.appendChild(imgArea);
+  photoPanelEl.appendChild(photoCaptionEl);
+
+  // Hover bridge — keep panel visible while mouse is over it
+  photoPanelEl.addEventListener("mouseenter", cancelPhotoPanelHide);
+  photoPanelEl.addEventListener("mouseleave", schedulePhotoPanelHide);
+
+  // Zoom-in on gallery image — attached to image wrapper, not the nav area
+  attachZoomHint(
+    galleryImgWrap,
+    () => {
+      if (!photoPanelEl?.classList.contains("cpp-discovered")) return "";
+      return photoGalleryImg?.src ?? "";
+    },
+    { shape: "rect", hintSize: 18 },
+  );
+  galleryImgWrap.addEventListener("click", () => {
+    const lb = document.getElementById("plb-caption");
+    if (lb) lb.textContent = currentPhotoCaption;
+  });
+
+  document.body.appendChild(photoPanelEl);
+  return photoPanelEl;
+}
+
+function navigatePhoto(dir: number): void {
+  if (!currentPhotoAlbum.length) return;
+  currentPhotoIdx = (currentPhotoIdx + dir + currentPhotoAlbum.length) % currentPhotoAlbum.length;
+  setGalleryPhoto(currentPhotoIdx);
+}
+
+function setGalleryPhoto(idx: number): void {
+  const photo = currentPhotoAlbum[idx];
+  if (!photo || !photoGalleryImg || !photoCaptionEl || !photoDotsEl) return;
+
+  photoGalleryImg.style.opacity = "0";
+  setTimeout(() => {
+    photoGalleryImg!.src = photo.src;
+    photoGalleryImg!.style.objectPosition = photo.objectPosition ?? "center center";
+    photoGalleryImg!.style.opacity = "1";
+  }, 120);
+  currentPhotoCaption = photo.caption;
+  photoCaptionEl.innerHTML = `<div class="cpp-caption-label">Photo</div><div class="cpp-caption-text">${photo.caption}</div>`;
+
+  // Update dots
+  photoDotsEl.innerHTML = "";
+  currentPhotoAlbum.forEach((_, i) => {
+    const dot = document.createElement("div");
+    dot.className = `cpp-dot${i === idx ? " active" : ""}`;
+    photoDotsEl!.appendChild(dot);
+  });
+
+  if (photoPrevBtn) photoPrevBtn.disabled = currentPhotoAlbum.length <= 1;
+  if (photoNextBtn) photoNextBtn.disabled = currentPhotoAlbum.length <= 1;
+}
+
+function showPhotoPanel(card: HTMLElement): void {
+  const panel = createPhotoPanel();
+  const albumKey = card.dataset.photoAlbum ?? card.dataset.discoveryId ?? "";
+  const photos = CARD_PHOTOS[albumKey];
+  if (!photos?.length) return;
+
+  const discoveryId = card.dataset.discoveryId;
+  const discovered = discoveryId ? isDiscovered(discoveryId) : true; // LEGO always revealed
+
+  // Set teaser image (blurred background) — always load it
+  if (photoTeaserImg) {
+    photoTeaserImg.src = photos[0].src;
+    photoTeaserImg.style.objectPosition = photos[0].objectPosition ?? "center center";
+  }
+
+  // Toggle discovered/teaser state
+  panel.classList.toggle("cpp-discovered", discovered);
+
+  if (discovered) {
+    currentPhotoAlbum = photos;
+    currentPhotoIdx = 0;
+    setGalleryPhoto(0);
+  }
+
+  // Position: right of card, clamped to viewport
+  positionPhotoPanel(card);
+  panel.classList.add("cpp-visible");
+}
+
+function positionPhotoPanel(card: HTMLElement): void {
+  if (!photoPanelEl) return;
+  const rect = card.getBoundingClientRect();
+  const panelW = 240;
+  const panelH = 240; // approximate
+
+  let left = rect.right + 12;
+  if (left + panelW > window.innerWidth - 8) {
+    left = rect.left - panelW - 12;
+  }
+  // Clamp left
+  left = Math.max(8, left);
+
+  let top = rect.top;
+  if (top + panelH > window.innerHeight - 8) {
+    top = window.innerHeight - panelH - 8;
+  }
+  top = Math.max(8, top);
+
+  photoPanelEl.style.left = `${left}px`;
+  photoPanelEl.style.top = `${top}px`;
+}
+
+function hidePhotoPanel(): void {
+  photoPanelEl?.classList.remove("cpp-visible");
+}
+
+function schedulePhotoPanelHide(): void {
+  photoHideTimer = setTimeout(hidePhotoPanel, 160);
+}
+
+function cancelPhotoPanelHide(): void {
+  if (photoHideTimer !== null) {
+    clearTimeout(photoHideTimer);
+    photoHideTimer = null;
+  }
+}
+
+/** Attach hover listeners to all cards that have photo albums. Called after panel DOM is built. */
+function initPhotoPanelHovers(): void {
+  // Run once per panel session (DOM nodes are stable after buildAboutTab)
+  const cards = document.querySelectorAll<HTMLElement>(
+    ".cv-interest-card[data-photo-album], .cv-interest-card[data-discovery-id]"
+  );
+  cards.forEach((card) => {
+    // Only attach if this card has a known photo album
+    const key = card.dataset.photoAlbum ?? card.dataset.discoveryId ?? "";
+    if (!CARD_PHOTOS[key]) return;
+
+    // Guard against double-attachment
+    if (card.dataset.photoPanelBound === "1") return;
+    card.dataset.photoPanelBound = "1";
+
+    card.addEventListener("mouseenter", () => {
+      cancelPhotoPanelHide();
+      showPhotoPanel(card);
+    });
+    card.addEventListener("mouseleave", schedulePhotoPanelHide);
+  });
 }
 
 export function initCVPanel(): void {

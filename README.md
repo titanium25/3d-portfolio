@@ -77,8 +77,16 @@ The project has evolved from a simple proof of concept to a fully-featured 3D ex
 ✅ Per-pillar collision (walk through gate openings)  
 ✅ Rich cinematic overlay — cover image, company logo, bullet points, per-role tech stack chips  
 ✅ Scrollable overlay card with height cap (content-heavy entries don't overflow the viewport)  
-✅ Résumé modal (CV panel) — headshot avatar, cover photo, Inter font, logo pills, skills, download CTA  
-✅ Gate panel crossfade — smooth content transition when walking between adjacent gates
+✅ Résumé modal (CV panel) — headshot avatar, cover photo, Inter font, logo pills, skills, animated download CTA  
+✅ Gate panel crossfade — smooth content transition when walking between adjacent gates  
+✅ Click-to-discover system — click BMW, MTB, Meny, or the monogram in 3D to trigger discovery rewards (toast, motes, badge bump)  
+✅ Discovery photo albums — discovered objects unlock photo galleries in the About tab; undiscovered show a teaser  
+✅ Photo lightbox — FLIP-animated zoom for headshot, journey photos, and About tab gallery images  
+✅ Journey photo teasers — experience photos start blurred/locked, revealed when walking through the gate  
+✅ Film strip indicators — interest cards with photos show a visual strip (locked vs. unlocked state)  
+✅ Tab "New" indicators — pulsing amber dot on Journey/About tabs when new content is available  
+✅ Resume badge — counts gates explored + discoveries; gold accent on full completion  
+✅ Animated download CTA — breathing glow, shimmer sweep, bouncing icon; impossible to miss
 
 ## Future Enhancements
 
@@ -111,6 +119,7 @@ The project uses a clean, modular architecture:
 - **Ground Platform**: Layered megastructure with edge pylons, procedural roughness maps, and contrast hierarchy
 - **Collision System**: Efficient proximity and collision detection with support for multi-point collision shapes (gate pillars)
 - **UI System**: Three-layer overlay stack — gate panel (proximity), cinematic overlay (full story with image + skills), CV modal (résumé with headshot, logos, download)
+- **World Tooltip System**: Raycasting-based hover Easter eggs on spawn pad objects — styled tooltip card + per-object reactive 3D animation (emissive boost, dog tail excitement)
 - **Animation System**: State machine with smooth blending between animations
 
 ## Running the Project

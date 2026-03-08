@@ -230,6 +230,7 @@ export class IntroSequence {
           this.state.phase = "hint";
           this.state.elapsed = 0;
           this.hintContainer.style.opacity = "1";
+          this.showPortalHintWithDelay();
           if (this.closeupLight) {
             this.scene.remove(this.closeupLight);
             this.scene.remove(this.closeupLight.target);
@@ -258,6 +259,39 @@ export class IntroSequence {
     }
 
     return true;
+  }
+
+  private showPortalHintWithDelay(): void {
+    const hint = document.createElement("div");
+    hint.id = "portal-hint";
+    hint.style.cssText = `
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1001;
+      pointer-events: none;
+      font-family: 'Cormorant Garamond', 'Georgia', serif;
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.35);
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.8s ease-in;
+      letter-spacing: 0.06em;
+      font-style: italic;
+      white-space: nowrap;
+    `;
+    hint.textContent = "Approach the glowing portals ahead to explore career milestones";
+    document.body.appendChild(hint);
+
+    setTimeout(() => {
+      hint.style.opacity = "1";
+      setTimeout(() => {
+        hint.style.transition = "opacity 0.8s ease-out";
+        hint.style.opacity = "0";
+        setTimeout(() => hint.remove(), 800);
+      }, 4000);
+    }, 1500);
   }
 
   private setupCloseupCamera(): void {

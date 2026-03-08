@@ -86,6 +86,15 @@ export interface SpawnPadContext {
   bikeCollisionGroup: THREE.Group;
   /** Collision proxy for the MTB bike (left side of spawn pad). */
   mtbCollisionGroup: THREE.Group;
+  /** AL monogram mesh on the spawn pad floor (synchronously available). */
+  monogramMesh: THREE.Mesh;
+}
+
+export interface SpawnPadOptions {
+  /** Called once the BMW S1000RR GLB finishes loading with its pivot group. */
+  onBikeLoaded?: (group: THREE.Group) => void;
+  /** Called once the MTB GLB finishes loading with its pivot group. */
+  onMtbLoaded?: (group: THREE.Group) => void;
 }
 
 const COLLIDER_Y_AXIS = new THREE.Vector3(0, 1, 0);
@@ -139,7 +148,7 @@ function configureBikeCollisionFromModel(
   collisionGroup.userData.collisionRadius = collisionRadius;
 }
 
-export function createSpawnPad(scene: Scene): SpawnPadContext {
+export function createSpawnPad(scene: Scene, options?: SpawnPadOptions): SpawnPadContext {
   const group = new THREE.Group();
 
   /* ── Shared materials ──────────────────────────────────────── */
@@ -702,6 +711,7 @@ export function createSpawnPad(scene: Scene): SpawnPadContext {
 
       // Soft cyan glow beneath the bike once model is in place
       bikeLight.intensity = 0.9;
+      options?.onBikeLoaded?.(bikePivot);
     },
     undefined,
     (err) => console.warn("Bike model failed to load:", err),
@@ -801,6 +811,7 @@ export function createSpawnPad(scene: Scene): SpawnPadContext {
 
       // Activate accent light once model is in place
       mtbLight.intensity = 0.9;
+      options?.onMtbLoaded?.(mtbPivot);
     },
     undefined,
     (err) => console.warn("MTB model failed to load:", err),
@@ -1046,6 +1057,7 @@ export function createSpawnPad(scene: Scene): SpawnPadContext {
     update,
     bikeCollisionGroup,
     mtbCollisionGroup,
+    monogramMesh,
   };
 }
 
