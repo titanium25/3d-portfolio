@@ -101,6 +101,19 @@ Three discoverable props on the main arena hex (previously empty): LEGO brick st
 - **Emissive helpers**: `src/scene/emissiveUtils.ts` — `boostEmissive(group, intensity)`, `restoreEmissive(group)` for hover tooltip reactive effects.
 - **Asset loading**: 3 arena prop models counted in `TOTAL_ASSETS`; `createArenaProps(scene, assetLoaded)` called in parallel with other loads.
 
+**Discoverable Beacon System** ✨
+
+Ambient "interact-me" visual cues for all 7 discoverable 3D objects (spawn pad + arena). Solves the core UX problem: objects had zero idle visual signal that they were clickable — non-gamers would never discover them. Inspired by Korok sparkles (Zelda), loot glow (Destiny), and chest embers (FromSoft).
+
+- **File**: `src/scene/discoverableGlow.ts` — exports `registerDiscoverableBeacon(opts)`, `updateDiscoverableBeacons(time, playerPosition)`
+- **Ground glow disc**: Warm amber radial gradient (`MeshBasicMaterial`, `AdditiveBlending`) beneath each object. Breathing scale-pulse (±6% at ~1.6 Hz). Proximity-reactive opacity (0.14 idle → 0.36 near).
+- **Floating particles**: 3–5 tiny amber motes per object (`PointsMaterial`, `AdditiveBlending`, size 0.06). Rise continuously with staggered phases, gentle sinusoidal sway. Speed increases on proximity (0.2 → 0.35 cycles/sec).
+- **Proximity intensification**: All effects ramp up as player approaches within 5 world units (quadratic ease-in).
+- **Post-discovery state**: Color shifts from warm amber (`0xffaa44`) to muted cyan (`0x00e5cc`), intensity dims to 20% — "already found" feel.
+- **Per-object tuning**: Each beacon has configurable `radius`, `count`, `rise`, and `y` parameters. Vehicles get larger beacons (radius 0.6–0.7), arena props get smaller (0.4–0.5).
+- **Performance**: Shared dot + glow textures across all beacons. No additional PointLights (props already have warm accent lights). Single `getWorldPosition` call per beacon per frame.
+- **Integration**: `App.ts` registers a beacon alongside each `registerTooltipTarget` call. `updateDiscoverableBeacons(time, playerPosition)` runs every frame.
+
 **Discovery Tracker** ✨
 
 Session-only state manager for 3D object discoveries (spawn pad + arena). Tracks which objects have been clicked/discovered, triggers rewards, and provides query API.
@@ -175,6 +188,7 @@ src/
 │   ├── createGround.ts     # Main arena hex platform creation
 │   ├── createSpawnPad.ts   # Spawn pad + Timeline Bridge (glass, effects)
 │   ├── createArenaProps.ts # Arena discovery objects (LEGO, kettlebell, drawing)
+│   ├── discoverableGlow.ts # Ambient beacon FX for discoverable objects (glow + particles)
 │   ├── emissiveUtils.ts    # boostEmissive / restoreEmissive for hover FX
 │   ├── layoutConstants.ts  # Shared arena, bridge, spawn layout constants (single source of truth)
 │   ├── hexUtils.ts         # Shared hex geometry: hexVertex, createHexShape, createHexPath
