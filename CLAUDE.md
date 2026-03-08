@@ -201,6 +201,7 @@ src/
     ├── gateUnlockAnimation.ts # Gate→Resume particle animation + badge + toast + tab indicators
     ├── discoveryTracker.ts # 3D object discovery state + rewards (spawn pad + arena, 7 total)
     ├── worldTooltip.ts     # Click-to-discover tooltip system for 3D objects + nav hints
+    ├── onboardingHints.ts  # Progressive 3-step tutorial for non-gamers (move → sprint → click)
     ├── photoLightbox.ts    # Reusable FLIP zoom lightbox for any image (circle/rect)
     ├── cvPanel.ts          # Tabbed résumé modal with photo panels, film strips, live dossier
     ├── loadingScreen.ts    # Loading screen management
@@ -692,6 +693,31 @@ Creates all timeline stops, manages animations and proximity lighting:
 - `BASE_EMISSIVE`: 0.2, `MAX_EMISSIVE`: 0.8
 - `COMPLETED_EMISSIVE_BOOST`: 0.15
 
+### Progressive Onboarding (`src/ui/onboardingHints.ts`)
+
+Three-step progressive tutorial designed for non-gamers (recruiters, HR, hiring managers). Each step teaches one action, dismisses on successful use, then advances. Uses "learn by doing" — no text walls.
+
+**Steps:**
+
+| Step | Visual | Label | Dismiss On |
+|---|---|---|---|
+| 1 — Move | Arrow key cluster (↑←↓→) with ↑ pulsing | "Use arrow keys to walk" + small "or WASD" | Any movement key (600ms grace) or 25s timeout |
+| 2 — Sprint | `[⇧ Shift]` key badge with pulse | "Hold to run faster" | Shift + movement or 12s timeout |
+| 3 — Click | CSS-drawn mouse icon with click animation | "Click on glowing objects" | 7s timeout |
+
+**Click Interceptor (Step 1):** When non-gamers click the canvas instead of using keyboard, the card bounces (`obNudge` keyframe), all keys flash (`obKeyFlash`), and a "↓ Use your keyboard" nudge text appears above the card for 2.5s. Rate-limited to once per 3s to avoid annoyance.
+
+**Post-completion Directional Hint:** After all 3 steps, a slim card fades in: "↑ Walk toward the glowing portals ahead" — holds 5s, then fades out.
+
+**Step Indicator Dots:** 3 dots at bottom center track progress (active = cyan, done = dim cyan, pending = dim white).
+
+**Exports:**
+- `startOnboarding()` — call once when intro ends (hides legacy `#controls-hint`, creates card + dots, shows step 1 after 800ms delay)
+- `updateOnboarding(deltaSec)` — call every frame during gameplay; checks dismiss conditions
+- `isOnboardingActive()` — query function
+
+**Integration:** `App.ts` calls `startOnboarding()` when `wasIntroActive && !introActive`. `updateOnboarding(deltaSec)` runs each frame alongside character updates.
+
 ### Gate Panel (`src/ui/gatePanel.ts`)
 
 Floating proximity panel for timeline gates. Fades in from the right as the player approaches, showing company context, bullets, and a two-state CTA. Clicking the card or pressing E (when in range) opens the full cinematic overlay.
@@ -713,7 +739,7 @@ Floating proximity panel for timeline gates. Fades in from the right as the play
 - **First-gate contextual hint** (`.gp-first-hint`): on the very first gate panel appearance in the session (`firstGatePanelShown` module-level boolean), a small italic line appears below the CTA: "Click the card or press E to learn about this role". Auto-fades after 6 seconds (`setTimeout` sets `opacity: 0; transition: opacity 0.5s`), never shown again.
 - Card is `pointer-events: auto` and clickable — triggers `onInteract` callback when in range
 - Title split on ` — ` into year badge + company/role
-- `#controls-hint` (intro control legend) hidden via CSS `body.transition-open #controls-hint` when overlay is open
+- Onboarding hints hidden during gate panel display
 
 **Tilt effect:** Applied to the inner card via `addTiltEffect` with `useGlobalMouse: true`, so the 3D tilt tracks the cursor even though the outer positioner has `pointer-events: none`.
 
@@ -727,7 +753,7 @@ Cinematic overlay system triggered by pressing E or clicking the gate panel CTA 
 - `max-height: min(620px, calc(92vh - 2rem))` caps the card; `#cinematic-panel-body` is `overflow-y: auto` so content-heavy cards (e.g. ASML with 6 bullets) scroll rather than overflow the viewport
 - Image panel (`width: 235px`, `align-self: stretch`) stays pinned at full card height while the body column scrolls
 - ESC pill close button (`[ESC] Close ×`) in the top-right of the card; a muted "click backdrop to close" hint appears below the card
-- `body.transition-open` class added on open / removed on close — CSS rule hides `#controls-hint` (intro control legend) during overlay
+- `body.transition-open` class added on open / removed on close
 - Animates camera back to gameplay position on close (ESC, close button, or backdrop click)
 
 **Skills section (`#cinematic-skills`):**
