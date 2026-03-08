@@ -7,14 +7,20 @@
 
 import { showGameToast, addDiscoveryToBadge } from "./gateUnlockAnimation";
 
-export const DISCOVERY_IDS = ["bmw", "mtb", "meny", "monogram"] as const;
+export const DISCOVERY_IDS = [
+  "bmw", "mtb", "meny", "monogram",
+  "lego", "gym", "twins",
+] as const;
 export type DiscoveryId = (typeof DISCOVERY_IDS)[number];
 
 const DISCOVERY_LABELS: Record<DiscoveryId, string> = {
-  bmw: "BMW S1000RR",
-  mtb: "MTB Bicycle",
-  meny: "Meny",
+  bmw:     "BMW S1000RR",
+  mtb:     "MTB Bicycle",
+  meny:    "Meny",
   monogram: "AL Monogram",
+  lego:    "✦ LEGO Collection",
+  gym:     "✦ The Iron Temple",
+  twins:   "✦ The Masterpiece",
 };
 
 const DISCOVERY_SUBTITLES: Record<DiscoveryId, string> = {
@@ -22,12 +28,16 @@ const DISCOVERY_SUBTITLES: Record<DiscoveryId, string> = {
   mtb:      "Friday morning chariot — found on the spawn pad",
   meny:     "Chief Morale Officer — he's been following you",
   monogram: "The author of this world — found on the spawn pad",
+  lego:     "Still building things, one brick at a time",
+  gym:      "5 days a week, no exceptions",
+  twins:    "By Tomer & Alma, age 6",
 };
 
 const DISCOVERY_HINTS: Partial<Record<DiscoveryId, string>> = {
-  bmw:  "📸 Photos unlocked · Check the About tab",
-  mtb:  "📸 Photos unlocked · Check the About tab",
-  meny: "📸 Photos unlocked · Check the About tab",
+  bmw:   "📸 Photos unlocked · Check the About tab",
+  mtb:   "📸 Photos unlocked · Check the About tab",
+  meny:  "📸 Photos unlocked · Check the About tab",
+  lego:  "📸 Photos unlocked · Check the About tab",
 };
 
 const discovered = new Set<string>();
@@ -57,19 +67,22 @@ export function markDiscovered(id: DiscoveryId): boolean {
     subtitle: DISCOVERY_SUBTITLES[id],
     hint: DISCOVERY_HINTS[id],
     holdMs: 2600,
+    tab: 'about',
+    targetId: id,
   });
 
-  // Check for all-4 bonus
+  // Check for all-discoveries bonus (spawn pad + arena)
   if (discovered.size === DISCOVERY_IDS.length && !bonusShown) {
     bonusShown = true;
     setTimeout(() => {
       showGameToast({
         icon: "★",
         category: "ALL SECRETS FOUND",
-        title: "Spawn Pad — Fully Explored",
+        title: "Portfolio — Fully Explored",
         subtitle: "Every hidden object discovered · Check the About tab",
         isFinal: true,
         holdMs: 3500,
+        tab: 'about',
       });
     }, 2900);
   }

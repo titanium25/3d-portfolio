@@ -40,7 +40,7 @@ attachZoomHint(photoEl, () =>
 
 **Where used:**
 - CV headshot avatar (circle shape)
-- Journey tab experience photos (rect, blocked while `cv-photo-locked`)
+- Journey tab experience photos (rect, always visible — professional content never gated)
 - About tab hover photo panel gallery (rect, blocked while not `.cpp-discovered`)
 
 **Adding zoom to a new element:**
@@ -62,13 +62,13 @@ attachZoomHint(container, () => imgUrl, { shape: "rect", caption: "..." });
 **Discovery IDs:** `bmw`, `mtb`, `meny`, `monogram` (4 total, defined in `DISCOVERY_IDS`)
 
 **Key exports:**
-- `markDiscovered(id: DiscoveryId): boolean` — returns `true` on first discovery. Triggers: `addDiscoveryToBadge()`, `showGameToast(...)`, 4/4 bonus toast.
+- `markDiscovered(id: DiscoveryId): boolean` — returns `true` on first discovery. Triggers: `addDiscoveryToBadge()`, clickable `showGameToast(tab:'about', targetId:id)`, 4/4 bonus toast.
 - `isDiscovered(id: string): boolean` — queried by `cvPanel.ts` → `refreshDynamicContent()`
 - `getDiscoveryCount(): number`
 
 **Reward chain on first discovery:**
 1. `addDiscoveryToBadge()` — bumps Resume button badge count
-2. `showGameToast({ icon, category, title, subtitle, hint })` — game notification card
+2. `showGameToast({ ..., tab: 'about', targetId: id })` — clickable game notification card (clicking opens About tab + spotlights the interest card)
 3. `playDiscoveryMotes(screenX, screenY)` — 3 amber motes fly to Resume button (called from `worldTooltip.ts`)
 4. `markAboutTabNew()` — pulsing dot on About tab
 
@@ -150,18 +150,7 @@ if (isFirstUnlock) {
 4. **Shimmer**: `cvShimmer` keyframe plays once on newly-seen completions
 5. **Dot nav**: `.completed` class added to corresponding dot-nav item
 
-**Journey photo lock pattern:**
-HTML starts locked:
-```html
-<div class="cv-exp-photo cv-photo-locked" data-photo-id="the5ers">
-  <div class="cv-photo-teaser">
-    <span class="cv-photo-teaser-icon">🔒</span>
-    <span class="cv-photo-teaser-text">Walk through<br>the gate</span>
-  </div>
-  <img src="..." />
-</div>
-```
-Unlock: `photo.classList.remove("cv-photo-locked")` — CSS transitions handle the reveal.
+**Journey photos:** Always fully visible — professional content is never gated. No blur, lock overlay, or gate-based unlock. Experience photos render clean with caption and lightbox zoom on click.
 
 ---
 
@@ -181,8 +170,14 @@ interface GameToastOptions {
   hint?: string;       // optional cyan line below subtitle
   isFinal?: boolean;   // gold accent for completion
   holdMs?: number;     // display duration (default 2500)
+  tab?: 'journey' | 'about';  // clicking toast opens CV panel on this tab
+  targetId?: string;   // stop/discovery ID — scroll-to + spotlight target element
 }
 ```
+
+**Click-through behavior:** When `tab` is set, toast gains `.is-clickable` (cursor pointer, hover lift/glow, "Open Journey →" / "Open About →" CTA with arrow slide). Clicking: dismisses toast → opens CV panel (`#cv-btn.click()`) → switches tab → `spotlightTarget(tab, targetId)` scrolls to element + applies glow frame (`.cv-toast-spotlight`, 2.8s) + shimmer sweep overlay (`.cv-toast-spotlight-sweep`, 0.9s).
+
+**Target selectors:** Journey → `#cv-exp-${targetId}`, About → `.cv-interest-card[data-discovery-id="${targetId}"]`.
 
 **Features:** Icon column, shimmer sweep (`toastShimmer`), drain bar (`toastDrain`), scale spring entry, auto-dismiss previous toast.
 
@@ -196,6 +191,10 @@ interface GameToastOptions {
 
 **`PhotoEntry`:** `{ src, caption, objectPosition? }` — `objectPosition` controls per-image crop.
 
+**Interaction:**
+- **Desktop** (`hover` capable): `mouseenter` shows panel, `mouseleave` hides (with 160ms delay). Panel has hover bridge so moving cursor from card to panel keeps it visible.
+- **Touch/mobile** (`hover: none`): `click` on card opens panel; tap same card again or tap outside closes. Uses `setupPhotoPanelTouchClose` + capture-phase document listener.
+
 **States:**
 - **Teaser** (undiscovered): softly blurred image, ⬡ icon, "Hidden" badge, CRT scanlines, shimmer
 - **Gallery** (discovered or always-open): swipeable photos, `<`/`>` nav, dots, caption, lightbox zoom
@@ -206,6 +205,7 @@ interface GameToastOptions {
 1. Add entry to `CARD_PHOTOS` with `src`, `caption`, `objectPosition`
 2. Add `data-photo-album="key"` to the card HTML
 3. If gated by discovery, also add `data-discovery-id="key"`
+4. Cards with no 3D counterpart use `data-discoverable="false"` — always visible, muted border, no "Found it" badge
 
 ---
 
@@ -215,7 +215,7 @@ interface GameToastOptions {
 3D Click (worldTooltip.ts)
   └─ markDiscovered() (discoveryTracker.ts)
        ├─ addDiscoveryToBadge() → refreshProgressDots() (gateUnlockAnimation.ts)
-       ├─ showGameToast() with hint (gateUnlockAnimation.ts)
+       ├─ showGameToast(tab:'about', targetId:id) — clickable toast → About tab + spotlight
        └─ [from worldTooltip.ts] playDiscoveryMotes() → markAboutTabNew()
 
 Gate E Press (App.ts)
@@ -225,11 +225,16 @@ Gate E Press (App.ts)
             ├─ Phase 0: vignette flash
             ├─ Phase 1: 6 motes → Resume button
             ├─ Phase 2: badge pop + sonar
-            └─ Phase 3: markJourneyTabNew() + toast
+            └─ Phase 3: markJourneyTabNew() + toast(tab:'journey', targetId:stopId)
+
+Toast Click (any clickable toast)
+  └─ dismiss toast → #cv-btn.click() → switchTab(tab) → spotlightTarget(tab, targetId)
+       ├─ Scroll target into center of tab panel
+       └─ .cv-toast-spotlight glow frame (2.8s) + .cv-toast-spotlight-sweep shimmer (0.9s)
 
 CV Panel Open (cvPanel.ts)
   └─ refreshDynamicContent()
-       ├─ isStopCompleted() → badge, photo unlock, shimmer
+       ├─ isStopCompleted() → badge, shimmer (journey photos always visible)
        ├─ isDiscovered() → card state, photo panel toggle
        └─ applyAboutTabNewToDom() + applyJourneyTabNewToDom()
 ```

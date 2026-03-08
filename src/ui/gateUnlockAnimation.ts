@@ -391,6 +391,90 @@ function injectStyles(): void {
       to   { transform: scaleX(0); }
     }
 
+    /* ── Clickable state ── */
+    .unlock-toast.is-clickable {
+      cursor: pointer;
+    }
+    .unlock-toast.is-clickable:hover {
+      transform: translateX(-4px) scale(1.012);
+      border-color: rgba(0,229,204,0.32);
+      box-shadow:
+        0 28px 72px rgba(0,0,0,0.8),
+        0 0 0 1px rgba(0,229,204,0.18),
+        0 0 56px rgba(0,229,204,0.14),
+        0 0 100px rgba(0,229,204,0.05);
+    }
+    .unlock-toast.is-clickable.is-final:hover {
+      border-color: rgba(251,191,36,0.38);
+      box-shadow:
+        0 28px 72px rgba(0,0,0,0.8),
+        0 0 0 1px rgba(251,191,36,0.2),
+        0 0 56px rgba(251,191,36,0.18);
+    }
+    .toast-open-cta {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.55rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(0,229,204,0.5);
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: 6px;
+      transition: color 0.2s ease;
+    }
+    .unlock-toast.is-clickable:hover .toast-open-cta {
+      color: rgba(0,229,204,0.9);
+    }
+    .unlock-toast.is-final .toast-open-cta {
+      color: rgba(251,191,36,0.5);
+    }
+    .unlock-toast.is-final.is-clickable:hover .toast-open-cta {
+      color: rgba(251,191,36,0.9);
+    }
+    .toast-open-cta-arrow {
+      display: inline-block;
+      transition: transform 0.2s ease;
+    }
+    .unlock-toast.is-clickable:hover .toast-open-cta-arrow {
+      transform: translateX(3px);
+    }
+
+    /* ── Spotlight highlight — applied to target element after toast click ── */
+    .cv-toast-spotlight {
+      position: relative;
+      z-index: 2;
+      animation: spotlightGlow 2.8s ease-out forwards;
+      overflow: hidden;
+    }
+    @keyframes spotlightGlow {
+      0%   { box-shadow: inset 0 0 0 1.5px rgba(0,229,204,0), 0 0 0 rgba(0,229,204,0); }
+      10%  { box-shadow: inset 0 0 0 1.5px rgba(0,229,204,0.55), 0 0 40px rgba(0,229,204,0.18); }
+      30%  { box-shadow: inset 0 0 0 1px rgba(0,229,204,0.3), 0 0 24px rgba(0,229,204,0.1); }
+      100% { box-shadow: inset 0 0 0 1px rgba(0,229,204,0), 0 0 0 rgba(0,229,204,0); }
+    }
+    .cv-toast-spotlight-sweep {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      z-index: 3;
+      background: linear-gradient(
+        105deg,
+        transparent 0%,
+        rgba(0,229,204,0.04) 35%,
+        rgba(0,229,204,0.14) 50%,
+        rgba(0,229,204,0.04) 65%,
+        transparent 100%
+      );
+      animation: spotlightSweep 0.9s ease-in-out 0.15s both;
+    }
+    @keyframes spotlightSweep {
+      from { transform: translateX(-120%); opacity: 1; }
+      to   { transform: translateX(200%); opacity: 0; }
+    }
+
     /* ── Final / gold state ── */
     .unlock-toast.is-final {
       border-color: rgba(251,191,36,0.18);
@@ -773,10 +857,52 @@ export interface GameToastOptions {
   hint?: string;       // optional reward line shown below subtitle in cyan
   isFinal?: boolean;
   holdMs?: number;
+  /** If set, clicking the toast opens the CV panel on this tab. */
+  tab?: 'journey' | 'about';
+  /** Stop or discovery ID — used to scroll-to + spotlight the target element. */
+  targetId?: string;
 }
 
 let activeToastEl: HTMLElement | null = null;
 let activeToastTimer: ReturnType<typeof setTimeout> | null = null;
+
+function spotlightTarget(tab: 'journey' | 'about', targetId: string): void {
+  const selector = tab === 'journey'
+    ? `#cv-exp-${targetId}`
+    : `.cv-interest-card[data-discovery-id="${targetId}"]`;
+
+  const el = document.querySelector<HTMLElement>(selector);
+  if (!el) return;
+
+  // Find the scrollable tab panel ancestor
+  const scrollParent = el.closest('.cv-tab-panel');
+  if (scrollParent) {
+    const elRect = el.getBoundingClientRect();
+    const parentRect = scrollParent.getBoundingClientRect();
+    const elTopRelative = elRect.top - parentRect.top + scrollParent.scrollTop;
+    const centeredScroll = elTopRelative - parentRect.height / 2 + elRect.height / 2;
+    scrollParent.scrollTo({ top: Math.max(0, centeredScroll), behavior: 'smooth' });
+  }
+
+  // Wait for scroll to settle, then apply spotlight
+  setTimeout(() => {
+    // Clean up any previous spotlight
+    document.querySelectorAll('.cv-toast-spotlight').forEach((prev) => {
+      prev.classList.remove('cv-toast-spotlight');
+      prev.querySelector('.cv-toast-spotlight-sweep')?.remove();
+    });
+
+    el.classList.add('cv-toast-spotlight');
+    const sweep = document.createElement('div');
+    sweep.className = 'cv-toast-spotlight-sweep';
+    el.appendChild(sweep);
+
+    setTimeout(() => {
+      el.classList.remove('cv-toast-spotlight');
+      sweep.remove();
+    }, 3000);
+  }, 350);
+}
 
 export async function showGameToast(opts: GameToastOptions): Promise<void> {
   injectStyles();
@@ -792,8 +918,12 @@ export async function showGameToast(opts: GameToastOptions): Promise<void> {
   }
 
   const holdMs = opts.holdMs ?? 2500;
+  const { tab, targetId } = opts;
+
+  const ctaLabel = tab === 'journey' ? 'Open Journey' : 'Open About';
+
   const toast = document.createElement("div");
-  toast.className = `unlock-toast${opts.isFinal ? " is-final" : ""}`;
+  toast.className = `unlock-toast${opts.isFinal ? " is-final" : ""}${tab ? " is-clickable" : ""}`;
   toast.innerHTML = `
     <div class="toast-icon-col">
       <span class="toast-icon-glyph">${opts.icon}</span>
@@ -803,6 +933,7 @@ export async function showGameToast(opts: GameToastOptions): Promise<void> {
       <div class="unlock-toast-title">${opts.title}</div>
       <div class="unlock-toast-sub">${opts.subtitle}</div>
       ${opts.hint ? `<div class="toast-hint">${opts.hint}</div>` : ""}
+      ${tab ? `<div class="toast-open-cta">${ctaLabel} <span class="toast-open-cta-arrow">→</span></div>` : ""}
     </div>
     <div class="toast-shimmer"></div>
     <div class="toast-drain">
@@ -811,6 +942,28 @@ export async function showGameToast(opts: GameToastOptions): Promise<void> {
   `;
   document.body.appendChild(toast);
   activeToastEl = toast;
+
+  if (tab) {
+    toast.addEventListener("click", () => {
+      // Dismiss toast immediately
+      toast.classList.remove("visible");
+      if (activeToastEl === toast) { activeToastEl = null; }
+      if (activeToastTimer) { clearTimeout(activeToastTimer); activeToastTimer = null; }
+      setTimeout(() => toast.remove(), 420);
+
+      // Open CV panel then switch to the target tab, then spotlight
+      const cvBtn = document.getElementById("cv-btn") as HTMLButtonElement | null;
+      cvBtn?.click();
+      setTimeout(() => {
+        const tabBtn = document.querySelector(`.cv-tab-btn[data-tab="${tab}"]`) as HTMLButtonElement | null;
+        tabBtn?.click();
+
+        if (targetId) {
+          setTimeout(() => spotlightTarget(tab, targetId), 120);
+        }
+      }, 80);
+    }, { once: true });
+  }
 
   requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add("visible")));
 
@@ -825,6 +978,7 @@ export async function showGameToast(opts: GameToastOptions): Promise<void> {
 /* ── Phase 3: "The Revelation" — scanline, toast ──────────────── */
 
 async function playRevelation(
+  stopId: string,
   stopCompany: string,
   stopYear: number,
   completedCount: number,
@@ -851,6 +1005,8 @@ async function playRevelation(
       : `${completedCount} of ${totalGates} milestones explored`,
     isFinal,
     holdMs,
+    tab: 'journey',
+    targetId: stopId,
   });
 
   // Mark Journey tab as having new content
@@ -923,7 +1079,7 @@ export async function playCinematicUnlock(
     await playAbsorption(stopId);
 
     // Phase 3: "The Revelation"
-    await playRevelation(stopCompany, stopYear, completedCount, totalGates);
+    await playRevelation(stopId, stopCompany, stopYear, completedCount, totalGates);
   } finally {
     isPlaying = false;
   }

@@ -71,7 +71,7 @@ A 4-phase cinematic sequence (~3 seconds) that fires when the player completes a
 - **Persistent Glow**: After any exploration, the Resume button gains `cv-btn-has-unlocks` border/shadow. After 4/4, gains `cv-btn-complete` with gold accent.
 - **Count Badge** also includes 3D object discoveries — `addDiscoveryToBadge()` increments the count from `discoveryTracker.ts`. Badge shows `gates + discoveries` total.
 - **Journey Tab "New" Indicator**: `markJourneyTabNew()` fires during the revelation phase, adding a pulsing amber dot to the Journey tab button. Cleared when the user clicks the Journey tab (`clearJourneyTabNew()`). Same pattern as the About tab indicator.
-- **Game Toast System** (`showGameToast`): Centralized toast used by both gate unlocks and discoveries. Features: icon column, category label, title, subtitle, optional `hint` line (cyan), shimmer sweep, drain bar, scale spring animation. Exported from `gateUnlockAnimation.ts`.
+- **Game Toast System** (`showGameToast`): Centralized toast used by both gate unlocks and discoveries. Features: icon column, category label, title, subtitle, optional `hint` line (cyan), shimmer sweep, drain bar, scale spring animation. **Clickable toasts**: when `tab` is set (`'journey'` or `'about'`), the toast gains `cursor: pointer`, hover lift/glow, and an `"Open Journey →"` / `"Open About →"` CTA line. Clicking dismisses the toast, opens the CV panel on the target tab, smooth-scrolls to the target element (`targetId`), and plays a spotlight highlight (cyan glow frame + shimmer sweep, 2.8s). Gate milestone toasts route to Journey tab with `targetId = stopId`; discovery toasts route to About tab with `targetId = discoveryId`. Exported from `gateUnlockAnimation.ts`.
 - **Discovery Motes** (`playDiscoveryMotes`): 3 amber motes fly from a 3D object's screen position to the Resume button on first-time discovery. Button elastic-pops and gold sonar ring expands on arrival. Calls `markAboutTabNew()` to flag the About tab.
 - **File**: `src/ui/gateUnlockAnimation.ts` — exports `playCinematicUnlock(...)`, `initGateUnlockAnimation()`, `refreshProgressDots()`, `showGameToast(opts)`, `addDiscoveryToBadge()`, `playDiscoveryMotes(x, y)`, `markAboutTabNew()`, `clearAboutTabNew()`, `applyAboutTabNewToDom()`, `markJourneyTabNew()`, `clearJourneyTabNew()`, `applyJourneyTabNewToDom()`
 - **3D Pulse**: `src/scene/timeline/createTimelineStops.ts` — exports `pulseGateOnUnlock(stopId)`, which temporarily boosts emissive intensity and point light in `updateTimelineLighting()` for 500ms
@@ -80,7 +80,7 @@ A 4-phase cinematic sequence (~3 seconds) that fires when the player completes a
 
 **Click-to-Discover System** ✨
 
-A raycasting-based tooltip and discovery system for 3D objects on the spawn pad. Hovering reveals a tooltip with a "Click to discover →" hint; clicking triggers a discovery reward (toast, motes, badge bump, About tab indicator). After discovery, the hint changes to "✦ Photos in Resume → About tab" to guide the user to the CV panel.
+A raycasting-based tooltip and discovery system for 3D objects on the spawn pad and arena. Hovering reveals a tooltip with a "Click to discover →" hint; clicking triggers a discovery reward (toast, motes, badge bump, About tab indicator). After discovery, the hint changes to "✦ Photos in Resume → About tab" to guide the user to the CV panel.
 
 - **Tooltip UI**: A single shared `#world-tooltip` div (fixed-position, `z-index: 1500`) with title, subtitle, dynamic hint line, and a downward caret. Styled with glass-dark background, cyan left-border accent, and backdrop blur.
 - **Raycasting**: Throttled to once every **120 ms**. Module-level `THREE.Raycaster` reused. Leaf mesh list pre-computed at registration. `Map<Mesh, target>` for O(1) lookup.
@@ -88,19 +88,28 @@ A raycasting-based tooltip and discovery system for 3D objects on the spawn pad.
 - **Click-to-discover**: Clicking a hoverable 3D object calls `markDiscovered(id)` from `discoveryTracker.ts`. First-time discovery triggers: discovery toast (via `showGameToast`), amber motes flying to Resume button (`playDiscoveryMotes`), badge count bump (`addDiscoveryToBadge`), About tab "New" indicator (`markAboutTabNew`).
 - **Dynamic hints**: Undiscovered objects show cyan "Click to discover →"; discovered objects show amber pulsing "✦ Photos in Resume → About tab" (`.has-nav-hint` class). Cursor changes to `pointer` on clickable targets.
 - **Auto-disable during overlays**: Checks `body.transition-open` and `#cv-overlay.cv-visible` each frame.
-- **Registered targets**: BMW S1000RR (emissive boost), MTB bicycle, Meny the dog (`setExcited(true)`), AL monogram (opacity pulse).
+- **Registered targets**: BMW S1000RR (emissive boost), MTB bicycle, Meny the dog (`setExcited(true)`), AL monogram (opacity pulse). **Arena props**: LEGO brick stack, 32kg kettlebell, framed family drawing (all use `boostEmissive`/`restoreEmissive` from `emissiveUtils.ts`).
 - **File**: `src/ui/worldTooltip.ts` — exports `initWorldTooltip()`, `registerTooltipTarget(target)`, `updateWorldTooltip(camera, domElement)`, `setTooltipsEnabled(boolean)`.
 - **Vehicle callbacks**: `createSpawnPad(scene, options?)` accepts `options.onBikeLoaded` and `options.onMtbLoaded` callbacks. `SpawnPadContext` exposes `monogramMesh`.
 
+**Arena Discovery Objects** ✨
+
+Three discoverable props on the main arena hex (previously empty): LEGO brick stack, 32kg cast iron kettlebell, framed family crayon drawing. Same click-to-discover flow as spawn pad objects — tooltip, toast, motes, badge bump, About tab unlock.
+
+- **File**: `src/scene/createArenaProps.ts` — loads 3 GLBs, scales to desk-toy size (0.3–0.45 units), grounds at Y=0, adds warm accent PointLight under each. Returns `ArenaPropsContext` with `legoGroup`, `kettlebellGroup`, `drawingGroup`.
+- **Placement**: LEGO at (4.5, 0, -2.0), drawing at (-3.5, 0, -4.0), kettlebell at (7.5, 0, 3.5). No collision — walk-through only.
+- **Emissive helpers**: `src/scene/emissiveUtils.ts` — `boostEmissive(group, intensity)`, `restoreEmissive(group)` for hover tooltip reactive effects.
+- **Asset loading**: 3 arena prop models counted in `TOTAL_ASSETS`; `createArenaProps(scene, assetLoaded)` called in parallel with other loads.
+
 **Discovery Tracker** ✨
 
-Session-only state manager for 3D object discoveries on the spawn pad. Tracks which objects have been clicked/discovered, triggers rewards, and provides query API.
+Session-only state manager for 3D object discoveries (spawn pad + arena). Tracks which objects have been clicked/discovered, triggers rewards, and provides query API.
 
 - **File**: `src/ui/discoveryTracker.ts`
-- **Discovery IDs**: `bmw`, `mtb`, `meny`, `monogram` (4 total)
-- **`markDiscovered(id)`**: Returns `true` on first-time discovery. Calls `addDiscoveryToBadge()` to bump the Resume button badge, then shows a `showGameToast` with icon, category, title, subtitle, and a `hint` line ("📸 Photos unlocked · Check the About tab") for objects with photos.
+- **Discovery IDs**: `bmw`, `mtb`, `meny`, `monogram` (spawn pad) + `lego`, `gym`, `twins` (arena) — 7 total
+- **`markDiscovered(id)`**: Returns `true` on first-time discovery. Calls `addDiscoveryToBadge()` to bump the Resume button badge, then shows a clickable `showGameToast` with icon, category, title, subtitle, `hint` line ("📸 Photos unlocked · Check the About tab") for objects with photos, and `tab: 'about'` + `targetId: id` — clicking the toast opens the CV panel About tab and spotlights the matching interest card.
 - **`isDiscovered(id)`**: Query function used by CV panel's `refreshDynamicContent` to drive interest card states and photo panel teaser/reveal.
-- **4/4 bonus**: When all 4 objects are discovered, a gold "★ Spawn Pad — Fully Explored" toast fires after 2.9s delay.
+- **7/7 bonus**: When all 7 objects are discovered, a gold "★ Portfolio — Fully Explored" toast fires after 2.9s delay.
 - **Integration**: `App.ts` calls `markDiscovered` inside the `onClick` callback of each `registerTooltipTarget` call.
 
 **Photo Lightbox** ✨
@@ -112,7 +121,7 @@ A reusable FLIP-animated zoom lightbox for any image in the portfolio. Used by t
 - **FLIP animation**: Image expands from trigger element's position to centered full-screen (0.46s spring curve), shrinks back on close.
 - **Shapes**: `circle` (headshot avatar) or `rect` (journey/about photos).
 - **`attachZoomHint`**: Adds `cursor: zoom-in`, hover magnifier `⊕` overlay, and click-to-open listener to any container. Returns a detach function.
-- **Conditional zoom**: Journey photos return empty `getSrc` while locked (`cv-photo-locked`), blocking lightbox open. About photo panel returns empty while in teaser state (not `.cpp-discovered`).
+- **Conditional zoom**: Journey photos are always zoomable (professional content never gated). About photo panel returns empty while in teaser state (not `.cpp-discovered`).
 - **Backdrop**: Blurred dark overlay (`backdrop-filter: blur(24px)`), click or ESC to close. Caption fades in below the image.
 
 **Teaching Photo** ✨
@@ -165,6 +174,8 @@ src/
 │   ├── createScene.ts      # Scene, camera, renderer, lighting setup
 │   ├── createGround.ts     # Main arena hex platform creation
 │   ├── createSpawnPad.ts   # Spawn pad + Timeline Bridge (glass, effects)
+│   ├── createArenaProps.ts # Arena discovery objects (LEGO, kettlebell, drawing)
+│   ├── emissiveUtils.ts    # boostEmissive / restoreEmissive for hover FX
 │   ├── layoutConstants.ts  # Shared arena, bridge, spawn layout constants (single source of truth)
 │   ├── hexUtils.ts         # Shared hex geometry: hexVertex, createHexShape, createHexPath
 │   ├── textureUtils.ts     # Shared textures: createNoiseRoughnessMap, createRadialGlowTexture, createDotTexture
@@ -188,7 +199,7 @@ src/
     ├── gatePanel.ts        # Floating proximity panel for timeline gates (bottom-right)
     ├── proximityUI.ts      # Proximity indicator UI (used by building stops)
     ├── gateUnlockAnimation.ts # Gate→Resume particle animation + badge + toast + tab indicators
-    ├── discoveryTracker.ts # 3D object discovery state + rewards (BMW, MTB, Meny, Monogram)
+    ├── discoveryTracker.ts # 3D object discovery state + rewards (spawn pad + arena, 7 total)
     ├── worldTooltip.ts     # Click-to-discover tooltip system for 3D objects + nav hints
     ├── photoLightbox.ts    # Reusable FLIP zoom lightbox for any image (circle/rect)
     ├── cvPanel.ts          # Tabbed résumé modal with photo panels, film strips, live dossier
@@ -224,7 +235,8 @@ The main application orchestrator that:
 - Player assets: 5 (idle model + idle anim + walk + run + wave)
 - Dog assets: 2 (model + walk animation)
 - Portal assets: 1 (portal GLB, loaded once and cloned per checkpoint)
-- Total: 8 assets with progress tracking
+- Arena prop assets: 3 (LEGO, kettlebell, framed drawing)
+- Total: 11+ assets (plus images) with progress tracking
 - Assets load in parallel with intro sequence for smooth experience
 
 **Character Coordination:**
@@ -547,9 +559,8 @@ Handles the opening cinematic:
 1. **Closeup**: Camera focuses on player character
 2. **Text phases**: Terminal-style text appears with typing animation
 3. **Pullback**: Camera smoothly transitions to gameplay position
-4. **Hint**: Control legend (`#controls-hint`) appears — "WASD / Arrows • Shift run • E interact • M map". Simultaneously, `showPortalHintWithDelay()` schedules a contextual hint.
-5. **Portal Hint** (1.5s after controls, persists 4s): A muted italic line (`#portal-hint`) fades in — "Approach the glowing portals ahead to explore career milestones". Gives the player a clear goal before the first session begins. Auto-fades out and removes itself from the DOM.
-6. **Complete**: Character waves, overlay fades out
+4. **Hint**: Brief pause before gameplay begins. The progressive onboarding system (`onboardingHints.ts`) takes over from here.
+5. **Complete**: Character waves, overlay fades out
 
 The intro uses a retro terminal aesthetic with green text, CRT scanlines, and typing effects.
 
@@ -767,7 +778,7 @@ All CV content is **always fully visible**. Gate exploration adds visual *enhanc
 **Journey Tab (`#cv-tab-journey`):**
 - Experience entries with `data-stop-id` attributes for dynamic unlock tracking
 - Dot-nav (`.cv-dot-nav`): sticky vertical dots on the left edge, one per entry; click scrolls to entry; active dot highlights via scroll event tracking. `.completed` adds subtle cyan border accent — purely additive. Year tooltip on hover.
-- **Journey photo teaser**: Each experience photo starts with `.cv-photo-locked` (blurred image + 🔒 "Walk through the gate" overlay). Gate completion removes the lock class (0.5s smooth transition). Zoom hint is blocked while locked (`getSrc` returns empty). Photos use `attachZoomHint` for FLIP lightbox zoom when unlocked.
+- **Journey photos**: Always fully visible — professional content is never gated. Experience photos (e.g. The5ers teaching photo) render clean with caption and lightbox zoom on click. No blur, lock overlay, or gate-based unlock.
 - ASML career pivot narrative: italic block beneath the ASML entry with amber left border
 - Company logos in white pills, per-role skill chips, highlighted metrics/keywords via `highlightUtils`
 
@@ -780,8 +791,8 @@ All CV content is **always fully visible**. Gate exploration adds visual *enhanc
 **About Tab (`#cv-tab-about`):**
 - "Working With Me" section: blockquote-style card with decorative curly quotes, describing collaboration style
 - Education: B.Sc. Electrical & Electronics Engineering, Ariel University
-- **Beyond the Code**: 3×3 grid of interest cards (`.cv-interests-grid`), each with emoji icon, label, subtitle. Cards with `data-discovery-id` show a "↗ In 3D world" / "✓ Found it" pill badge. Cards with `data-photo-album` show a **film strip indicator** (`.cv-card-film-strip`) at the bottom: locked state shows 🔒 + dim frames + "discover to unlock"; discovered/always-open shows 📷 + cyan glowing frames + "hover to view".
-- **Hover Photo Panel** (`#cv-photo-panel`): Fixed-position panel appears on hover over photo-enabled cards. **Teaser state** (undiscovered): softly blurred photo (`blur(7px)`) with ⬡ icon, "Hidden" badge, CRT scanlines, shimmer sweep. **Gallery state** (discovered or always-open like LEGO): swipeable gallery with `<`/`>` nav buttons, dot indicators, captions, and FLIP lightbox zoom on image click. Photos use `objectPosition` for per-image crop control.
+- **Beyond the Code**: 3×3 grid of interest cards (`.cv-interests-grid`), each with emoji icon, label, subtitle. Cards with `data-discovery-id` (BMW, MTB, Meny, Monogram) show a "↗ In 3D world" / "✓ Found it" pill badge and use discovery state. Cards with `data-discoverable="false"` (Gym, Twins, Classic Rock, Travel, LEGO) have no 3D counterpart — always visible with muted border (`rgba(255,255,255,0.08)`), no "Found it" badge. Cards with `data-photo-album` show a **film strip indicator** (`.cv-card-film-strip`) at the bottom: locked state shows 🔒 + dim frames + "discover to unlock"; discovered/always-open shows 📷 + cyan glowing frames (no text label; film strip + `cursor: pointer` convey interactivity).
+- **Hover Photo Panel** (`#cv-photo-panel`): Fixed-position panel appears over photo-enabled cards. **Desktop**: hover to show, mouse leave to hide. **Touch/mobile** (`hover: none`): tap card to open, tap same card or outside to close. **Teaser state** (undiscovered): softly blurred photo (`blur(7px)`) with ⬡ icon, "Hidden" badge, CRT scanlines, shimmer sweep. **Gallery state** (discovered or always-open like LEGO): swipeable gallery with `<`/`>` nav buttons, dot indicators, captions, and FLIP lightbox zoom on image click. Photos use `objectPosition` for per-image crop control.
 - **Discovery photos**: `/public/img/discoveries/` — `bmw-real-1.png`, `bmw-real-2.png`, `mtb-riding.png`, `mtb-bike.png`, `meny-1.png`, `meny-2.png`, `lego-bmw.png`, `lego-yamaha.png`
 - Game wink callout: "And yes — this entire portfolio is a playable video game."
 
@@ -790,7 +801,7 @@ All CV content is **always fully visible**. Gate exploration adds visual *enhanc
 **Animation:** Panel scales from `scale(0.96) translateY(16px)` to `scale(1) translateY(0)` with `opacity 0→1` via CSS class toggle (`.cv-visible`). Tab switch uses `cvTabFade` keyframe (0.28s ease-out). Close removes the class and waits 360ms before `display: none`.
 
 **Download CTA (`#cv-footer-dl`):**
-Full-width button with 3 concurrent animations: `cvDlBreath` (2.8s glow pulsing), `cvDlShimmer` (4s diagonal light sweep), `cvDlIconBounce` (download arrow bounce). Lift on hover, press feedback on click. Impossible to miss — HR always sees the download action.
+Centered, constrained-width button (`max-width: 320px`, `width: auto`, `padding: 0.6rem 1.8rem`). Prominent but not overwhelming. 3 concurrent animations: `cvDlBreath` (2.8s glow pulsing), `cvDlShimmer` (4s diagonal light sweep), `cvDlIconBounce` (download arrow bounce). Lift on hover, press feedback on click.
 
 **Images used:**
 - `/public/img/alex-headshot.png` — professional headshot (circular avatar, lightbox-zoomable)
@@ -871,6 +882,8 @@ interface TooltipTarget {
 - Normal: `✦ ASML 2018 — Explored` / `2 of 4 milestones explored`
 - Final: `★ Journey Complete` / `Every chapter of the story, experienced firsthand` with `.is-final` gold accent
 - Hold: 2.5s normal, 4s final. Slide-out 350ms, then DOM removal.
+- **Clickable**: `.is-clickable` class adds `cursor: pointer`, hover lift (`translateX(-4px) scale(1.012)`) + intensified border glow, and a `toast-open-cta` line ("Open Journey →" / "Open About →") with arrow slide on hover. Click dismisses the toast and opens the CV panel on the target tab, scrolling to and spotlighting the relevant element via `spotlightTarget(tab, targetId)`.
+- **Spotlight effect** (`.cv-toast-spotlight`): Cyan glow frame (`spotlightGlow` keyframe, 2.8s — border pulses in at 10%, fades out by 100%) + shimmer sweep overlay (`.cv-toast-spotlight-sweep`, diagonal light bar, 0.9s). Auto-cleans after 3s.
 
 **Count Badge (`.cv-btn-badge`):**
 - Single `position: absolute` notification badge, `top: -4px; right: -4px` on the Resume button

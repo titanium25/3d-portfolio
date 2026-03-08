@@ -17,12 +17,13 @@ interface PhotoEntry { src: string; caption: string; objectPosition?: string; }
 
 const CARD_PHOTOS: Record<string, PhotoEntry[]> = {
   bmw: [
-    { src: "/img/discoveries/bmw-real-1.png", caption: "Tel Aviv nightride · 199hp of \"I should not be doing this on a Tuesday\"", objectPosition: "center bottom" },
+    { src: "/img/discoveries/bmw-real-1.png", caption: "Tel Aviv nightride · 199hp of \"I should not be doing this on a Tuesday\"", objectPosition: "bottom 15%" },
     { src: "/img/discoveries/bmw-real-2.png", caption: "The Shark wrap · yes, the dentist asked if I have a death wish",            objectPosition: "center center" },
   ],
   mtb: [
     { src: "/img/discoveries/mtb-riding.png", caption: "05:30 AM · 80 km done before my first standup",                              objectPosition: "center 75%" },
     { src: "/img/discoveries/mtb-bike.png",   caption: "Full-carbon hardtail · weighs less than my node_modules folder",              objectPosition: "center 60%" },
+    { src: "/img/discoveries/mtb-road.png",   caption: "Road ride · Ra'anana promenade",                                              objectPosition: "center 40%" },
   ],
   lego: [
     { src: "/img/discoveries/lego-bmw.png",    caption: "BMW M1000RR Technic · 1,920 pieces · 0 leftover (I counted twice)",          objectPosition: "center center" },
@@ -570,7 +571,7 @@ function injectStyles(): void {
       color: rgba(255,255,255,0.46);
     }
 
-    /* ── ASML pivot narrative ── */
+    /* ── Role narrative blurb ── */
     .cv-pivot-note {
       margin-top: 0.65rem;
       padding: 0.5rem 0.7rem;
@@ -829,6 +830,7 @@ function injectStyles(): void {
       position: relative;
       overflow: hidden;
     }
+    .cv-interest-card[data-photo-album] { cursor: pointer; }
     .cv-interest-card:hover {
       background: rgba(0,229,204,0.05);
       border-color: rgba(0,229,204,0.22);
@@ -891,6 +893,10 @@ function injectStyles(): void {
     .cv-interest-card.cv-discovered {
       border-color: rgba(0,229,204,0.2);
       background: rgba(0,229,204,0.05);
+    }
+    /* Non-discoverable cards (no 3D counterpart) — always visible, muted border */
+    .cv-interest-card[data-discoverable="false"] {
+      border: 1px solid rgba(255,255,255,0.08);
     }
     .cv-interest-card.cv-discovered .cv-interest-world {
       background: rgba(0,229,204,0.15);
@@ -977,11 +983,15 @@ function injectStyles(): void {
       box-shadow: 0 0 4px rgba(0,229,204,0.25);
     }
     .cv-interest-card.cv-discovered .cfs-text,
-    .cv-interest-card:not([data-discovery-id])[data-photo-album] .cfs-text {
+    .cv-interest-card:not([data-discovery-id])[data-photo-album] .cfs-text,
+    .cv-interest-card[data-discoverable="false"][data-photo-album] .cfs-text {
       color: rgba(0,229,204,0.65);
     }
     .cv-interest-card.cv-discovered .cfs-text::before,
-    .cv-interest-card:not([data-discovery-id])[data-photo-album] .cfs-text::before { content: "hover to view"; }
+    .cv-interest-card:not([data-discovery-id])[data-photo-album] .cfs-text::before,
+    .cv-interest-card[data-discoverable="false"][data-photo-album] .cfs-text::before {
+      content: attr(data-count) " photos";
+    }
 
     /* Hover shimmer on unlocked strip */
     .cv-interest-card.cv-discovered:hover .cv-card-film-strip,
@@ -1022,8 +1032,9 @@ function injectStyles(): void {
       align-items: center;
       justify-content: center;
       gap: 0.55rem;
-      width: 100%;
-      padding: 0.75rem 1.5rem;
+      max-width: 320px;
+      width: auto;
+      padding: 0.6rem 1.8rem;
       background: linear-gradient(135deg, rgba(0,229,204,0.18) 0%, rgba(0,180,160,0.22) 100%);
       border: 1px solid rgba(0,229,204,0.55);
       border-radius: 12px;
@@ -1093,27 +1104,38 @@ function injectStyles(): void {
     }
 
     /* ── Inline experience photo ── */
+    .cv-exp-photos-grid {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 0.6rem;
+    }
+    .cv-exp-photos-grid .cv-exp-photo { margin-top: 0; flex: 0 0 auto; }
     .cv-exp-photo {
       margin-top: 0.6rem;
       border-radius: 8px;
       overflow: hidden;
-      max-width: 180px;
+      width: 130px;
       border: 1px solid rgba(255,255,255,0.08);
       transition: border-color 0.2s;
       position: relative;
     }
     .cv-exp-photo:hover { border-color: rgba(0,229,204,0.3); }
     .cv-exp-photo img {
-      width: 100%;
+      width: 130px;
+      height: 86px;
+      object-fit: cover;
       display: block;
       transition: filter 0.5s ease, transform 0.5s ease;
     }
     .cv-exp-photo-caption {
-      font-size: 0.6rem;
-      color: rgba(255,255,255,0.32);
-      padding: 0.3rem 0.5rem;
+      font-size: 0.58rem;
+      color: rgba(255,255,255,0.45);
+      padding: 0.25rem 0.4rem;
       font-style: italic;
-      background: rgba(0,0,0,0.3);
+      background: rgba(0,0,0,0.35);
+      line-height: 1.3;
     }
 
     /* ── Journey photo lock / teaser ── */
@@ -1346,19 +1368,22 @@ function createCVPanel(): void {
   // ── Setup dot-nav scroll tracking ──────────────────────────────────────────
   setupDotNav();
 
-  // Attach lightbox zoom to all experience photos — blocked while still locked
+  // Attach lightbox zoom to all experience photos — Journey photos are always visible
   TIMELINE_STOPS.forEach((stop) => {
-    const photoSrc = stop.journeyImage ?? stop.image;
-    const photoCap = stop.journeyCaption ?? stop.imageCaption;
-    if (!photoSrc) return;
-    const photoEl = panel.querySelector<HTMLDivElement>(`[data-photo-id="${stop.id}"]`);
-    if (photoEl) {
-      attachZoomHint(
-        photoEl,
-        () => photoEl.classList.contains("cv-photo-locked") ? "" : photoSrc,
-        { shape: "rect", caption: photoCap ?? "", hintSize: 16 },
-      );
-    }
+    const photos = stop.journeyImages ?? (stop.journeyImage ?? stop.image
+      ? [{ src: stop.journeyImage ?? stop.image!, caption: stop.journeyCaption ?? stop.imageCaption ?? "" }]
+      : []);
+    photos.forEach((p, i) => {
+      const photoId = photos.length > 1 ? `${stop.id}--${i}` : stop.id;
+      const photoEl = panel.querySelector<HTMLDivElement>(`[data-photo-id="${photoId}"]`);
+      if (photoEl) {
+        attachZoomHint(
+          photoEl,
+          () => p.src,
+          { shape: "rect", caption: p.caption ?? "", hintSize: 16 },
+        );
+      }
+    });
   });
 
   document.addEventListener("keydown", (e) => {
@@ -1498,25 +1523,26 @@ function buildJourneyTab(): HTMLDivElement {
       ? `<span class="cv-exp-logo-wrap"><img class="cv-exp-logo" src="${stop.logo}" alt="${company}" /></span>`
       : "";
 
-    // ASML career pivot narrative
-    const pivotHtml = stop.id === "asml"
-      ? `<div class="cv-pivot-note">
-          The discipline of debugging <span>million-dollar lithography machines under fab-uptime pressure</span> shaped an engineering mindset
-          that carries into every system I build today — <span>methodical root-cause analysis</span>, documentation-first, and zero tolerance for flaky systems.
-        </div>`
+    const pivotHtml = stop.narrativeNote
+      ? `<div class="cv-pivot-note">${stop.narrativeNote}</div>`
       : "";
 
-    const photoSrc = stop.journeyImage ?? stop.image;
-    const photoCap = stop.journeyCaption ?? stop.imageCaption;
-    const photoHtml = photoSrc
-      ? `<div class="cv-exp-photo cv-photo-locked" data-photo-id="${stop.id}">
-           <div class="cv-photo-teaser">
-             <span class="cv-photo-teaser-icon">🔒</span>
-             <span class="cv-photo-teaser-text">Approach the gate in the world,<br>then press E or click the card</span>
-           </div>
-           <img src="${photoSrc}" alt="${photoCap ?? ""}" />
-           ${photoCap ? `<div class="cv-exp-photo-caption">${photoCap}</div>` : ""}
-         </div>`
+    // Journey photos are always visible — professional content is never gated
+    const photos = stop.journeyImages ?? (stop.journeyImage ?? stop.image
+      ? [{ src: stop.journeyImage ?? stop.image!, caption: stop.journeyCaption ?? stop.imageCaption ?? "" }]
+      : []);
+    const photoHtml = photos.length > 0
+      ? (photos.length > 1
+          ? `<div class="cv-exp-photos-grid">${photos.map((p, i) =>
+              `<div class="cv-exp-photo" data-photo-id="${stop.id}--${i}">
+                 <img src="${p.src}" alt="${p.caption}" />
+                 ${p.caption ? `<div class="cv-exp-photo-caption">${p.caption}</div>` : ""}
+               </div>`
+            ).join("")}</div>`
+          : `<div class="cv-exp-photo" data-photo-id="${stop.id}">
+               <img src="${photos[0].src}" alt="${photos[0].caption}" />
+               ${photos[0].caption ? `<div class="cv-exp-photo-caption">${photos[0].caption}</div>` : ""}
+             </div>`)
       : "";
 
     const entry = document.createElement("div");
@@ -1651,7 +1677,7 @@ function buildAboutTab(): HTMLDivElement {
         <span class="cv-interest-card-label">BMW S1000RR</span>
         <span class="cv-interest-card-sub">199hp weekend therapy</span>
         <span class="cv-interest-detail">Hover over the bike on the spawn pad</span>
-        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text"></span></div>
+        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text" data-count="2"></span></div>
       </div>
       <div class="cv-interest-card" data-discovery-id="mtb" data-photo-album="mtb">
         <span class="cv-interest-world">↗ In 3D world</span>
@@ -1659,13 +1685,14 @@ function buildAboutTab(): HTMLDivElement {
         <span class="cv-interest-card-label">80km Rides</span>
         <span class="cv-interest-card-sub">Friday mornings</span>
         <span class="cv-interest-detail">MTB parked on the spawn pad</span>
-        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text"></span></div>
+        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text" data-count="3"></span></div>
       </div>
-      <div class="cv-interest-card">
+      <div class="cv-interest-card" data-discovery-id="gym">
+        <span class="cv-interest-world">↗ In 3D world</span>
         <span class="cv-interest-card-icon">💪</span>
         <span class="cv-interest-card-label">Gym</span>
         <span class="cv-interest-card-sub">5 days a week</span>
-        <span class="cv-interest-detail">Discipline that carries into code</span>
+        <span class="cv-interest-detail">32kg kettlebell on the arena</span>
       </div>
       <div class="cv-interest-card" data-discovery-id="meny" data-photo-album="meny">
         <span class="cv-interest-world">↗ In 3D world</span>
@@ -1673,13 +1700,14 @@ function buildAboutTab(): HTMLDivElement {
         <span class="cv-interest-card-label">Meny</span>
         <span class="cv-interest-card-sub">Alaskan Malamute</span>
         <span class="cv-interest-detail">He's following you in the 3D world</span>
-        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text"></span></div>
+        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text" data-count="2"></span></div>
       </div>
-      <div class="cv-interest-card">
+      <div class="cv-interest-card" data-discovery-id="twins">
+        <span class="cv-interest-world">↗ In 3D world</span>
         <span class="cv-interest-card-icon">👨‍👧‍👦</span>
         <span class="cv-interest-card-label">Twins</span>
         <span class="cv-interest-card-sub">Tomer & Alma</span>
-        <span class="cv-interest-detail">My best debugging partners</span>
+        <span class="cv-interest-detail">Their framed masterpiece on the arena</span>
       </div>
       <div class="cv-interest-card" data-discovery-id="monogram">
         <span class="cv-interest-world">↗ In 3D world</span>
@@ -1688,20 +1716,21 @@ function buildAboutTab(): HTMLDivElement {
         <span class="cv-interest-card-sub">Side passion</span>
         <span class="cv-interest-detail">Find the AL monogram on the spawn pad</span>
       </div>
-      <div class="cv-interest-card" data-photo-album="lego">
+      <div class="cv-interest-card" data-discovery-id="lego" data-photo-album="lego">
+        <span class="cv-interest-world">↗ In 3D world</span>
         <span class="cv-interest-card-icon">🧱</span>
         <span class="cv-interest-card-label">LEGO</span>
         <span class="cv-interest-card-sub">Cities with the twins</span>
-        <span class="cv-interest-detail">Hover to see the builds</span>
-        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text"></span></div>
+        <span class="cv-interest-detail">Brick stack on the arena</span>
+        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text" data-count="2"></span></div>
       </div>
-      <div class="cv-interest-card">
+      <div class="cv-interest-card" data-discoverable="false">
         <span class="cv-interest-card-icon">🎸</span>
         <span class="cv-interest-card-label">Classic Rock</span>
         <span class="cv-interest-card-sub">Always playing</span>
         <span class="cv-interest-detail">Best debugging soundtrack</span>
       </div>
-      <div class="cv-interest-card">
+      <div class="cv-interest-card" data-discoverable="false">
         <span class="cv-interest-card-icon">✈️</span>
         <span class="cv-interest-card-label">Travel</span>
         <span class="cv-interest-card-sub">Thailand, northern Israel</span>
@@ -1801,9 +1830,7 @@ function refreshDynamicContent(): void {
         setTimeout(() => entry.classList.remove("cv-shimmer"), 1500);
       }
     }
-    // Unlock photo teaser when gate is completed
-    const photo = entry.querySelector<HTMLElement>(".cv-exp-photo.cv-photo-locked");
-    if (completed && photo) photo.classList.remove("cv-photo-locked");
+    // Journey photos are always visible — no gate-based unlock
   });
 
   // Update dot-nav completion state
@@ -1873,6 +1900,8 @@ let currentPhotoAlbum: PhotoEntry[] = [];
 let currentPhotoIdx = 0;
 let currentPhotoCaption = "";
 let photoHideTimer: ReturnType<typeof setTimeout> | null = null;
+/** Card that opened the panel (for touch: tap-same-card to close, tap-outside to close). */
+let currentPhotoPanelCard: HTMLElement | null = null;
 
 function injectPhotoPanelStyles(): void {
   if (document.getElementById("cv-photo-panel-styles")) return;
@@ -2232,7 +2261,8 @@ function showPhotoPanel(card: HTMLElement): void {
   if (!photos?.length) return;
 
   const discoveryId = card.dataset.discoveryId;
-  const discovered = discoveryId ? isDiscovered(discoveryId) : true; // LEGO always revealed
+  const isNonDiscoverable = card.dataset.discoverable === "false";
+  const discovered = isNonDiscoverable || !discoveryId ? true : isDiscovered(discoveryId);
 
   // Set teaser image (blurred background) — always load it
   if (photoTeaserImg) {
@@ -2279,6 +2309,8 @@ function positionPhotoPanel(card: HTMLElement): void {
 
 function hidePhotoPanel(): void {
   photoPanelEl?.classList.remove("cpp-visible");
+  currentPhotoPanelCard = null;
+  clearPhotoPanelTouchClose();
 }
 
 function schedulePhotoPanelHide(): void {
@@ -2292,26 +2324,84 @@ function cancelPhotoPanelHide(): void {
   }
 }
 
-/** Attach hover listeners to all cards that have photo albums. Called after panel DOM is built. */
+/** True when the primary input cannot hover (touch, coarse pointer). */
+function prefersNoHover(): boolean {
+  return window.matchMedia("(hover: none)").matches;
+}
+
+let photoPanelTouchCloseHandler: ((e: MouseEvent) => void) | null = null;
+
+function setupPhotoPanelTouchClose(card: HTMLElement): void {
+  const remove = () => {
+    if (photoPanelTouchCloseHandler) {
+      document.removeEventListener("click", photoPanelTouchCloseHandler, true);
+      photoPanelTouchCloseHandler = null;
+    }
+  };
+  photoPanelTouchCloseHandler = (e: MouseEvent) => {
+    const target = e.target as Node;
+    const panel = document.getElementById("cv-photo-panel");
+    if (
+      target &&
+      panel &&
+      !card.contains(target) &&
+      !panel.contains(target)
+    ) {
+      hidePhotoPanel();
+      remove();
+    }
+  };
+  // Use capture so we run before other handlers; delay so the opening click doesn't immediately close
+  requestAnimationFrame(() => {
+    document.addEventListener("click", photoPanelTouchCloseHandler!, true);
+  });
+}
+
+function clearPhotoPanelTouchClose(): void {
+  if (photoPanelTouchCloseHandler) {
+    document.removeEventListener("click", photoPanelTouchCloseHandler, true);
+    photoPanelTouchCloseHandler = null;
+  }
+}
+
+/** Attach hover (desktop) or click (touch) listeners to cards with photo albums. */
 function initPhotoPanelHovers(): void {
-  // Run once per panel session (DOM nodes are stable after buildAboutTab)
   const cards = document.querySelectorAll<HTMLElement>(
     ".cv-interest-card[data-photo-album], .cv-interest-card[data-discovery-id]"
   );
+  const useTouch = prefersNoHover();
+
   cards.forEach((card) => {
-    // Only attach if this card has a known photo album
     const key = card.dataset.photoAlbum ?? card.dataset.discoveryId ?? "";
     if (!CARD_PHOTOS[key]) return;
-
-    // Guard against double-attachment
     if (card.dataset.photoPanelBound === "1") return;
     card.dataset.photoPanelBound = "1";
 
-    card.addEventListener("mouseenter", () => {
-      cancelPhotoPanelHide();
-      showPhotoPanel(card);
-    });
-    card.addEventListener("mouseleave", schedulePhotoPanelHide);
+    if (useTouch) {
+      // Mobile/touch: tap to open, tap same card or outside to close
+      card.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        clearPhotoPanelTouchClose();
+        const isOpen = photoPanelEl?.classList.contains("cpp-visible");
+        const sameCard = currentPhotoPanelCard === card;
+        if (isOpen && sameCard) {
+          hidePhotoPanel();
+          return;
+        }
+        createPhotoPanel();
+        currentPhotoPanelCard = card;
+        showPhotoPanel(card);
+        setupPhotoPanelTouchClose(card);
+      });
+    } else {
+      // Desktop: hover to show, leave to hide
+      card.addEventListener("mouseenter", () => {
+        cancelPhotoPanelHide();
+        showPhotoPanel(card);
+      });
+      card.addEventListener("mouseleave", schedulePhotoPanelHide);
+    }
   });
 }
 

@@ -11,10 +11,14 @@ export interface TimelineStopData {
   /** Optional override for the Journey tab inline photo (falls back to `image`). */
   journeyImage?: string;
   journeyCaption?: string;
+  /** Multiple Journey tab photos — when set, overrides single journeyImage. */
+  journeyImages?: Array<{ src: string; caption: string }>;
   /** One–two sentence context about the company — helps HR understand the domain. */
   companyContext?: string;
   /** Company logo path (shown as badge next to company name). */
   logo?: string;
+  /** Italic narrative blurb shown beneath the Journey entry — the "so what" of each role. */
+  narrativeNote?: string;
 }
 
 export const TIMELINE_STOPS: TimelineStopData[] = [
@@ -46,6 +50,8 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
     logo: "/img/asml-logo.png",
     image: "/img/asml-cleanroom.png",
     imageCaption: "Intel fab · Kiryat Gat, Israel · 2020",
+    narrativeNote:
+      'The discipline of debugging <span>million-dollar lithography machines under fab-uptime pressure</span> shaped an engineering mindset that carries into every system I build today — <span>methodical root-cause analysis</span>, documentation-first, and zero tolerance for flaky systems.',
   },
   {
     id: "restigo",
@@ -77,6 +83,12 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
     logo: "/img/restigo-logo.png",
     image: "/img/restigo-office.png",
     imageCaption: "Restigo HQ · Herzliya, Israel · 2022",
+    journeyImages: [
+      { src: "/img/restigo-office.png", caption: "Restigo HQ · Herzliya, Israel · 2022" },
+      { src: "/img/restigo-working.png", caption: "Late-night coding session · Herzliya, 2022" },
+    ],
+    narrativeNote:
+      'First software role — picked a <span>high-velocity SaaS startup</span> powering <span>Burger King, Shake Shack, and Papa Johns</span> kitchens. Went from IC to <span>Team Lead in 9 months</span> by building the engineering culture nobody asked for but everyone needed — CI/CD pipelines, code reviews, and a ship-daily mindset.',
   },
   {
     id: "triolla",
@@ -110,8 +122,12 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
     logo: "/img/triolla-logo.png",
     image: "/img/triolla-office.png",
     imageCaption: "Triolla HQ · Raanana, Israel",
-    journeyImage: "/img/alex-teaching.png",
-    journeyCaption: "Architecture training session · Triolla, 2023",
+    journeyImages: [
+      { src: "/img/alex-teaching.png", caption: "Architecture training session · Triolla, 2023" },
+      { src: "/img/triolla-srlp.png", caption: "Presenting Smart Referral Link Platform (SRLP) · Triolla, 2023" },
+    ],
+    narrativeNote:
+      'A <span>product studio under SQLink (2,800+ engineers)</span> building for <span>JFrog, Playtika, and IronSource</span>-caliber clients — new domain, new stack, new deadline every quarter. The fastest path to a <span>battle-tested full-stack generalist</span> is shipping 8 products in 18 months for clients who don\'t tolerate learning curves.',
   },
   {
     id: "the5ers",
@@ -147,5 +163,7 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
     imageCaption: "The5ers trading platform · 2024",
     journeyImage: "/img/alex-office.png",
     journeyCaption: "At the office — The5ers, 2024",
+    narrativeNote:
+      'Real capital, real traders, <span>$4M funded accounts</span> — a slow dashboard isn\'t a UX complaint, it\'s someone\'s livelihood on the line. Scaling for <span>100K+ active traders</span> proved that <span>performance is the product</span> — and standardizing architecture across 6 teams and 20+ microservices is harder than any algorithm.',
   },
 ];

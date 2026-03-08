@@ -3,6 +3,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createScene } from "./scene/createScene";
 import { createGround } from "./scene/createGround";
 import { createSpawnPad } from "./scene/createSpawnPad";
+import { createArenaProps } from "./scene/createArenaProps";
+import { boostEmissive, restoreEmissive } from "./scene/emissiveUtils";
 import { PlayerCharacter, DogCompanion } from "./scene/characters";
 import { IntroSequence } from "./scene/introSequence";
 import {
@@ -70,12 +72,14 @@ export async function initApp(container: HTMLElement): Promise<void> {
   ];
   const ALL_IMAGES = [...timelineImages, ...miscImages];
 
-  // Calculate total assets: Player (5) + Dog (2) + Portal (1) + images
+  // Calculate total assets: Player (5) + Dog (2) + Portal (1) + ArenaProps (3) + images
   const PLAYER_ASSETS = 5; // idle model + idle anim + walk + run + wave
   const DOG_ASSETS = 2; // model + walk animation
   const PORTAL_ASSETS = 1; // portal GLB (loaded once, cloned per checkpoint)
+  const ARENA_PROP_ASSETS = 3; // LEGO, kettlebell, framed drawing
   const IMAGE_ASSETS = ALL_IMAGES.length;
-  const TOTAL_ASSETS = PLAYER_ASSETS + DOG_ASSETS + PORTAL_ASSETS + IMAGE_ASSETS;
+  const TOTAL_ASSETS =
+    PLAYER_ASSETS + DOG_ASSETS + PORTAL_ASSETS + ARENA_PROP_ASSETS + IMAGE_ASSETS;
 
   // Set total and create elegant progress indicator
   setTotalAssets(TOTAL_ASSETS);
@@ -225,7 +229,50 @@ export async function initApp(container: HTMLElement): Promise<void> {
       })
     : Promise.resolve();
 
-  Promise.all([imagePromise, characterPromise, dogPromise, timelinePromise])
+  // 5. Arena props (LEGO, kettlebell, framed drawing)
+  const arenaPropsPromise = createArenaProps(scene, assetLoaded).then(
+    (arenaProps) => {
+      registerTooltipTarget({
+        object: arenaProps.legoGroup,
+        title: "LEGO Collection",
+        subtitle: "Cities with the twins · click to discover",
+        yOffset: 0.6,
+        discoveryId: "lego",
+        onClick: () => markDiscovered("lego"),
+        onHoverStart: () => boostEmissive(arenaProps.legoGroup, 0.5),
+        onHoverEnd: () => restoreEmissive(arenaProps.legoGroup),
+      });
+      registerTooltipTarget({
+        object: arenaProps.kettlebellGroup,
+        title: "32kg Cast Iron",
+        subtitle: "5 days a week · click to discover",
+        yOffset: 0.5,
+        discoveryId: "gym",
+        onClick: () => markDiscovered("gym"),
+        onHoverStart: () => boostEmissive(arenaProps.kettlebellGroup, 0.5),
+        onHoverEnd: () => restoreEmissive(arenaProps.kettlebellGroup),
+      });
+      registerTooltipTarget({
+        object: arenaProps.drawingGroup,
+        title: "The Masterpiece",
+        subtitle: "Tomer & Alma · click to discover",
+        yOffset: 0.7,
+        discoveryId: "twins",
+        onClick: () => markDiscovered("twins"),
+        onHoverStart: () => boostEmissive(arenaProps.drawingGroup, 0.5),
+        onHoverEnd: () => restoreEmissive(arenaProps.drawingGroup),
+      });
+      return arenaProps;
+    },
+  );
+
+  Promise.all([
+    imagePromise,
+    characterPromise,
+    dogPromise,
+    timelinePromise,
+    arenaPropsPromise,
+  ])
     .then(() => {
       allAssetsLoaded = true;
       console.log("📦 All assets loaded!");
