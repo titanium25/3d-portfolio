@@ -159,10 +159,13 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
       "Frontend Architecture",
     ],
     logo: "/img/the5ers-logo.png",
-    image: "/img/the5ers-trading.png",
-    imageCaption: "The5ers trading platform · 2024",
-    journeyImage: "/img/alex-office.png",
-    journeyCaption: "At the office — The5ers, 2024",
+    image: "/img/the5ers-hq.png",
+    imageCaption: "The5ers HQ · Raanana — yes, Meny visited the office",
+    journeyImages: [
+      { src: "/img/the5ers-hq.png", caption: "The5ers HQ · Raanana — yes, Meny visited the office", objectPosition: "center 30%" },
+      { src: "/img/the5ers-dashboard.png", caption: "Dashboard I built — funded account view, scale-up milestones, balance chart" },
+      { src: "/img/the5ers-trading.png", caption: "The5ers trading platform · 2024" },
+    ],
     narrativeNote:
       'Real capital, real traders, <span>$4M funded accounts</span> — a slow dashboard isn\'t a UX complaint, it\'s someone\'s livelihood on the line. Scaling for <span>100K+ active traders</span> proved that <span>performance is the product</span> — and standardizing architecture across 6 teams and 20+ microservices is harder than any algorithm.',
   },

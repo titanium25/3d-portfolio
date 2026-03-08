@@ -47,6 +47,10 @@ import {
   updateWorldTooltip,
 } from "./ui/worldTooltip";
 import { markDiscovered } from "./ui/discoveryTracker";
+import {
+  registerDiscoverableBeacon,
+  updateDiscoverableBeacons,
+} from "./scene/discoverableGlow";
 import type { Stop } from "./scene/types";
 
 const CAMERA_HEIGHT = 3;
@@ -124,6 +128,10 @@ export async function initApp(container: HTMLElement): Promise<void> {
           });
         },
       });
+      registerDiscoverableBeacon({
+        object: group, discoveryId: "bmw",
+        radius: 0.7, count: 5, rise: 0.9,
+      });
     },
     onMtbLoaded: (group) => {
       registerTooltipTarget({
@@ -133,6 +141,10 @@ export async function initApp(container: HTMLElement): Promise<void> {
         yOffset: 1.0,
         discoveryId: "mtb",
         onClick: () => markDiscovered("mtb"),
+      });
+      registerDiscoverableBeacon({
+        object: group, discoveryId: "mtb",
+        radius: 0.6, count: 5, rise: 0.8,
       });
     },
   });
@@ -153,6 +165,10 @@ export async function initApp(container: HTMLElement): Promise<void> {
       const mat = spawnPad.monogramMesh.material as THREE.MeshBasicMaterial;
       if (mat) mat.opacity = 0.10;
     },
+  });
+  registerDiscoverableBeacon({
+    object: spawnPad.monogramMesh, discoveryId: "monogram",
+    radius: 0.5, count: 3, rise: 0.4,
   });
 
   // ── Intro starts IMMEDIATELY — user sees text from frame one ─────────────
@@ -210,12 +226,16 @@ export async function initApp(container: HTMLElement): Promise<void> {
       registerTooltipTarget({
         object: dogProxy,
         title: "Meny 🐾",
-        subtitle: "Alaskan Malamute · Chief Morale Officer",
+        subtitle: "Named after Manny from Ice Age · Chief Morale Officer",
         yOffset: 0.8,
         discoveryId: "meny",
         onClick: () => markDiscovered("meny"),
         onHoverStart: () => d.setExcited(true),
         onHoverEnd: () => d.setExcited(false),
+      });
+      registerDiscoverableBeacon({
+        object: d.group, discoveryId: "meny",
+        radius: 0.4, count: 4, rise: 0.5,
       });
       return d;
     }),
@@ -242,6 +262,10 @@ export async function initApp(container: HTMLElement): Promise<void> {
         onHoverStart: () => boostEmissive(arenaProps.legoGroup, 0.5),
         onHoverEnd: () => restoreEmissive(arenaProps.legoGroup),
       });
+      registerDiscoverableBeacon({
+        object: arenaProps.legoGroup, discoveryId: "lego",
+        radius: 0.4, count: 4, rise: 0.5,
+      });
       registerTooltipTarget({
         object: arenaProps.kettlebellGroup,
         title: "32kg Cast Iron",
@@ -252,6 +276,10 @@ export async function initApp(container: HTMLElement): Promise<void> {
         onHoverStart: () => boostEmissive(arenaProps.kettlebellGroup, 0.5),
         onHoverEnd: () => restoreEmissive(arenaProps.kettlebellGroup),
       });
+      registerDiscoverableBeacon({
+        object: arenaProps.kettlebellGroup, discoveryId: "gym",
+        radius: 0.4, count: 4, rise: 0.5,
+      });
       registerTooltipTarget({
         object: arenaProps.drawingGroup,
         title: "The Masterpiece",
@@ -261,6 +289,10 @@ export async function initApp(container: HTMLElement): Promise<void> {
         onClick: () => markDiscovered("twins"),
         onHoverStart: () => boostEmissive(arenaProps.drawingGroup, 0.5),
         onHoverEnd: () => restoreEmissive(arenaProps.drawingGroup),
+      });
+      registerDiscoverableBeacon({
+        object: arenaProps.drawingGroup, discoveryId: "twins",
+        radius: 0.5, count: 4, rise: 0.6,
       });
       return arenaProps;
     },
@@ -447,6 +479,9 @@ export async function initApp(container: HTMLElement): Promise<void> {
     }
     ground.update(time * 0.001);
     spawnPad.update(time * 0.001);
+    if (character) {
+      updateDiscoverableBeacons(time * 0.001, character.group.position);
+    }
 
     if (devMode) {
       orbitControls.update();

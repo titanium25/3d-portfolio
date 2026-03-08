@@ -26,12 +26,17 @@ const CARD_PHOTOS: Record<string, PhotoEntry[]> = {
     { src: "/img/discoveries/mtb-road.png",   caption: "Road ride · Ra'anana promenade",                                              objectPosition: "center 40%" },
   ],
   lego: [
-    { src: "/img/discoveries/lego-bmw.png",    caption: "BMW M1000RR Technic · 1,920 pieces · 0 leftover (I counted twice)",          objectPosition: "center center" },
-    { src: "/img/discoveries/lego-yamaha.png", caption: "Yamaha MT-10 Technic · built with the twins, they did the stickers",          objectPosition: "center center" },
+    { src: "/img/discoveries/lego-building.png", caption: "Mid-build chaos — sorted by part type, RGB ambiance mandatory",              objectPosition: "center center" },
+    { src: "/img/discoveries/lego-bmw.png",      caption: "BMW M1000RR Technic · 1,920 pieces · 0 leftover (I counted twice)",         objectPosition: "center center" },
+    { src: "/img/discoveries/lego-yamaha.png",   caption: "Yamaha MT-10 Technic · built with the twins, they did the stickers",         objectPosition: "center center" },
   ],
   meny: [
-    { src: "/img/discoveries/meny-1.png", caption: "Meny at the park · 45 kg of floof and zero personal space awareness",             objectPosition: "center 20%" },
+    { src: "/img/discoveries/meny-1.png", caption: "Meny (Manfred) at the park · 45 kg of Ice Age energy and zero personal space",    objectPosition: "center 20%" },
     { src: "/img/discoveries/meny-2.png", caption: "Posing for the camera · he knows exactly what he's doing",                         objectPosition: "center 15%" },
+  ],
+  twins: [
+    { src: "/img/discoveries/twins-stroller.png", caption: "Leading the way · Tomer & Alma with Meny on the path", objectPosition: "center center" },
+    { src: "/img/discoveries/twins-walking.png", caption: "Jacaranda season · purple petals and tiny explorers", objectPosition: "center center" },
   ],
 };
 
@@ -1667,7 +1672,7 @@ function buildAboutTab(): HTMLDivElement {
     <p class="cv-section-label">Beyond the Code</p>
     <p style="font-size:0.78rem;line-height:1.65;color:rgba(255,255,255,0.48);margin:0 0 0.9rem;">
       When I'm not shipping features — building LEGO cities with the twins,
-      hiking with <strong style="color:rgba(255,255,255,0.72)">Meny the Malamute</strong> (yes, that's him in the 3D world),
+      hiking with <strong style="color:rgba(255,255,255,0.72)">Meny the Malamute</strong> (named after Manfred from Ice Age — yes, that's him in the 3D world),
       or pushing 80&nbsp;km on a Friday morning ride.
     </p>
     <div class="cv-interests-grid">
@@ -1698,16 +1703,17 @@ function buildAboutTab(): HTMLDivElement {
         <span class="cv-interest-world">↗ In 3D world</span>
         <span class="cv-interest-card-icon">🐾</span>
         <span class="cv-interest-card-label">Meny</span>
-        <span class="cv-interest-card-sub">Alaskan Malamute</span>
-        <span class="cv-interest-detail">He's following you in the 3D world</span>
+        <span class="cv-interest-card-sub">Short for Manfred 🦣</span>
+        <span class="cv-interest-detail">Named after Manny from Ice Age — equally fluffy</span>
         <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text" data-count="2"></span></div>
       </div>
-      <div class="cv-interest-card" data-discovery-id="twins">
+      <div class="cv-interest-card" data-discovery-id="twins" data-photo-album="twins">
         <span class="cv-interest-world">↗ In 3D world</span>
         <span class="cv-interest-card-icon">👨‍👧‍👦</span>
         <span class="cv-interest-card-label">Twins</span>
         <span class="cv-interest-card-sub">Tomer & Alma</span>
         <span class="cv-interest-detail">Their framed masterpiece on the arena</span>
+        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text" data-count="2"></span></div>
       </div>
       <div class="cv-interest-card" data-discovery-id="monogram">
         <span class="cv-interest-world">↗ In 3D world</span>
@@ -1722,7 +1728,7 @@ function buildAboutTab(): HTMLDivElement {
         <span class="cv-interest-card-label">LEGO</span>
         <span class="cv-interest-card-sub">Cities with the twins</span>
         <span class="cv-interest-detail">Brick stack on the arena</span>
-        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text" data-count="2"></span></div>
+        <div class="cv-card-film-strip"><span class="cfs-icon"></span><span class="cfs-frames"><span class="cfs-frame"></span><span class="cfs-frame"></span><span class="cfs-frame"></span></span><span class="cfs-text" data-count="3"></span></div>
       </div>
       <div class="cv-interest-card" data-discoverable="false">
         <span class="cv-interest-card-icon">🎸</span>
@@ -2119,6 +2125,7 @@ function injectPhotoPanelStyles(): void {
     #cv-photo-panel.cpp-discovered .cpp-gallery-wrap { display: flex; }
     #cv-photo-panel:not(.cpp-discovered) .cpp-teaser-wrap { display: block; }
     #cv-photo-panel:not(.cpp-discovered) .cpp-gallery-wrap { display: none; }
+    #cv-photo-panel:not(.cpp-discovered) .cpp-caption { display: none; }
   `;
   document.head.appendChild(s);
 }
