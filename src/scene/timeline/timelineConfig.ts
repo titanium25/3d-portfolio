@@ -12,7 +12,7 @@ export interface TimelineStopData {
   journeyImage?: string;
   journeyCaption?: string;
   /** Multiple Journey tab photos — when set, overrides single journeyImage. */
-  journeyImages?: Array<{ src: string; caption: string }>;
+  journeyImages?: Array<{ src: string; caption: string; objectPosition?: string }>;
   /** One–two sentence context about the company — helps HR understand the domain. */
   companyContext?: string;
   /** Company logo path (shown as badge next to company name). */
