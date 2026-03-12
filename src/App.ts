@@ -41,6 +41,7 @@ import {
 import { initCVPanel } from "./ui/cvPanel";
 import { initGateUnlockAnimation, playCinematicUnlock } from "./ui/gateUnlockAnimation";
 import { startOnboarding, updateOnboarding } from "./ui/onboardingHints";
+import { initMobileControls } from "./ui/mobileControls";
 import {
   initWorldTooltip,
   registerTooltipTarget,
@@ -92,6 +93,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
   initGatePanel();
   initGateUnlockAnimation();
   initWorldTooltip();
+  initMobileControls();
 
   // ── Scene (synchronous — no awaits needed) ──────────────────────────────
   const { scene, camera, renderer, composer } = createScene(container);

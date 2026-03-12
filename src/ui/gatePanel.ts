@@ -1,6 +1,7 @@
 import type { StopData } from "../scene/types";
 import { addTiltEffect } from "./tiltEffect";
 import { highlight, injectHighlightStyles } from "./highlightUtils";
+import { renderChip, injectChipStyles } from "./chipUtils";
 
 // positionerEl — outer div: fixed positioning, opacity, slide-in transition (pointer-events: none)
 // cardEl       — inner div: visual card + tilt + click handler (pointer-events: auto)
@@ -99,19 +100,6 @@ function injectPanelStyles(): void {
       align-items: center;
     }
 
-    /* ── Skill chip preview ── */
-    .gp-skill-chip {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.17rem 0.52rem;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 20px;
-      font-size: 0.63rem;
-      font-weight: 500;
-      color: rgba(255,255,255,0.48);
-      white-space: nowrap;
-    }
 
     /* ── CTA: ready state (in interact range) ── */
     #gate-panel-cta-ready {
@@ -222,6 +210,7 @@ function getOrCreate(): { positioner: HTMLDivElement; card: HTMLDivElement } {
 
   injectPanelStyles();
   injectHighlightStyles();
+  injectChipStyles();
 
   // Outer positioner — positions the card, handles opacity/slide (no pointer-events)
   const positioner = document.createElement("div");
@@ -612,10 +601,7 @@ function populateCard(
 
   // ── Skill chips preview (top 4) ────────────────────────────────────────
   if (data.skills && data.skills.length > 0) {
-    skillsPreviewEl.innerHTML = data.skills
-      .slice(0, 4)
-      .map((s) => `<span class="gp-skill-chip">${s}</span>`)
-      .join("");
+    skillsPreviewEl.innerHTML = data.skills.slice(0, 4).map(renderChip).join("");
     skillsPreviewEl.style.display = "flex";
   } else {
     skillsPreviewEl.innerHTML = "";
@@ -676,7 +662,7 @@ function triggerCardStagger(card: HTMLDivElement): void {
   });
 
   // Skill chips pop in with elastic spring
-  const chips = card.querySelectorAll<HTMLElement>(".gp-skill-chip");
+  const chips = card.querySelectorAll<HTMLElement>("#gate-panel-skills-preview .tech-chip");
   chips.forEach((chip, i) => {
     chip.style.animation = "none";
     void chip.offsetWidth;

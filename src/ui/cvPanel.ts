@@ -517,43 +517,58 @@ function injectStyles(): void {
     #cv-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.45rem;
+      gap: 0.5rem;
       align-items: center;
       margin-bottom: 1.2rem;
     }
     .cv-action-link {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
-      padding: 0.36rem 0.8rem;
+      gap: 0.42rem;
+      padding: 0.44rem 1rem;
       border-radius: 8px;
-      font-size: 0.72rem;
+      font-size: 0.73rem;
       font-weight: 500;
       text-decoration: none;
-      transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+      transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.15s;
       border: 1px solid;
       white-space: nowrap;
+      letter-spacing: 0.01em;
     }
-    .cv-action-link.secondary {
-      color: rgba(255,255,255,0.55);
-      border-color: rgba(255,255,255,0.16);
+    .cv-action-link.linkedin {
+      color: rgba(100,180,255,0.85);
+      border-color: rgba(100,180,255,0.22);
+      background: rgba(100,180,255,0.07);
+    }
+    .cv-action-link.linkedin:hover {
+      color: #7fcfff;
+      border-color: rgba(100,180,255,0.5);
+      background: rgba(100,180,255,0.14);
+      box-shadow: 0 0 12px rgba(100,180,255,0.15);
+      transform: translateY(-1px);
+    }
+    .cv-action-link.email {
+      color: rgba(255,255,255,0.6);
+      border-color: rgba(255,255,255,0.15);
       background: rgba(255,255,255,0.04);
     }
-    .cv-action-link.secondary:hover {
+    .cv-action-link.email:hover {
       color: #fff;
-      border-color: rgba(255,255,255,0.35);
+      border-color: rgba(255,255,255,0.38);
       background: rgba(255,255,255,0.09);
+      transform: translateY(-1px);
     }
-    .cv-action-link.primary {
-      color: #00e5cc;
-      border-color: rgba(0,229,204,0.35);
-      background: rgba(0,229,204,0.08);
-      font-weight: 700;
+    .cv-action-link.phone {
+      color: rgba(90,230,175,0.8);
+      border-color: rgba(90,230,175,0.2);
+      background: rgba(90,230,175,0.05);
     }
-    .cv-action-link.primary:hover {
-      background: rgba(0,229,204,0.18);
-      border-color: rgba(0,229,204,0.65);
-      box-shadow: 0 0 12px rgba(0,229,204,0.2);
+    .cv-action-link.phone:hover {
+      color: rgba(90,230,175,1);
+      border-color: rgba(90,230,175,0.45);
+      background: rgba(90,230,175,0.11);
+      box-shadow: 0 0 12px rgba(90,230,175,0.12);
+      transform: translateY(-1px);
     }
 
     /* ── Journey progress indicator ── */
@@ -2482,30 +2497,24 @@ function buildOverviewTab(): HTMLDivElement {
           </div>
         </div>
         <div id="cv-actions">
-          <a class="cv-action-link secondary" href="https://www.linkedin.com/in/alexander-lazarovich/"
+          <a class="cv-action-link linkedin" href="https://www.linkedin.com/in/alexander-lazarovich/"
             target="_blank" rel="noopener">
-            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
               <path d="M0 1.146C0 .513.526 0 1.175 0h13.65C15.474 0 16 .513 16 1.146v13.708c0 .633-.526 1.146-1.175 1.146H1.175C.526 16 0 15.487 0 14.854V1.146zm4.943 12.248V6.169H2.542v7.225h2.401zm-1.2-8.212c.837 0 1.358-.554 1.358-1.248-.015-.709-.52-1.248-1.342-1.248-.822 0-1.359.54-1.359 1.248 0 .694.521 1.248 1.327 1.248h.016zm4.908 8.212V9.359c0-.216.016-.432.08-.586.173-.431.568-.878 1.232-.878.869 0 1.216.662 1.216 1.634v3.865h2.401V9.25c0-2.22-1.184-3.252-2.764-3.252-1.274 0-1.845.7-2.165 1.193v.025h-.016a5.54 5.54 0 0 1 .016-.025V6.169h-2.4c.03.678 0 7.225 0 7.225h2.4z"/>
             </svg>
             LinkedIn
           </a>
-          <a class="cv-action-link secondary" href="mailto:alex.lazarovichh@gmail.com">
-            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+          <a class="cv-action-link email" href="mailto:alex.lazarovichh@gmail.com">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
               <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2zm13 2.383-4.708 2.825L15 11.105V5.383zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741zM1 11.105l4.708-2.897L1 5.383v5.722z"/>
             </svg>
             Email
           </a>
-          <a class="cv-action-link secondary" href="tel:+972544567302">
-            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+          <a class="cv-action-link phone" href="tel:+972544567302">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
               <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 0 0 4.168 6.608 17.6 17.6 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.459L5.482 8.062a1.745 1.745 0 0 1-.46-1.657l.548-2.19a.678.678 0 0 0-.122-.58L3.654 1.328z"/>
             </svg>
             +972 544 567 302
-          </a>
-          <a class="cv-action-link primary" href="/AL_CV_TH5_v1.pdf" download="Alexander_Lazarovich_CV.pdf">
-            <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1v8M4 7l3 3 3-3M1 12h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Download CV
           </a>
         </div>
       </div>

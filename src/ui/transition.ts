@@ -3,6 +3,7 @@ import type { StopData } from "../scene/types";
 import { addTiltEffect } from "./tiltEffect";
 import { highlight, injectHighlightStyles } from "./highlightUtils";
 import { initPhotoLightbox, attachZoomHint } from "./photoLightbox";
+import { renderChip, injectChipStyles } from "./chipUtils";
 
 const DURATION_MS = 700;
 const EASE_OUT = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -73,55 +74,82 @@ function injectStyles(): void {
       pointer-events: none;
     }
 
-    /* ── Close button (pill with ESC badge) ── */
+    /* ── Close button — lives OUTSIDE #cinematic-card (tilt-immune) ── */
     #cinematic-close {
       position: absolute;
-      top: 0.7rem;
-      right: 0.7rem;
+      top: -14px;
+      right: 0;
       display: flex;
       align-items: center;
-      gap: 0.35rem;
-      padding: 0.3rem 0.65rem 0.3rem 0.45rem;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 20px;
+      gap: 0.4rem;
+      padding: 0.32rem 0.8rem 0.32rem 0.6rem;
+      background: rgba(13,17,23,0.92);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 24px;
       cursor: pointer;
-      color: rgba(255,255,255,0.55);
+      color: rgba(255,255,255,0.6);
       font-family: inherit;
       font-size: 0.72rem;
       font-weight: 500;
       letter-spacing: 0.03em;
-      z-index: 10;
-      transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.15s;
+      z-index: 20;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+      transition: background 0.18s ease, color 0.18s ease,
+                  border-color 0.18s ease, box-shadow 0.18s ease,
+                  transform 0.15s cubic-bezier(0.16,1,0.3,1);
       white-space: nowrap;
+      user-select: none;
     }
     #cinematic-close:hover {
-      background: rgba(0,229,204,0.1);
+      background: rgba(25,32,44,0.98);
       color: #fff;
-      border-color: rgba(0,229,204,0.35);
-      transform: scale(1.04);
+      border-color: rgba(0,229,204,0.38);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.6), 0 0 12px rgba(0,229,204,0.08);
+      transform: translateY(-1px) scale(1.03);
     }
-    #cinematic-close:active { transform: scale(0.97); }
+    #cinematic-close:active {
+      transform: translateY(0) scale(0.97);
+    }
+    #cinematic-close .close-icon-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    #cinematic-close:hover .close-icon-wrap {
+      background: rgba(0,229,204,0.12);
+      border-color: rgba(0,229,204,0.35);
+    }
+    #cinematic-close .close-icon-wrap svg {
+      width: 9px; height: 9px;
+      stroke: rgba(255,255,255,0.55);
+      transition: stroke 0.15s;
+    }
+    #cinematic-close:hover .close-icon-wrap svg {
+      stroke: #00e5cc;
+    }
     #cinematic-close .esc-key {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       padding: 1px 5px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.18);
-      border-bottom: 2px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-bottom: 2px solid rgba(255,255,255,0.2);
       border-radius: 4px;
-      font-size: 0.65rem;
+      font-size: 0.62rem;
       font-weight: 700;
       font-family: system-ui, monospace;
-      color: rgba(255,255,255,0.7);
+      color: rgba(255,255,255,0.5);
       line-height: 1.4;
-    }
-    #cinematic-close .close-x {
-      font-size: 1rem;
-      line-height: 1;
-      color: rgba(255,255,255,0.4);
-      margin-left: 1px;
+      letter-spacing: 0.04em;
     }
 
     /* Hide controls hint while overlay is open */
@@ -362,23 +390,7 @@ function injectStyles(): void {
     #cinematic-skills-chips {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.35rem;
-    }
-    #cinematic-skills-chips span {
-      padding: 0.22rem 0.62rem;
-      background: rgba(0,229,204,0.06);
-      border: 1px solid rgba(0,229,204,0.18);
-      border-radius: 20px;
-      font-size: 0.68rem;
-      font-weight: 500;
-      color: rgba(255,255,255,0.78);
-      white-space: nowrap;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
-    }
-    #cinematic-skills-chips span:hover {
-      background: rgba(0,229,204,0.13);
-      border-color: rgba(0,229,204,0.4);
-      color: #fff;
+      gap: 0.38rem;
     }
 
     /* ── Stagger entrance animations ─────────────────────────────── */
@@ -462,6 +474,7 @@ function getOrCreateOverlay(): {
 
   injectStyles();
   injectHighlightStyles();
+  injectChipStyles();
 
   const overlay = document.createElement("div");
   overlay.id = "cinematic-overlay";
@@ -504,16 +517,26 @@ function getOrCreateOverlay(): {
   content.id = "cinematic-content";
   overlay.appendChild(content);
 
+  // Close button — sibling of card (NOT inside tilt target) so it never runs away
+  const closeBtn = document.createElement("button");
+  closeBtn.id = "cinematic-close";
+  closeBtn.setAttribute("aria-label", "Close");
+  closeBtn.innerHTML = `
+    <span class="close-icon-wrap">
+      <svg viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2 2L8 8M8 2L2 8" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </span>
+    <span>Close</span>
+    <span class="esc-key">ESC</span>
+  `;
+  content.appendChild(closeBtn);
+
   // Visual card — all the styling + tilt effect lives here
   const card = document.createElement("div");
   card.id = "cinematic-card";
   card.innerHTML = `
     <div id="cinematic-top-bar"></div>
-    <button id="cinematic-close" aria-label="Close">
-      <span class="esc-key">ESC</span>
-      <span>Close</span>
-      <span class="close-x">&times;</span>
-    </button>
 
     <div id="cinematic-img-panel">
       <img id="cinematic-img" src="" alt="" />
@@ -767,9 +790,7 @@ export function openTransition(
   }
 
   if (data.skills && data.skills.length > 0) {
-    skillsChipsEl.innerHTML = data.skills
-      .map((s) => `<span>${s}</span>`)
-      .join("");
+    skillsChipsEl.innerHTML = data.skills.map(renderChip).join("");
     skillsEl.classList.add("visible");
   } else {
     skillsChipsEl.innerHTML = "";
@@ -872,7 +893,7 @@ export function openTransition(
     onClosedCb?.();
   };
 
-  const closeBtn = card.querySelector("#cinematic-close") as HTMLButtonElement;
+  const closeBtn = content.querySelector("#cinematic-close") as HTMLButtonElement;
   closeBtn.onclick = handleClose;
 
   overlay.onclick = (e) => {
