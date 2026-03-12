@@ -167,28 +167,69 @@ function injectStyles(): void {
       background: radial-gradient(circle, #fff 0%, #fbbf24 40%, rgba(251,191,36,0) 70%);
       box-shadow: 0 0 10px 3px rgba(251,191,36,0.7), 0 0 20px 6px rgba(251,191,36,0.2);
     }
-    /* About tab "new" indicator */
-    .cv-tab-btn-new {
-      position: relative;
-    }
+    /* ── Tab "new" notification badge ── */
+
+    /* Ensure the badge can be absolutely positioned inside any tab button */
+    .cv-tab-btn { position: relative; }
+
+    /* Base badge styles */
     .cv-tab-new-dot {
-      display: inline-block;
-      width: 6px;
-      height: 6px;
+      position: absolute;
+      top: 7px;
+      right: 9px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* About tab = amber (discovery) */
+    .cv-tab-new-dot:not(.cv-tab-journey-new-dot) {
       background: #fbbf24;
-      box-shadow: 0 0 6px rgba(251,191,36,0.9), 0 0 12px rgba(251,191,36,0.4);
-      margin-left: 5px;
-      vertical-align: middle;
-      animation: tabNewPulse 1.6s ease-in-out infinite;
-      flex-shrink: 0;
+      box-shadow: 0 0 0 1.5px rgba(0,0,0,0.6), 0 0 8px rgba(251,191,36,0.8);
     }
-    @keyframes tabNewPulse {
-      0%, 100% { transform: scale(1);    opacity: 0.7; }
-      50%       { transform: scale(1.35); opacity: 1; }
+    .cv-tab-new-dot:not(.cv-tab-journey-new-dot)::after {
+      border-color: #fbbf24;
     }
+
+    /* Journey tab = cyan (career gate) */
+    .cv-tab-journey-new-dot {
+      background: #00e5cc;
+      box-shadow: 0 0 0 1.5px rgba(0,0,0,0.6), 0 0 8px rgba(0,229,204,0.8);
+    }
+    .cv-tab-journey-new-dot::after {
+      border-color: #00e5cc;
+    }
+
+    /* Shared ping ring */
+    .cv-tab-new-dot::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 1.5px solid;
+      opacity: 0;
+      animation: tabDotPing 2s ease-out infinite;
+    }
+
+    @keyframes tabDotPing {
+      0%   { transform: scale(0.5); opacity: 0.9; }
+      70%  { transform: scale(2.4); opacity: 0; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+
+    /* Tab button glow when active notification */
     .cv-tab-btn-new {
-      color: rgba(255,255,255,0.85) !important;
+      color: rgba(255,255,255,0.9) !important;
+    }
+    .cv-tab-btn-new::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(255,255,255,0.03) 0%, transparent 100%);
+      pointer-events: none;
+      border-radius: 4px 4px 0 0;
     }
 
     .unlock-spark {

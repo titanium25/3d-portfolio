@@ -168,7 +168,11 @@ export class IntroSequence {
 
     switch (this.state.phase) {
       case "text": {
-        if (!this.heroResolved) {
+        const totalTextDuration = INTRO_LINES.length * LINE_DURATION;
+        const textComplete = t >= totalTextDuration;
+
+        // Always run the full text animation regardless of asset load state
+        if (!textComplete) {
           const lineIndex = Math.min(
             Math.floor(t / LINE_DURATION),
             INTRO_LINES.length - 1,
@@ -188,6 +192,12 @@ export class IntroSequence {
               Math.max(0, (LINE_DURATION - localT) / FADE_OUT_DURATION),
             );
           }
+          return true;
+        }
+
+        // Text fully done — hold black screen until assets finish loading
+        if (!this.heroResolved) {
+          this.lineEl.style.opacity = "0";
           return true;
         }
 

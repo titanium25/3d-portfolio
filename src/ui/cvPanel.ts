@@ -349,6 +349,16 @@ function injectStyles(): void {
       transition: color 0.2s, border-color 0.3s;
       white-space: nowrap;
     }
+    @media (max-width: 480px) {
+      #cv-tabs {
+        padding: 0 0.25rem;
+      }
+      .cv-tab-btn {
+        font-size: 0.6rem;
+        letter-spacing: 0.02em;
+        padding: 0.65rem 0.2rem 0.55rem;
+      }
+    }
     .cv-tab-btn:hover { color: rgba(255,255,255,0.65); }
     .cv-tab-btn.active {
       color: #00e5cc;
@@ -1543,6 +1553,12 @@ function injectStyles(): void {
       grid-template-columns: repeat(3, 1fr);
       gap: 0.6rem;
     }
+    @media (max-width: 540px) {
+      .cv-interests-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+      }
+    }
     /* ── Interest card base ── */
     .cv-interest-card {
       position: relative;
@@ -1848,6 +1864,20 @@ function injectStyles(): void {
       text-overflow: ellipsis;
     }
     .cv-interest-card:not(:has(.cv-interest-photo-area)) .cv-interest-card-sub { text-align: center; }
+    @media (max-width: 540px) {
+      .cv-interest-card-label {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+        font-size: 0.7rem;
+        line-height: 1.25;
+      }
+      .cv-interest-card-sub {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+      }
+    }
 
     /* Detail hint — only for non-photo cards on hover */
     .cv-interest-detail {
