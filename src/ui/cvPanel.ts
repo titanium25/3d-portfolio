@@ -239,12 +239,14 @@ function injectStyles(): void {
         0 32px 80px rgba(0,0,0,0.75),
         0 0 0 1px rgba(0,229,204,0.05),
         inset 0 1px 0 rgba(255,255,255,0.04);
-      transform: scale(0.96) translateY(16px);
-      transition: transform 0.38s cubic-bezier(0.16,1,0.3,1), opacity 0.38s ease;
+      transform: scale(0.9) translateY(36px);
+      filter: blur(8px);
+      transition: transform 0.52s cubic-bezier(0.16,1,0.3,1), opacity 0.38s ease, filter 0.44s ease;
       opacity: 0;
     }
     #cv-overlay.cv-visible #cv-panel {
       transform: scale(1) translateY(0);
+      filter: blur(0px);
       opacity: 1;
     }
 
@@ -252,45 +254,74 @@ function injectStyles(): void {
     #cv-topbar {
       flex-shrink: 0;
       display: flex;
-      justify-content: flex-end;
-      padding: 0.75rem 0.85rem 0 0.85rem;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.72rem 0.9rem 0 1.1rem;
       background: linear-gradient(to bottom, #0d1117 60%, transparent);
       position: relative;
       z-index: 10;
     }
+    #cv-panel-title {
+      font-size: 0.54rem;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(0,229,204,0.28);
+      font-family: 'Courier New', Courier, monospace;
+      user-select: none;
+    }
     #cv-close {
       display: flex;
       align-items: center;
-      gap: 0.3rem;
-      padding: 0.28rem 0.6rem 0.28rem 0.45rem;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 20px;
-      color: rgba(255,255,255,0.45);
-      font-size: 0.68rem;
-      font-weight: 500;
-      font-family: 'Inter', system-ui, sans-serif;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 50%;
+      color: rgba(255,255,255,0.35);
       cursor: pointer;
-      transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.15s;
+      position: relative;
+      overflow: hidden;
+      transition:
+        background 0.22s ease,
+        border-color 0.22s ease,
+        color 0.22s ease,
+        box-shadow 0.22s ease,
+        transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
     }
     #cv-close:hover {
-      background: rgba(0,229,204,0.1);
-      border-color: rgba(0,229,204,0.35);
-      color: #fff;
-      transform: scale(1.03);
+      background: rgba(239,68,68,0.13);
+      border-color: rgba(239,68,68,0.42);
+      color: rgba(252,165,165,0.92);
+      transform: scale(1.14);
+      box-shadow: 0 0 18px rgba(239,68,68,0.22), 0 4px 12px rgba(0,0,0,0.3);
     }
-    #cv-close .cv-esc {
-      padding: 1px 5px;
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-bottom: 2px solid rgba(255,255,255,0.22);
-      border-radius: 4px;
-      font-size: 0.62rem;
-      font-weight: 700;
-      font-family: system-ui, monospace;
-      color: rgba(255,255,255,0.6);
-      line-height: 1.4;
+    #cv-close:active { transform: scale(0.88); }
+    /* Ripple burst on click */
+    #cv-close::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: rgba(239,68,68,0.3);
+      transform: scale(0);
+      opacity: 1;
     }
+    #cv-close:active::after {
+      transform: scale(2.5);
+      opacity: 0;
+      transition: transform 0.38s ease-out, opacity 0.38s ease-out;
+    }
+    /* X icon rotation on hover */
+    .cv-close-x {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.32s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    #cv-close:hover .cv-close-x { transform: rotate(90deg); }
 
     /* ── Tab bar ── */
     #cv-tabs {
@@ -321,7 +352,18 @@ function injectStyles(): void {
     .cv-tab-btn:hover { color: rgba(255,255,255,0.65); }
     .cv-tab-btn.active {
       color: #00e5cc;
-      border-bottom-color: #00e5cc;
+      border-bottom-color: transparent;
+    }
+    /* Sliding tab indicator */
+    #cv-tab-slider {
+      position: absolute;
+      bottom: -1px;
+      height: 2px;
+      background: linear-gradient(90deg, #00e5cc 0%, #00b8a0 100%);
+      border-radius: 2px 2px 0 0;
+      box-shadow: 0 0 16px rgba(0,229,204,0.7), 0 0 4px rgba(0,229,204,0.4);
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
     }
 
     /* ── Tab content panels ── */
@@ -332,14 +374,14 @@ function injectStyles(): void {
       overflow-x: hidden;
       scrollbar-width: thin;
       scrollbar-color: rgba(0,229,204,0.15) transparent;
-      animation: cvTabFade 0.28s ease-out;
+      animation: cvTabFade 0.36s cubic-bezier(0.16,1,0.3,1);
     }
     .cv-tab-panel::-webkit-scrollbar { width: 4px; }
     .cv-tab-panel::-webkit-scrollbar-track { background: transparent; }
     .cv-tab-panel::-webkit-scrollbar-thumb { background: rgba(0,229,204,0.18); border-radius: 4px; }
     .cv-tab-panel.active { display: block; }
     @keyframes cvTabFade {
-      from { opacity: 0; transform: translateY(6px); }
+      from { opacity: 0; transform: translateY(14px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
@@ -356,9 +398,11 @@ function injectStyles(): void {
       background-image: url('/img/alex-office.png');
       background-size: cover;
       background-position: center 30%;
-      opacity: 0.22;
+      opacity: 0.28;
       pointer-events: none;
+      transition: opacity 0.4s ease;
     }
+    #cv-panel:hover #cv-hero-cover { opacity: 0.33; }
     #cv-hero-cover-fade {
       position: absolute;
       inset: 0;
@@ -378,20 +422,22 @@ function injectStyles(): void {
     }
     #cv-hero-info { flex: 1; min-width: 0; }
     #cv-name {
-      font-size: 1.55rem;
+      font-size: 1.62rem;
       font-weight: 800;
-      letter-spacing: -0.025em;
+      letter-spacing: -0.03em;
       color: #fff;
       margin: 0 0 0.15rem;
       line-height: 1.1;
+      text-shadow: 0 2px 24px rgba(0,0,0,0.5);
     }
     #cv-title {
-      font-size: 0.76rem;
+      font-size: 0.74rem;
       font-weight: 600;
       color: #00e5cc;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
       margin: 0 0 0.45rem;
+      opacity: 0.9;
     }
 
     /* ── Availability badge ── */
@@ -453,12 +499,18 @@ function injectStyles(): void {
       font-size: 0.7rem;
       font-weight: 600;
       color: rgba(255,255,255,0.85);
-      transition: background 0.15s, border-color 0.15s;
+      transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+      animation: cvChipSlideIn 0.45s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    @keyframes cvChipSlideIn {
+      from { opacity: 0; transform: translateY(10px) scale(0.85); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
     }
     .cv-sig-chip:hover {
-      background: rgba(0,229,204,0.15);
-      border-color: rgba(0,229,204,0.45);
+      background: rgba(0,229,204,0.16);
+      border-color: rgba(0,229,204,0.5);
       color: #fff;
+      transform: translateY(-1px);
     }
 
     /* ── Contact row ── */
@@ -524,32 +576,74 @@ function injectStyles(): void {
       margin: 0;
     }
     #cv-progress-count span { color: #00e5cc; font-weight: 700; }
+    #cv-progress-dots-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 0.45rem 0 0.55rem;
+    }
+    .cv-progress-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.07);
+      border: 1.5px solid rgba(255,255,255,0.13);
+      flex-shrink: 0;
+      transition: background 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+    }
+    .cv-progress-dot.filled {
+      background: rgba(0,229,204,0.35);
+      border-color: #00e5cc;
+      box-shadow: 0 0 10px rgba(0,229,204,0.55);
+    }
+    .cv-progress-bar {
+      flex: 1;
+      height: 2px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .cv-progress-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #00e5cc, #0066ff);
+      transition: width 0.8s cubic-bezier(0.16,1,0.3,1);
+    }
 
     /* ── Avatar ── */
+    @property --cvRingAngle {
+      syntax: '<angle>';
+      initial-value: 0deg;
+      inherits: false;
+    }
+    @keyframes cvRingSpin { to { --cvRingAngle: 360deg; } }
     #cv-avatar-wrap {
       position: relative;
       flex-shrink: 0;
-      width: 78px;
-      height: 78px;
+      width: 90px;
+      height: 90px;
       border-radius: 50%;
+      padding: 2.5px;
+      background: conic-gradient(from var(--cvRingAngle), #00e5cc 0%, #0066ff 28%, #7c3aed 56%, #f59e0b 78%, #00e5cc 100%);
+      animation: cvRingSpin 5s linear infinite;
+      box-shadow: 0 0 22px rgba(0,229,204,0.25), 0 4px 20px rgba(0,0,0,0.55);
+      cursor: pointer;
     }
     #cv-avatar {
-      width: 78px;
-      height: 78px;
+      width: 100%;
+      height: 100%;
       border-radius: 50%;
       object-fit: cover;
       object-position: center top;
-      border: 2.5px solid rgba(0,229,204,0.45);
-      box-shadow: 0 0 20px rgba(0,229,204,0.2), 0 4px 16px rgba(0,0,0,0.5);
+      border: 2.5px solid #0d1117;
       display: block;
-      transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s, border-color 0.25s;
+      transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
       pointer-events: none;
       user-select: none;
     }
+    #cv-avatar-wrap:hover { animation-play-state: paused; }
     #cv-avatar-wrap:hover #cv-avatar {
-      transform: scale(1.07);
-      border-color: rgba(0,229,204,0.8);
-      box-shadow: 0 0 32px rgba(0,229,204,0.38), 0 4px 20px rgba(0,0,0,0.6);
+      transform: scale(1.06);
     }
 
     /* ── Sections ── */
@@ -794,41 +888,160 @@ function injectStyles(): void {
       transform: translateY(-50%) translateX(0);
     }
 
+    /* ── Stack tab: stats banner ── */
+    .cv-stack-banner {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 1.1rem 2rem 0.9rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .cv-stack-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.12rem;
+      flex: 1;
+      text-align: center;
+    }
+    .cv-stack-stat-num {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: #00e5cc;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      text-shadow: 0 0 20px rgba(0,229,204,0.4);
+      animation: cvStatCount 0.6s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    @keyframes cvStatCount {
+      from { opacity: 0; transform: translateY(8px) scale(0.8); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .cv-stack-stat:nth-child(1) .cv-stack-stat-num { animation-delay: 0.05s; }
+    .cv-stack-stat:nth-child(3) .cv-stack-stat-num { animation-delay: 0.12s; }
+    .cv-stack-stat:nth-child(5) .cv-stack-stat-num { animation-delay: 0.19s; }
+    .cv-stack-stat:nth-child(7) .cv-stack-stat-num { animation-delay: 0.26s; }
+    .cv-stack-stat-label {
+      font-size: 0.52rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.28);
+    }
+    .cv-stack-divider {
+      width: 1px;
+      height: 28px;
+      background: rgba(255,255,255,0.07);
+    }
+
     /* ── Stack tab: competency cards ── */
     .cv-competency-grid {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 0.85rem;
+    }
+    @keyframes cvCardIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)   scale(1); }
     }
     .cv-competency-card {
-      padding: 0.9rem 1rem;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.05);
-      border-left: 3px solid rgba(0,229,204,0.25);
-      border-radius: 0 10px 10px 0;
-      transition: border-color 0.2s, background 0.2s;
+      padding: 1rem 1.1rem 0.9rem;
+      background: rgba(255,255,255,0.018);
+      border: 1px solid rgba(255,255,255,0.065);
+      border-radius: 14px;
+      position: relative;
+      overflow: hidden;
+      animation: cvCardIn 0.45s cubic-bezier(0.16,1,0.3,1) both;
+      transition:
+        transform 0.28s cubic-bezier(0.34,1.56,0.64,1),
+        box-shadow 0.28s ease,
+        border-color 0.28s ease,
+        background 0.28s ease;
     }
     .cv-competency-card:hover {
-      border-left-color: rgba(0,229,204,0.55);
+      transform: translateY(-3px);
+      border-color: rgba(255,255,255,0.11);
       background: rgba(255,255,255,0.03);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.35);
     }
+    /* Colored top glow line using CSS var from inline style */
+    .cv-competency-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 1rem; right: 1rem;
+      height: 1.5px;
+      background: var(--cat-color, #00e5cc);
+      border-radius: 0 0 3px 3px;
+      opacity: 0.45;
+      transition: opacity 0.3s, left 0.3s ease, right 0.3s ease;
+    }
+    .cv-competency-card:hover::before {
+      left: 0.4rem; right: 0.4rem;
+      opacity: 0.85;
+    }
+    /* Subtle colored corner glow on hover */
+    .cv-competency-card::after {
+      content: '';
+      position: absolute;
+      top: -30px; right: -20px;
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--cat-color, #00e5cc), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      pointer-events: none;
+    }
+    .cv-competency-card:hover::after { opacity: 0.07; }
+
     .cv-competency-card-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 0.55rem;
+      gap: 0.7rem;
+      margin-bottom: 0.7rem;
     }
+    .cv-cat-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      line-height: 1;
+      background: var(--cat-color-bg, rgba(0,229,204,0.07));
+      border: 1px solid var(--cat-color-border, rgba(0,229,204,0.18));
+      flex-shrink: 0;
+      transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s ease;
+    }
+    .cv-competency-card:hover .cv-cat-icon {
+      transform: scale(1.08) rotate(-4deg);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    }
+    .cv-cat-meta { flex: 1; min-width: 0; }
     .cv-competency-card-label {
-      font-size: 0.68rem;
+      font-size: 0.7rem;
       font-weight: 700;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.07em;
       text-transform: uppercase;
-      color: rgba(255,255,255,0.45);
+      color: rgba(255,255,255,0.75);
     }
     .cv-competency-card-context {
-      font-size: 0.58rem;
-      color: rgba(255,255,255,0.2);
+      font-size: 0.57rem;
+      color: rgba(255,255,255,0.28);
       font-style: italic;
+      margin-top: 0.1rem;
+    }
+    .cv-cat-count {
+      font-size: 0.6rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: var(--cat-color, #00e5cc);
+      padding: 0.16rem 0.5rem;
+      border-radius: 20px;
+      border: 1px solid var(--cat-color-border, rgba(0,229,204,0.25));
+      background: var(--cat-color-bg, rgba(0,229,204,0.06));
+      flex-shrink: 0;
+      opacity: 0.8;
     }
     .cv-competency-card-chips {
       display: flex;
@@ -836,25 +1049,52 @@ function injectStyles(): void {
       gap: 0.3rem;
     }
     .cv-competency-chip {
-      padding: 0.2rem 0.6rem;
-      background: rgba(0,229,204,0.05);
-      border: 1px solid rgba(0,229,204,0.16);
+      padding: 0.22rem 0.65rem;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.09);
       border-radius: 20px;
-      font-size: 0.66rem;
+      font-size: 0.64rem;
       font-weight: 500;
-      color: rgba(255,255,255,0.72);
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      color: rgba(255,255,255,0.62);
+      cursor: default;
+      animation: cvChipIn 0.38s cubic-bezier(0.16,1,0.3,1) both;
+      transition:
+        background 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease,
+        transform 0.2s cubic-bezier(0.34,1.56,0.64,1),
+        box-shadow 0.18s ease;
+    }
+    @keyframes cvChipIn {
+      from { opacity: 0; transform: scale(0.78) translateY(6px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
     }
     .cv-competency-chip:hover {
-      background: rgba(0,229,204,0.12);
-      border-color: rgba(0,229,204,0.38);
-      color: #fff;
+      background: rgba(255,255,255,0.09);
+      border-color: rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.92);
+      transform: scale(1.06) translateY(-1px);
     }
+    /* Core chips: branded with category color */
     .cv-competency-chip.core {
-      background: rgba(0,229,204,0.1);
-      border-color: rgba(0,229,204,0.3);
-      color: rgba(255,255,255,0.9);
-      font-weight: 600;
+      background: color-mix(in srgb, var(--cat-color, #00e5cc) 11%, transparent);
+      border: 1px solid color-mix(in srgb, var(--cat-color, #00e5cc) 32%, transparent);
+      color: rgba(255,255,255,0.95);
+      font-weight: 700;
+      box-shadow: 0 0 8px color-mix(in srgb, var(--cat-color, #00e5cc) 18%, transparent);
+    }
+    .cv-competency-chip.core::before {
+      content: '★ ';
+      font-size: 0.5rem;
+      color: var(--cat-color, #00e5cc);
+      vertical-align: middle;
+      opacity: 0.8;
+    }
+    .cv-competency-chip.core:hover {
+      background: color-mix(in srgb, var(--cat-color, #00e5cc) 20%, transparent);
+      border-color: color-mix(in srgb, var(--cat-color, #00e5cc) 55%, transparent);
+      box-shadow: 0 0 16px color-mix(in srgb, var(--cat-color, #00e5cc) 30%, transparent);
+      transform: scale(1.08) translateY(-1px);
     }
 
     /* ── About tab ── */
@@ -1134,89 +1374,134 @@ function injectStyles(): void {
     /* ── Footer ── */
     #cv-footer {
       flex-shrink: 0;
-      padding: 0.85rem 1.5rem 1.1rem;
+      padding: 0.9rem 1.5rem 1.1rem;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0,0,0,0.35);
+      align-items: stretch;
+      background: rgba(0,0,0,0.42);
       border-top: 1px solid rgba(0,229,204,0.1);
     }
     #cv-footer-dl {
       position: relative;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 0.55rem;
-      max-width: 320px;
-      width: auto;
-      padding: 0.6rem 1.8rem;
-      background: linear-gradient(135deg, rgba(0,229,204,0.18) 0%, rgba(0,180,160,0.22) 100%);
-      border: 1px solid rgba(0,229,204,0.55);
-      border-radius: 12px;
+      gap: 1rem;
+      width: 100%;
+      padding: 0.9rem 1.25rem;
+      background: linear-gradient(135deg, rgba(0,229,204,0.1) 0%, rgba(0,150,135,0.14) 55%, rgba(0,60,90,0.08) 100%);
+      border: 1px solid rgba(0,229,204,0.36);
+      border-radius: 14px;
       color: #fff;
       text-decoration: none;
-      font-size: 0.85rem;
-      font-weight: 700;
       font-family: 'Inter', system-ui, sans-serif;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
       overflow: hidden;
-      box-shadow: 0 0 18px rgba(0,229,204,0.18), inset 0 1px 0 rgba(255,255,255,0.08);
-      animation: cvDlBreath 2.8s ease-in-out infinite;
-      transition: transform 0.12s ease, box-shadow 0.2s;
+      box-shadow:
+        0 4px 28px rgba(0,229,204,0.12),
+        inset 0 1px 0 rgba(255,255,255,0.06),
+        inset 0 0 0 1px rgba(0,229,204,0.04);
+      animation: cvDlBreath 3s ease-in-out infinite;
+      transition: transform 0.15s ease, box-shadow 0.25s ease, border-color 0.25s ease;
     }
+    .cv-dl-left {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      flex: 1;
+      min-width: 0;
+    }
+    .cv-dl-icon-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(0,229,204,0.1);
+      border: 1px solid rgba(0,229,204,0.25);
+      color: #00e5cc;
+      flex-shrink: 0;
+      animation: cvDlIconBounce 3s ease-in-out infinite;
+    }
+    .cv-dl-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.12rem;
+    }
+    .cv-dl-label {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #e8fffe;
+      letter-spacing: 0.025em;
+      text-shadow: 0 0 16px rgba(0,229,204,0.45);
+      position: relative;
+      z-index: 1;
+    }
+    .cv-dl-sub {
+      font-size: 0.63rem;
+      color: rgba(0,229,204,0.5);
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    .cv-dl-right {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-shrink: 0;
+    }
+    .cv-dl-badge {
+      padding: 0.2rem 0.55rem;
+      background: rgba(0,229,204,0.07);
+      border: 1px solid rgba(0,229,204,0.2);
+      border-radius: 6px;
+      font-size: 0.58rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      color: rgba(0,229,204,0.6);
+    }
+    .cv-dl-arrow {
+      color: rgba(0,229,204,0.65);
+      transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    #cv-footer-dl:hover .cv-dl-arrow { transform: translateX(4px); }
     @keyframes cvDlBreath {
-      0%,100% { box-shadow: 0 0 14px rgba(0,229,204,0.2), 0 4px 24px rgba(0,229,204,0.08), inset 0 1px 0 rgba(255,255,255,0.08); }
-      50%      { box-shadow: 0 0 32px rgba(0,229,204,0.45), 0 6px 32px rgba(0,229,204,0.2), inset 0 1px 0 rgba(255,255,255,0.08); }
+      0%,100% { box-shadow: 0 4px 20px rgba(0,229,204,0.1), inset 0 1px 0 rgba(255,255,255,0.06); }
+      50%      { box-shadow: 0 4px 36px rgba(0,229,204,0.28), inset 0 1px 0 rgba(255,255,255,0.08); }
     }
-    /* Shimmer sweep that repeats every 4s */
+    /* Shimmer sweep */
     #cv-footer-dl::before {
       content: "";
       position: absolute;
       top: 0; bottom: 0;
       left: -100%;
-      width: 60%;
+      width: 55%;
       background: linear-gradient(
         105deg,
         transparent 20%,
-        rgba(255,255,255,0.12) 50%,
+        rgba(255,255,255,0.09) 50%,
         transparent 80%
       );
-      animation: cvDlShimmer 4s ease-in-out infinite;
+      animation: cvDlShimmer 4.5s ease-in-out infinite;
       pointer-events: none;
     }
     @keyframes cvDlShimmer {
       0%    { left: -80%; opacity: 0; }
       8%    { opacity: 1; }
-      40%   { left: 110%; opacity: 0; }
-      100%  { left: 110%; opacity: 0; }
-    }
-    /* Bouncing download icon */
-    .cv-dl-icon {
-      display: flex;
-      align-items: center;
-      animation: cvDlIconBounce 2.8s ease-in-out infinite;
-      color: #00e5cc;
-      flex-shrink: 0;
+      42%   { left: 115%; opacity: 0; }
+      100%  { left: 115%; opacity: 0; }
     }
     @keyframes cvDlIconBounce {
       0%,100% { transform: translateY(0); }
       45%     { transform: translateY(3px); }
-      60%     { transform: translateY(-1px); }
-    }
-    .cv-dl-label {
-      position: relative;
-      z-index: 1;
-      color: #e8fffe;
-      text-shadow: 0 0 14px rgba(0,229,204,0.55);
+      62%     { transform: translateY(-1px); }
     }
     #cv-footer-dl:hover {
       transform: translateY(-2px);
-      box-shadow: 0 0 40px rgba(0,229,204,0.55), 0 8px 32px rgba(0,229,204,0.25), inset 0 1px 0 rgba(255,255,255,0.12);
+      border-color: rgba(0,229,204,0.58);
+      box-shadow:
+        0 8px 40px rgba(0,229,204,0.22),
+        0 0 0 1px rgba(0,229,204,0.12),
+        inset 0 1px 0 rgba(255,255,255,0.1);
     }
-    #cv-footer-dl:active {
-      transform: translateY(0) scale(0.98);
-    }
+    #cv-footer-dl:active { transform: translateY(0) scale(0.99); }
 
     /* ── Inline experience photo ── */
     .cv-exp-photos-grid {
@@ -1479,10 +1764,13 @@ function createCVPanel(): void {
   const topbar = document.createElement("div");
   topbar.id = "cv-topbar";
   topbar.innerHTML = `
-    <button id="cv-close">
-      <span class="cv-esc">ESC</span>
-      <span>Close</span>
-      <span style="font-size:1rem;line-height:1;color:rgba(255,255,255,0.35);">&times;</span>
+    <span id="cv-panel-title">◈ LIVING DOSSIER</span>
+    <button id="cv-close" title="Close  ⎋ ESC">
+      <span class="cv-close-x">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+          <path d="M1 1l9 9M10 1L1 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </span>
     </button>
   `;
   topbar.querySelector("#cv-close")!.addEventListener("click", closeCVPanel);
@@ -1505,6 +1793,10 @@ function createCVPanel(): void {
     btn.onclick = () => switchTab(t.id);
     tabs.appendChild(btn);
   });
+  // Sliding underline indicator
+  const slider = document.createElement("div");
+  slider.id = "cv-tab-slider";
+  tabs.appendChild(slider);
   panel.appendChild(tabs);
 
   // ── Tab content wrapper ────────────────────────────────────────────────────
@@ -1524,12 +1816,23 @@ function createCVPanel(): void {
   footer.id = "cv-footer";
   footer.innerHTML = `
     <a id="cv-footer-dl" href="/AL_CV_TH5_v1.pdf" download="Alexander_Lazarovich_CV.pdf">
-      <span class="cv-dl-icon">
-        <svg width="15" height="15" viewBox="0 0 14 14" fill="none">
-          <path d="M7 1v8M4 7l3 3 3-3M1 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <div class="cv-dl-left">
+        <div class="cv-dl-icon-box">
+          <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
+            <path d="M7 1v8M4 7l3 3 3-3M1 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="cv-dl-text">
+          <span class="cv-dl-label">Download Full CV</span>
+          <span class="cv-dl-sub">Alexander Lazarovich · Full Stack Engineer</span>
+        </div>
+      </div>
+      <div class="cv-dl-right">
+        <span class="cv-dl-badge">PDF</span>
+        <svg class="cv-dl-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-      </span>
-      <span class="cv-dl-label">Download Full CV</span>
+      </div>
     </a>
   `;
   panel.appendChild(footer);
@@ -1605,7 +1908,7 @@ function buildOverviewTab(): HTMLDivElement {
         <div id="cv-sig-skills">
           <p id="cv-sig-skills-label">Signature Stack</p>
           <div id="cv-sig-skills-row">
-            ${SIGNATURE_SKILLS.map((s) => `<span class="cv-sig-chip">${s}</span>`).join("")}
+            ${SIGNATURE_SKILLS.map((s, i) => `<span class="cv-sig-chip" style="animation-delay:${180 + i * 65}ms">${s}</span>`).join("")}
           </div>
         </div>
         <div id="cv-actions">
@@ -1657,12 +1960,21 @@ function buildProgressHTML(): string {
 
   const isFull = count === total;
   const label = isFull
-    ? `All ${count} career milestones explored in the interactive world — full journey complete`
-    : `${count} career milestone${count > 1 ? "s" : ""} explored in the interactive world`;
+    ? `Journey complete — all ${total} milestones explored`
+    : `${count} of ${total} milestones explored`;
+
+  const pct = Math.round((count / total) * 100);
+  const dotsHtml = TIMELINE_STOPS.map((s, i) => {
+    const filled = isStopCompleted(s.id);
+    const isLast = i === TIMELINE_STOPS.length - 1;
+    return `<span class="cv-progress-dot${filled ? " filled" : ""}"></span>`
+      + (isLast ? "" : `<span class="cv-progress-bar"><span class="cv-progress-bar-fill" style="width:${filled ? 100 : 0}%"></span></span>`);
+  }).join("");
 
   return `
-    <p id="cv-progress-label">3D World</p>
-    <p id="cv-progress-count">✦ <span>${count}</span> ${label.slice(String(count).length)}</p>
+    <p id="cv-progress-label">3D World Progress</p>
+    <div id="cv-progress-dots-row">${dotsHtml}</div>
+    <p id="cv-progress-count">✦ <span>${pct}%</span> — ${label}</p>
   `;
 }
 
@@ -1773,29 +2085,79 @@ function buildJourneyTab(): HTMLDivElement {
   return panel;
 }
 
+const CATEGORY_META: Record<string, { icon: string; color: string; colorBg: string; colorBorder: string }> = {
+  "Frontend":                { icon: "⬡", color: "#00e5cc", colorBg: "rgba(0,229,204,0.07)",  colorBorder: "rgba(0,229,204,0.2)" },
+  "Backend":                 { icon: "◈", color: "#4f8fff", colorBg: "rgba(79,143,255,0.07)", colorBorder: "rgba(79,143,255,0.22)" },
+  "Data & Storage":          { icon: "◎", color: "#a78bfa", colorBg: "rgba(167,139,250,0.07)",colorBorder: "rgba(167,139,250,0.22)" },
+  "DevOps & Infra":          { icon: "⬢", color: "#fbbf24", colorBg: "rgba(251,191,36,0.07)", colorBorder: "rgba(251,191,36,0.22)" },
+  "Engineering & Leadership":{ icon: "✦", color: "#4ade80", colorBg: "rgba(74,222,128,0.07)", colorBorder: "rgba(74,222,128,0.22)" },
+};
+
 function buildStackTab(): HTMLDivElement {
   const panel = document.createElement("div");
   panel.className = "cv-tab-panel";
   panel.id = "cv-tab-stack";
 
+  // Stats banner
+  const totalSkills = SKILL_CATEGORIES.reduce((acc, c) => acc + c.skills.length, 0);
+  const coreCount   = SKILL_CATEGORIES.reduce((acc, c) => acc + c.skills.filter((s) => s.core).length, 0);
+
+  const banner = document.createElement("div");
+  banner.className = "cv-stack-banner";
+  banner.innerHTML = `
+    <div class="cv-stack-stat">
+      <span class="cv-stack-stat-num">${SKILL_CATEGORIES.length}</span>
+      <span class="cv-stack-stat-label">Domains</span>
+    </div>
+    <div class="cv-stack-divider"></div>
+    <div class="cv-stack-stat">
+      <span class="cv-stack-stat-num">${totalSkills}</span>
+      <span class="cv-stack-stat-label">Technologies</span>
+    </div>
+    <div class="cv-stack-divider"></div>
+    <div class="cv-stack-stat">
+      <span class="cv-stack-stat-num">${coreCount}</span>
+      <span class="cv-stack-stat-label">Core Skills</span>
+    </div>
+    <div class="cv-stack-divider"></div>
+    <div class="cv-stack-stat">
+      <span class="cv-stack-stat-num">6+</span>
+      <span class="cv-stack-stat-label">Years Prod.</span>
+    </div>
+  `;
+  panel.appendChild(banner);
+
   const section = document.createElement("div");
   section.className = "cv-section";
-  section.innerHTML = `<p class="cv-section-label">Competency Map</p>`;
+  section.style.borderTop = "none";
 
   const grid = document.createElement("div");
   grid.className = "cv-competency-grid";
 
-  SKILL_CATEGORIES.forEach((cat) => {
+  SKILL_CATEGORIES.forEach((cat, cardIdx) => {
+    const meta = CATEGORY_META[cat.label] ?? CATEGORY_META["Frontend"];
+
     const card = document.createElement("div");
     card.className = "cv-competency-card";
+    card.style.cssText = `
+      --cat-color: ${meta.color};
+      --cat-color-bg: ${meta.colorBg};
+      --cat-color-border: ${meta.colorBorder};
+      animation-delay: ${cardIdx * 75}ms;
+    `;
+
     card.innerHTML = `
       <div class="cv-competency-card-header">
-        <span class="cv-competency-card-label">${cat.label}</span>
-        <span class="cv-competency-card-context">${cat.context}</span>
+        <div class="cv-cat-icon">${meta.icon}</div>
+        <div class="cv-cat-meta">
+          <div class="cv-competency-card-label">${cat.label}</div>
+          <div class="cv-competency-card-context">${cat.context}</div>
+        </div>
+        <span class="cv-cat-count">${cat.skills.length}</span>
       </div>
       <div class="cv-competency-card-chips">
-        ${cat.skills.map((s) =>
-          `<span class="cv-competency-chip${s.core ? " core" : ""}">${s.name}</span>`
+        ${cat.skills.map((s, chipIdx) =>
+          `<span class="cv-competency-chip${s.core ? " core" : ""}" style="animation-delay:${cardIdx * 75 + 90 + chipIdx * 32}ms">${s.name}</span>`
         ).join("")}
       </div>
     `;
@@ -1929,6 +2291,14 @@ function buildAboutTab(): HTMLDivElement {
 
 // ── Tab switching ────────────────────────────────────────────────────────────
 
+function updateTabSlider(tabId: string): void {
+  const btn = document.querySelector<HTMLElement>(`.cv-tab-btn[data-tab="${tabId}"]`);
+  const slider = document.getElementById("cv-tab-slider");
+  if (!btn || !slider) return;
+  slider.style.left = `${btn.offsetLeft}px`;
+  slider.style.width = `${btn.offsetWidth}px`;
+}
+
 function switchTab(tabId: string): void {
   document.querySelectorAll(".cv-tab-btn").forEach((btn) => {
     btn.classList.toggle("active", (btn as HTMLElement).dataset.tab === tabId);
@@ -1943,6 +2313,7 @@ function switchTab(tabId: string): void {
       (panel as HTMLElement).style.animation = "";
     }
   });
+  updateTabSlider(tabId);
   // Clear "new" indicator when user reaches the About tab
   if (tabId === "about")   clearAboutTabNew();
   if (tabId === "journey") clearJourneyTabNew();
@@ -2052,6 +2423,11 @@ function openCVPanel(): void {
   panelEl.style.display = "flex";
   requestAnimationFrame(() => requestAnimationFrame(() => {
     panelEl!.classList.add("cv-visible");
+    // Position tab slider after panel is visible and laid out
+    requestAnimationFrame(() => {
+      const activeBtn = document.querySelector<HTMLElement>(".cv-tab-btn.active");
+      updateTabSlider(activeBtn?.dataset.tab ?? "overview");
+    });
     // Attach photo panel hovers + restore pending About tab indicator
     setTimeout(() => {
       initPhotoPanelHovers();
