@@ -123,6 +123,7 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
     image: "/img/triolla-office.png",
     imageCaption: "Triolla HQ · Raanana, Israel",
     journeyImages: [
+      { src: "/img/triolla-office.png", caption: "Triolla HQ · Raanana, Israel" },
       { src: "/img/alex-teaching.png", caption: "Architecture training session · Triolla, 2023" },
       { src: "/img/triolla-srlp.png", caption: "Presenting Smart Referral Link Platform (SRLP) · Triolla, 2023" },
     ],
