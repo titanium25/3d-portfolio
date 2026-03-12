@@ -199,6 +199,58 @@ function injectPanelStyles(): void {
       animation: fadeIn 0.3s ease;
       transition: opacity 0.5s ease;
     }
+
+    /* ── Positioner: desktop placement ── */
+    @media (min-width: 601px) {
+      #gate-panel-positioner {
+        right: 2.5vw;
+        bottom: 2.5vh;
+      }
+    }
+
+    /* ── Mobile: compact bottom strip ── */
+    @media (max-width: 600px) {
+      #gate-panel-positioner {
+        right: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        padding: 0 12px 12px;
+      }
+      #gate-panel {
+        width: 100% !important;
+        border-radius: 12px !important;
+      }
+      /* Hide verbose sections on mobile */
+      #gate-panel-image-wrap,
+      #gate-panel-context,
+      #gate-panel-bullets,
+      #gate-panel-links,
+      #gate-panel-skills-preview {
+        display: none !important;
+      }
+      /* Tighter padding */
+      #gate-panel-body {
+        padding: 0.6rem 1rem 0 1rem !important;
+      }
+      #gate-panel-cta-wrap {
+        padding: 0.4rem 0.85rem 0.85rem !important;
+      }
+      /* Smaller title */
+      #gate-panel-title {
+        font-size: 0.9rem !important;
+      }
+      /* Swap E key label for tap */
+      #gate-panel-cta-key {
+        display: none !important;
+      }
+      #gate-panel-cta-label {
+        font-size: 0 !important;
+      }
+      #gate-panel-cta-label::before {
+        content: 'Tap to explore';
+        font-size: 0.82rem;
+      }
+    }
   `;
   document.head.appendChild(s);
 }
@@ -215,11 +267,9 @@ function getOrCreate(): { positioner: HTMLDivElement; card: HTMLDivElement } {
   // Outer positioner — positions the card, handles opacity/slide (no pointer-events)
   const positioner = document.createElement("div");
   positioner.id = "gate-panel-positioner";
+  // Note: right/bottom/left are set via stylesheet (not inline) so @media rules can override them
   positioner.style.cssText = `
     position: fixed;
-    right: 2.5vw;
-    bottom: 2.5vh;
-    transform: translateY(20px);
     z-index: 500;
     pointer-events: none;
     opacity: 0;
