@@ -1410,17 +1410,18 @@ function bootSequence(btn: HTMLButtonElement): void {
 function addGlitchEffect(btn: HTMLButtonElement): void {
   const label = btn.querySelector<HTMLElement>('.cv-btn-label');
   if (!label) return;
+  const labelEl: HTMLElement = label;
 
   const target = 'RESUME';
 
   function glitch(): void {
     // Skip if button is hovered or label isn't showing the resolved text
-    if (label.textContent !== target) return;
+    if (labelEl.textContent !== target) return;
     let frame = 0;
     const total = 14;
     const run = setInterval(() => {
-      if (frame >= total) { label.textContent = target; clearInterval(run); return; }
-      label.textContent = target
+      if (frame >= total) { labelEl.textContent = target; clearInterval(run); return; }
+      labelEl.textContent = target
         .split('')
         .map((c, idx) => idx < Math.floor(frame / 2) ? c : GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)])
         .join('');

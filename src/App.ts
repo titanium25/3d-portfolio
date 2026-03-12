@@ -171,10 +171,8 @@ export async function initApp(container: HTMLElement): Promise<void> {
     radius: 0.5, count: 3, rise: 0.4,
   });
 
-  // ── Intro starts IMMEDIATELY — user sees text from frame one ─────────────
-  // Character is injected later via intro.setCharacter() once the model loads.
-  const intro = new IntroSequence(camera, scene);
-  console.log("🎬 Intro started!");
+  // Intro will be created after hero load promise; placeholder for reference
+  let intro: IntroSequence;
 
   // ── Stop configuration ────────────────────────────────────────────────────
   const ENABLE_MOCK_STOPS = false;
@@ -195,7 +193,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
   const interactionStops: Stop[] = mockStops;
   let allAssetsLoaded = false;
 
-  // ── Load all assets in parallel while the intro plays ────────────────────
+  // ── Load all assets ──────────────────────────────────────────────────────
   // 1. Images — start first, network-only
   const imagePromise = preloadImages(ALL_IMAGES, assetLoaded);
 
@@ -203,7 +201,6 @@ export async function initApp(container: HTMLElement): Promise<void> {
   const characterPromise = PlayerCharacter.create(scene, assetLoaded).then(
     (c) => {
       character = c;
-      intro.setCharacter(c); // unblocks text→pullback transition
       return c;
     },
   );
@@ -236,6 +233,17 @@ export async function initApp(container: HTMLElement): Promise<void> {
       return d;
     }),
   );
+
+  // Intro: boot + establishing shot during loading; approach when hero ready
+  const heroReadyPromise = Promise.all([characterPromise, dogPromise]).then(
+    ([c]) => {
+      intro.setCharacter(c);
+    },
+  );
+  intro = new IntroSequence(camera, scene, null, {
+    heroReady: heroReadyPromise,
+  });
+  console.log("🎬 Intro ready (black loading screen)");
 
   // 4. Timeline stops (portal GLB)
   const timelinePromise = ENABLE_TIMELINE_STOPS
@@ -498,13 +506,10 @@ export async function initApp(container: HTMLElement): Promise<void> {
       wasWaving = isWaving;
 
       if (isWaving) {
-        // Hold camera on character during wave (intro already placed it here)
-        camera.position.set(0, 1.7, 4.0);
-        camera.lookAt(
-          character.group.position.x,
-          0.3,
-          character.group.position.z,
-        );
+        // Hold camera at intro closeup position (character-relative)
+        const cp = character.group.position;
+        camera.position.set(cp.x + 1.5, 1.8, cp.z + 3);
+        camera.lookAt(cp.x, 0.5, cp.z);
       } else if (postWaveElapsed < POST_WAVE_DURATION) {
         // Smooth, natural transition from wave camera to gameplay camera
         postWaveElapsed += deltaSec;

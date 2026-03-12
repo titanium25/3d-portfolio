@@ -163,6 +163,7 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
     imageCaption: "The5ers HQ · Raanana — yes, Meny visited the office",
     journeyImages: [
       { src: "/img/the5ers-hq.png", caption: "The5ers HQ · Raanana — yes, Meny visited the office", objectPosition: "center 30%" },
+      { src: "/img/alex-office.png", caption: "Office candid · The5ers Raanana", objectPosition: "center 30%" },
       { src: "/img/the5ers-dashboard.png", caption: "Dashboard I built — funded account view, scale-up milestones, balance chart" },
       { src: "/img/the5ers-trading.png", caption: "The5ers trading platform · 2024" },
     ],
