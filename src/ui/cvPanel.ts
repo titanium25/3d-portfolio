@@ -1,6 +1,6 @@
 import { TIMELINE_STOPS } from "../scene/timeline/timelineConfig";
 import { isStopCompleted } from "../scene/timeline/createTimelineStops";
-import { initPhotoLightbox, attachZoomHint } from "./photoLightbox";
+import { initPhotoLightbox, attachZoomHint, openLightboxAlbum, LightboxPhoto } from "./photoLightbox";
 import { highlight, injectHighlightStyles } from "./highlightUtils";
 import { refreshProgressDots, applyAboutTabNewToDom, clearAboutTabNew, applyJourneyTabNewToDom, clearJourneyTabNew } from "./gateUnlockAnimation";
 import { isDiscovered } from "./discoveryTracker";
@@ -2425,7 +2425,7 @@ function createCVPanel(): void {
 
   // Attach lightbox zoom to all experience photos — Journey photos are always visible
   TIMELINE_STOPS.forEach((stop) => {
-    const photos = stop.journeyImages ?? (stop.journeyImage ?? stop.image
+    const photos: LightboxPhoto[] = stop.journeyImages ?? (stop.journeyImage ?? stop.image
       ? [{ src: stop.journeyImage ?? stop.image!, caption: stop.journeyCaption ?? stop.imageCaption ?? "" }]
       : []);
     photos.forEach((p, i) => {
@@ -2435,7 +2435,7 @@ function createCVPanel(): void {
         attachZoomHint(
           photoEl,
           () => p.src,
-          { shape: "rect", caption: p.caption ?? "", hintSize: 16 },
+          { shape: "rect", caption: p.caption ?? "", hintSize: 16, album: photos, albumIndex: i },
         );
       }
     });
@@ -2739,7 +2739,7 @@ function buildStackTab(): HTMLDivElement {
     </div>
     <div class="cv-stack-divider"></div>
     <div class="cv-stack-stat">
-      <span class="cv-stack-stat-num">6+</span>
+      <span class="cv-stack-stat-num">5+</span>
       <span class="cv-stack-stat-label">Years Prod.</span>
     </div>
   `;
@@ -3167,8 +3167,6 @@ let photoNextBtn: HTMLButtonElement | null = null;
 let currentPhotoAlbum: PhotoEntry[] = [];
 let currentPhotoIdx = 0;
 let currentPhotoCaption = "";
-/** Card that opened the panel (tap-same-card toggles close). */
-let currentPhotoPanelCard: HTMLElement | null = null;
 
 function injectPhotoPanelStyles(): void {
   if (document.getElementById("cv-photo-panel-styles")) return;
@@ -3592,51 +3590,14 @@ function setGalleryPhoto(idx: number): void {
   if (photoNextBtn) photoNextBtn.disabled = currentPhotoAlbum.length <= 1;
 }
 
-function showPhotoPanel(card: HTMLElement): void {
-  const panel = createPhotoPanel();
-  const albumKey = card.dataset.photoAlbum ?? card.dataset.discoveryId ?? "";
-  const photos = CARD_PHOTOS[albumKey];
-  if (!photos?.length) return;
 
-  const discoveryId = card.dataset.discoveryId;
-  const isNonDiscoverable = card.dataset.discoverable === "false";
-  const discovered = isNonDiscoverable || !discoveryId ? true : isDiscovered(discoveryId);
-
-  // Set teaser image (blurred background) — always load it
-  if (photoTeaserImg) {
-    photoTeaserImg.src = photos[0].src;
-    photoTeaserImg.style.objectPosition = photos[0].objectPosition ?? "center center";
-  }
-
-  // Toggle discovered/teaser state
-  panel.classList.toggle("cpp-discovered", discovered);
-
-  if (discovered) {
-    currentPhotoAlbum = photos;
-    currentPhotoIdx = 0;
-    setGalleryPhoto(0);
-  }
-
-  // Update panel title with album name
-  const titleEl = panel.querySelector<HTMLElement>(".cpp-title");
-  if (titleEl) {
-    const albumLabels: Record<string, string> = {
-      bmw: "BMW S1000RR", mtb: "MTB Rides", meny: "Meny the Dog",
-      lego: "LEGO Builds", twins: "Twins", gym: "Gym",
-    };
-    titleEl.textContent = albumLabels[albumKey] ?? "Photo Gallery";
-  }
-
-  // Show backdrop + panel (centered by CSS)
-  document.getElementById("cv-photo-backdrop")?.classList.add("cpp-visible");
-  panel.classList.add("cpp-visible");
-}
 
 
 function hidePhotoPanel(): void {
+  // Ensure panel DOM exists before trying to hide it (lazy init)
+  if (!photoPanelEl) { createPhotoPanel(); }
   photoPanelEl?.classList.remove("cpp-visible");
   document.getElementById("cv-photo-backdrop")?.classList.remove("cpp-visible");
-  currentPhotoPanelCard = null;
   clearPhotoPanelTouchClose();
 }
 
@@ -3644,7 +3605,7 @@ function clearPhotoPanelTouchClose(): void {
   // No-op — kept for call-site compatibility; touch-close handled by backdrop now
 }
 
-/** Attach click listeners to cards with photo albums (click = open modal on all devices). */
+/** Attach click listeners to cards with photo albums — opens lightbox album directly. */
 function initPhotoPanelHovers(): void {
   const cards = document.querySelectorAll<HTMLElement>(
     ".cv-interest-card[data-photo-album], .cv-interest-card[data-discovery-id]"
@@ -3652,23 +3613,18 @@ function initPhotoPanelHovers(): void {
 
   cards.forEach((card) => {
     const key = card.dataset.photoAlbum ?? card.dataset.discoveryId ?? "";
-    if (!CARD_PHOTOS[key]) return;
+    const photos = CARD_PHOTOS[key];
+    if (!photos?.length) return;
     if (card.dataset.photoPanelBound === "1") return;
     card.dataset.photoPanelBound = "1";
 
-    // Unified click behavior — same on desktop and mobile
+    // Only open lightbox if this card has been discovered
     card.addEventListener("click", (e) => {
+      const discovered = card.classList.contains("cv-discovered");
+      if (!discovered) return; // let the locked state stand — no lightbox yet
       e.preventDefault();
       e.stopPropagation();
-      const isPanelOpen = photoPanelEl?.classList.contains("cpp-visible");
-      const sameCard = currentPhotoPanelCard === card;
-      if (isPanelOpen && sameCard) {
-        hidePhotoPanel();
-        return;
-      }
-      createPhotoPanel();
-      currentPhotoPanelCard = card;
-      showPhotoPanel(card);
+      openLightboxAlbum(photos, 0, card);
     });
   });
 }
