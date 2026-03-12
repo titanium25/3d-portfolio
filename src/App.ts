@@ -233,10 +233,6 @@ export async function initApp(container: HTMLElement): Promise<void> {
         onHoverStart: () => d.setExcited(true),
         onHoverEnd: () => d.setExcited(false),
       });
-      registerDiscoverableBeacon({
-        object: d.group, discoveryId: "meny",
-        radius: 0.4, count: 4, rise: 0.5,
-      });
       return d;
     }),
   );

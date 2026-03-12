@@ -199,16 +199,14 @@ export function updateDiscoverableBeacons(
 
     const pos   = b.particles.geometry.attributes.position as THREE.BufferAttribute;
     const arr   = pos.array as Float32Array;
-    const speed = 0.12 + proxE * 0.08;
 
     for (let i = 0; i < b.count; i++) {
       const phase = b.phases[i];
-      const cycle = (time * speed + phase) % 1.0;
+      const cycle = (time * 0.12 + phase) % 1.0;
       const y     = cycle * b.riseHeight;
 
-      const sway = 0.04 * (1 + proxE * 0.5);
-      const sx   = Math.sin(time * 1.1 + phase * 6.28) * sway;
-      const sz   = Math.cos(time * 0.9 + phase * 4.2)  * sway;
+      const sx = Math.sin(time * 1.1 + phase * 6.28) * 0.04;
+      const sz = Math.cos(time * 0.9 + phase * 4.2)  * 0.04;
 
       arr[i * 3]     = b.baseXZ[i * 2]     + sx;
       arr[i * 3 + 1] = y;
