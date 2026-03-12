@@ -457,6 +457,15 @@ function injectStyles(): void {
       #cinematic-panel-body {
         padding: 1.2rem 1.4rem 1.3rem !important;
       }
+      /* Move close button to top-left so it doesn't clash with Resume button (top-right) */
+      #cinematic-close {
+        right: auto !important;
+        left: 0 !important;
+      }
+      /* Hide ESC key hint on mobile — no keyboard */
+      #cinematic-close .esc-key {
+        display: none !important;
+      }
     }
   `;
   document.head.appendChild(style);

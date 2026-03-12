@@ -78,6 +78,7 @@ export class IntroSequence {
     document.body.appendChild(this.fadeOverlay);
 
     this.imageContainer = document.createElement("div");
+    this.imageContainer.id = "intro-image-container";
     this.imageContainer.style.cssText = `
       position: fixed;
       left: min(6vw, 56px);
@@ -122,6 +123,7 @@ export class IntroSequence {
     `;
 
     const textWrap = document.createElement("div");
+    textWrap.id = "intro-text-wrap";
     textWrap.style.cssText = `
       position: absolute;
       left: 50%;
@@ -132,6 +134,8 @@ export class IntroSequence {
       box-sizing: border-box;
       z-index: 2;
     `;
+
+    this.injectMobileStyles();
 
     this.lineEl = document.createElement("div");
     this.lineEl.style.cssText = `
@@ -354,6 +358,45 @@ export class IntroSequence {
       @keyframes ident-in {
         from { opacity: 0; transform: translateX(-110%); }
         to   { opacity: 1; transform: translateX(0);     }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  private injectMobileStyles(): void {
+    if (document.getElementById("intro-mobile-styles")) return;
+    const style = document.createElement("style");
+    style.id = "intro-mobile-styles";
+    style.textContent = `
+      @media (max-width: 600px) {
+        /* Image: anchor to bottom, shrink to lower half of screen */
+        #intro-image-container {
+          left: 50% !important;
+          bottom: 0 !important;
+          transform: translateX(-50%);
+        }
+        #intro-image-container img {
+          min-height: unset !important;
+          height: 58vh;
+          width: auto;
+        }
+        /* Text: move to upper portion, above the image */
+        #intro-text-wrap {
+          top: 22% !important;
+          transform: translate(-50%, 0) !important;
+        }
+        /* Ident name card: anchor to top instead of bottom */
+        #intro-ident {
+          bottom: unset !important;
+          top: clamp(24px, 5vh, 48px) !important;
+          left: 50% !important;
+          transform: translateX(-50%);
+          animation: ident-in-mobile 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards !important;
+        }
+        @keyframes ident-in-mobile {
+          from { opacity: 0; transform: translateX(-50%) translateY(-24px); }
+          to   { opacity: 1; transform: translateX(-50%) translateY(0);     }
+        }
       }
     `;
     document.head.appendChild(style);

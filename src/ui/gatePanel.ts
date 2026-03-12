@@ -208,13 +208,14 @@ function injectPanelStyles(): void {
       }
     }
 
-    /* ── Mobile: compact bottom strip ── */
+    /* ── Mobile: compact bottom strip (above mobile controls) ── */
     @media (max-width: 600px) {
       #gate-panel-positioner {
         right: 0 !important;
         left: 0 !important;
-        bottom: 0 !important;
-        padding: 0 12px 12px;
+        bottom: 200px !important;
+        padding: 0 12px 8px;
+        z-index: 900 !important;
       }
       #gate-panel {
         width: 100% !important;
