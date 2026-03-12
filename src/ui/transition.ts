@@ -381,6 +381,44 @@ function injectStyles(): void {
       color: #fff;
     }
 
+    /* ── Stagger entrance animations ─────────────────────────────── */
+    @keyframes ctFadeSlideUp {
+      from { opacity: 0; transform: translateY(9px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes ctChipPop {
+      0%   { opacity: 0; transform: scale(0.6) translateY(4px); }
+      65%  { transform: scale(1.1) translateY(0); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    @keyframes ctTopBarReveal {
+      from { transform: scaleX(0); transform-origin: left; }
+      to   { transform: scaleX(1); transform-origin: left; }
+    }
+    #cinematic-top-bar.ct-reveal {
+      animation: ctTopBarReveal 0.55s cubic-bezier(0.16,1,0.3,1) 0.08s both;
+    }
+
+    /* ── Scanline overlay on image ────────────────────────────────── */
+    @keyframes ctScanlineScroll {
+      from { background-position: 0 0; }
+      to   { background-position: 0 80px; }
+    }
+    #cinematic-img-scanlines {
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.022) 2px,
+        rgba(0,0,0,0.022) 4px
+      );
+      animation: ctScanlineScroll 5s linear infinite;
+      pointer-events: none;
+      opacity: 0.65;
+    }
+
     /* ── Responsive ──────────────────────────────────────────────── */
     @media (max-width: 600px) {
       #cinematic-content.has-image {
@@ -480,6 +518,7 @@ function getOrCreateOverlay(): {
     <div id="cinematic-img-panel">
       <img id="cinematic-img" src="" alt="" />
       <div id="cinematic-img-fade"></div>
+      <div id="cinematic-img-scanlines"></div>
       <div id="cinematic-img-caption"></div>
     </div>
 
@@ -563,6 +602,70 @@ function parseTitleParts(title: string): {
     return { year: parts[0], company: parts[1], role: "" };
   }
   return { year: "", company: title, role: "" };
+}
+
+// ── Content stagger entrance ──────────────────────────────────────────────────
+
+function applyContentStagger(card: HTMLDivElement): void {
+  const spring  = "cubic-bezier(0.16,1,0.3,1)";
+  const elastic = "cubic-bezier(0.34,1.56,0.64,1)";
+
+  // Helper: animate an element if it exists and is not display:none
+  const anim = (
+    sel: string,
+    delay: number,
+    kf = "ctFadeSlideUp",
+    dur = "0.38s",
+    ease = spring,
+  ) => {
+    const el = card.querySelector<HTMLElement>(sel);
+    if (!el || el.style.display === "none") return;
+    el.style.animation = "none";
+    void el.offsetWidth;
+    el.style.animation = `${kf} ${dur} ${ease} ${delay}ms both`;
+  };
+
+  // Sequential reveal: header → meta → content → tech
+  anim("#cinematic-year-tag.visible",    0);
+  anim("#cinematic-company-row",        55);
+  anim("#cinematic-role",              108);
+  anim("#cinematic-period",            148);
+  anim("#cinematic-context.visible",   198);
+  anim("#cinematic-divider",           248);
+
+  // Bullets stagger
+  let d = 292;
+  card.querySelectorAll<HTMLElement>("#cinematic-bullets-list li").forEach((li, i) => {
+    li.style.animation = "none";
+    void li.offsetWidth;
+    li.style.animation = `ctFadeSlideUp 0.3s ${spring} ${d + i * 50}ms both`;
+  });
+  d += (card.querySelectorAll("#cinematic-bullets-list li").length * 50) + 40;
+
+  // Skills label + chips elastic pop
+  const skillsEl = card.querySelector<HTMLElement>("#cinematic-skills.visible");
+  if (skillsEl) {
+    const label = skillsEl.querySelector<HTMLElement>("#cinematic-skills-label");
+    if (label) {
+      label.style.animation = "none";
+      void label.offsetWidth;
+      label.style.animation = `ctFadeSlideUp 0.3s ${spring} ${d}ms both`;
+    }
+    d += 52;
+    skillsEl.querySelectorAll<HTMLElement>("#cinematic-skills-chips span").forEach((chip, i) => {
+      chip.style.animation = "none";
+      void chip.offsetWidth;
+      chip.style.animation = `ctChipPop 0.36s ${elastic} ${d + i * 28}ms both`;
+    });
+  }
+
+  // Animate top accent bar
+  const topBar = card.querySelector<HTMLElement>("#cinematic-top-bar");
+  if (topBar) {
+    topBar.classList.remove("ct-reveal");
+    void topBar.offsetWidth;
+    topBar.classList.add("ct-reveal");
+  }
 }
 
 // ── Open / close ──────────────────────────────────────────────────────────────
@@ -755,6 +858,7 @@ export function openTransition(
     dimLayer.style.backdropFilter = "blur(10px)";
     content.style.transform = "translateY(0)";
     content.style.opacity = "1";
+    applyContentStagger(card);
   });
 
   // Close handlers

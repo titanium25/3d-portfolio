@@ -20,6 +20,7 @@ function injectPanelStyles(): void {
   const s = document.createElement("style");
   s.id = "gate-panel-styles";
   s.textContent = `
+    /* ── Keyframes ── */
     @keyframes gpCtaGlow {
       0%, 100% { box-shadow: 0 0 0 0 rgba(0,229,204,0), 0 0 0 1px rgba(0,229,204,0.22); }
       50%       { box-shadow: 0 0 14px 3px rgba(0,229,204,0.18), 0 0 0 1px rgba(0,229,204,0.5); }
@@ -28,6 +29,90 @@ function injectPanelStyles(): void {
       0%, 100% { transform: translateX(0); }
       50%       { transform: translateX(4px); }
     }
+    @keyframes gpFadeSlideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes gpShimmerSweep {
+      from { transform: translateX(-120px) skewX(-12deg); }
+      to   { transform: translateX(420px) skewX(-12deg); }
+    }
+    @keyframes gpChipPop {
+      0%   { opacity: 0; transform: scale(0.6) translateY(4px); }
+      65%  { transform: scale(1.09) translateY(0); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    @keyframes gpDotPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0,229,204,0.5); }
+      50%       { box-shadow: 0 0 0 4px rgba(0,229,204,0.12); }
+    }
+    @keyframes gpCornerIn {
+      from { opacity: 0; transform: scale(0.6); }
+      to   { opacity: 0.45; transform: scale(1); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    /* ── Corner decorations ── */
+    .gp-corner {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      pointer-events: none;
+      z-index: 5;
+      opacity: 0;
+      animation: gpCornerIn 0.4s cubic-bezier(0.16,1,0.3,1) 0.15s both;
+    }
+    .gp-corner-tl { top: 7px; left: 7px;   border-top: 1.5px solid #00e5cc; border-left: 1.5px solid #00e5cc; }
+    .gp-corner-tr { top: 7px; right: 7px;  border-top: 1.5px solid #00e5cc; border-right: 1.5px solid #00e5cc; }
+    .gp-corner-bl { bottom: 7px; left: 7px;  border-bottom: 1.5px solid #00e5cc; border-left: 1.5px solid #00e5cc; }
+    .gp-corner-br { bottom: 7px; right: 7px; border-bottom: 1.5px solid #00e5cc; border-right: 1.5px solid #00e5cc; }
+
+    /* ── Progress dots ── */
+    .gp-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+    .gp-dot-upcoming  { background: rgba(255,255,255,0.12); }
+    .gp-dot-completed { background: rgba(0,229,204,0.55); }
+    .gp-dot-current   { background: #00e5cc; animation: gpDotPulse 1.8s ease-in-out infinite; }
+
+    /* ── Explored badge ── */
+    #gate-panel-explored {
+      display: none;
+      font-size: 0.57rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: #00e5cc;
+      background: rgba(0,229,204,0.09);
+      border: 1px solid rgba(0,229,204,0.28);
+      border-radius: 4px;
+      padding: 0.1rem 0.42rem;
+      white-space: nowrap;
+      flex-shrink: 0;
+      align-items: center;
+    }
+
+    /* ── Skill chip preview ── */
+    .gp-skill-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.17rem 0.52rem;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      font-size: 0.63rem;
+      font-weight: 500;
+      color: rgba(255,255,255,0.48);
+      white-space: nowrap;
+    }
+
     /* ── CTA: ready state (in interact range) ── */
     #gate-panel-cta-ready {
       display: flex;
@@ -64,9 +149,7 @@ function injectPanelStyles(): void {
       border-color: rgba(0,229,204,0.55);
       transform: translateY(-1px) scale(1);
     }
-    #gate-panel-cta-ready.gp-active:active {
-      transform: scale(0.98);
-    }
+    #gate-panel-cta-ready.gp-active:active { transform: scale(0.98); }
     #gate-panel-cta-key {
       display: inline-flex;
       align-items: center;
@@ -102,7 +185,6 @@ function injectPanelStyles(): void {
       font-size: 0.68rem;
       color: rgba(255,255,255,0.28);
       letter-spacing: 0.04em;
-      /* exit: slide up + fade out when switching to ready */
       opacity: 1;
       transform: translateY(0);
       transition:
@@ -128,10 +210,6 @@ function injectPanelStyles(): void {
       text-align: center;
       animation: fadeIn 0.3s ease;
       transition: opacity 0.5s ease;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to   { opacity: 1; }
     }
   `;
   document.head.appendChild(s);
@@ -179,6 +257,26 @@ function getOrCreate(): { positioner: HTMLDivElement; card: HTMLDivElement } {
   `;
 
   card.innerHTML = `
+    <!-- Sci-fi corner decorations -->
+    <div class="gp-corner gp-corner-tl"></div>
+    <div class="gp-corner gp-corner-tr"></div>
+    <div class="gp-corner gp-corner-bl"></div>
+    <div class="gp-corner gp-corner-br"></div>
+
+    <!-- One-shot shimmer sweep overlay -->
+    <div id="gate-panel-shimmer" style="
+      position: absolute; inset: 0;
+      pointer-events: none; overflow: hidden;
+      border-radius: inherit; z-index: 20;
+    ">
+      <div id="gate-panel-shimmer-stripe" style="
+        position: absolute; top: 0; left: 0;
+        width: 90px; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(0,229,204,0.08), transparent);
+        opacity: 0;
+      "></div>
+    </div>
+
     <div id="gate-panel-top-bar" style="
       height: 2px;
       background: linear-gradient(90deg, transparent 0%, #00e5cc 35%, #4ecdc4 58%, transparent 100%);
@@ -186,114 +284,102 @@ function getOrCreate(): { positioner: HTMLDivElement; card: HTMLDivElement } {
     "></div>
 
     <div id="gate-panel-image-wrap" style="
-      position: relative;
-      width: 100%;
-      height: 130px;
-      overflow: hidden;
-      display: none;
+      position: relative; width: 100%; height: 130px;
+      overflow: hidden; display: none;
     ">
       <img id="gate-panel-image" src="" alt="" style="
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: center 42%;
+        width: 100%; height: 100%;
+        object-fit: cover; object-position: center 42%;
         display: block;
       " />
       <div style="
-        position: absolute;
-        inset: 0;
+        position: absolute; inset: 0;
         background:
           linear-gradient(to bottom,
-            rgba(0,0,0,0.18) 0%,
-            transparent 30%,
-            transparent 55%,
-            rgba(13,17,23,0.82) 82%,
+            rgba(0,0,0,0.18) 0%, transparent 30%,
+            transparent 55%, rgba(13,17,23,0.82) 82%,
             rgba(13,17,23,1) 100%
           ),
-          linear-gradient(to right,
-            rgba(255,190,40,0.06) 0%,
-            transparent 100%
-          );
+          linear-gradient(to right, rgba(255,190,40,0.06) 0%, transparent 100%);
         pointer-events: none;
       "></div>
       <div id="gate-panel-img-caption" style="
-        position: absolute;
-        bottom: 0.45rem;
-        left: 0.75rem;
-        font-size: 0.57rem;
-        color: rgba(255,255,255,0.38);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        line-height: 1.4;
-        pointer-events: none;
+        position: absolute; bottom: 0.45rem; left: 0.75rem;
+        font-size: 0.57rem; color: rgba(255,255,255,0.38);
+        letter-spacing: 0.08em; text-transform: uppercase;
+        line-height: 1.4; pointer-events: none;
       "></div>
     </div>
 
-    <div style="padding: 1.1rem 1.4rem 0.9rem;">
+    <div id="gate-panel-body" style="padding: 1.0rem 1.4rem 0 1.4rem;">
+
+      <!-- Progress indicator row -->
+      <div id="gate-panel-progress" style="
+        display: none; align-items: center;
+        justify-content: space-between; margin-bottom: 0.62rem;
+      ">
+        <div id="gate-panel-dots" style="display:flex; gap:0.38rem; align-items:center;"></div>
+        <div id="gate-panel-gate-label" style="
+          font-size: 0.56rem; color: rgba(255,255,255,0.22);
+          letter-spacing: 0.08em; text-transform: uppercase;
+        "></div>
+      </div>
+
       <div id="gate-panel-year" style="
         display: none;
-        font-size: 0.6rem;
-        font-weight: 700;
-        letter-spacing: 0.14em;
-        color: #00e5cc;
-        text-transform: uppercase;
-        margin-bottom: 0.28rem;
-        opacity: 0.9;
+        font-size: 0.6rem; font-weight: 700;
+        letter-spacing: 0.14em; color: #00e5cc;
+        text-transform: uppercase; margin-bottom: 0.28rem; opacity: 0.9;
       "></div>
-      <div style="display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.18rem;">
+
+      <div style="display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.18rem; flex-wrap: wrap;">
         <div id="gate-panel-logo-wrap" style="
-          width: 28px; height: 28px;
-          border-radius: 6px;
-          background: #fff;
-          flex-shrink: 0;
-          display: none;
-          align-items: center;
-          justify-content: center;
-          padding: 2px;
-          overflow: hidden;
+          width: 28px; height: 28px; border-radius: 6px;
+          background: #fff; flex-shrink: 0; display: none;
+          align-items: center; justify-content: center;
+          padding: 2px; overflow: hidden;
           box-shadow: 0 1px 5px rgba(0,0,0,0.4);
         ">
           <img id="gate-panel-logo-img" src="" alt="" style="width:100%;height:100%;object-fit:contain;" />
         </div>
         <div id="gate-panel-title" style="
-          font-size: 1.05rem;
-          font-weight: 700;
-          color: #fff;
-          line-height: 1.25;
-          letter-spacing: -0.01em;
+          font-size: 1.05rem; font-weight: 700;
+          color: #fff; line-height: 1.25;
+          letter-spacing: -0.01em; flex: 1; min-width: 0;
         "></div>
+        <span id="gate-panel-explored">✦ Explored</span>
       </div>
+
       <div id="gate-panel-subtitle" style="
-        font-size: 0.73rem;
-        color: rgba(255,255,255,0.38);
-        font-style: italic;
-        margin-bottom: 0.5rem;
-        display: none;
+        font-size: 0.73rem; color: rgba(255,255,255,0.38);
+        font-style: italic; margin-bottom: 0.5rem; display: none;
       "></div>
+
       <div id="gate-panel-context" style="
-        font-size: 0.7rem;
-        color: rgba(255,255,255,0.42);
-        line-height: 1.5;
-        padding: 0.4rem 0.55rem;
+        font-size: 0.7rem; color: rgba(255,255,255,0.42);
+        line-height: 1.5; padding: 0.4rem 0.55rem;
         margin-bottom: 0.75rem;
         border-left: 2px solid rgba(0,229,204,0.25);
         background: rgba(0,229,204,0.035);
-        border-radius: 0 5px 5px 0;
-        display: none;
+        border-radius: 0 5px 5px 0; display: none;
       "></div>
+
       <ul id="gate-panel-bullets" style="
-        list-style: none;
-        padding: 0;
-        margin: 0 0 0.85rem 0;
+        list-style: none; padding: 0; margin: 0 0 0.7rem 0;
         display: none;
-        border-top: 1px solid rgba(255,255,255,0.06);
-        padding-top: 0.7rem;
+        border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.7rem;
       "></ul>
+
+      <!-- Skill chips preview -->
+      <div id="gate-panel-skills-preview" style="
+        display: none; flex-wrap: wrap; gap: 0.3rem;
+        margin-bottom: 0.8rem;
+        padding-top: 0.42rem;
+        border-top: 1px solid rgba(255,255,255,0.05);
+      "></div>
+
       <div id="gate-panel-links" style="
-        display: none;
-        flex-wrap: wrap;
-        gap: 0.4rem;
-        margin-bottom: 0.85rem;
+        display: none; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.85rem;
       "></div>
     </div>
 
@@ -344,6 +430,12 @@ export function initGatePanel(): void {
   getOrCreate();
 }
 
+export interface GatePanelOptions {
+  stopIndex?: number;
+  totalStops?: number;
+  isCompleted?: boolean;
+}
+
 export function updateGatePanel(
   data: StopData | null,
   proximityFactor: number,
@@ -351,6 +443,8 @@ export function updateGatePanel(
   canInteract = false,
   /** Callback invoked on CTA click / E press when in range. */
   onInteract?: () => void,
+  /** Extra context for richer card display. */
+  options?: GatePanelOptions,
 ): void {
   const { positioner, card } = getOrCreate();
 
@@ -371,14 +465,14 @@ export function updateGatePanel(
       card.style.opacity = "0";
       setTimeout(() => {
         currentStopId = data.id;
-        populateCard(card, data);
+        populateCard(card, data, options);
         card.style.opacity = "1";
         isSwitching = false;
       }, 200);
     } else {
       // Card not yet visible — swap instantly (no visible flash)
       currentStopId = data.id;
-      populateCard(card, data);
+      populateCard(card, data, options);
     }
 
     // Show one-time contextual hint on the very first gate panel appearance
@@ -413,20 +507,30 @@ export function updateGatePanel(
 
 // ── Card population ────────────────────────────────────────────────────────
 
-function populateCard(card: HTMLDivElement, data: StopData): void {
-  const yearEl = card.querySelector("#gate-panel-year") as HTMLDivElement;
-  const titleEl = card.querySelector("#gate-panel-title") as HTMLDivElement;
-  const subtitleEl = card.querySelector("#gate-panel-subtitle") as HTMLDivElement;
-  const logoWrap = card.querySelector("#gate-panel-logo-wrap") as HTMLDivElement;
-  const logoImg = card.querySelector("#gate-panel-logo-img") as HTMLImageElement;
-  const contextEl = card.querySelector("#gate-panel-context") as HTMLDivElement;
-  const bulletsEl = card.querySelector("#gate-panel-bullets") as HTMLUListElement;
-  const linksEl = card.querySelector("#gate-panel-links") as HTMLDivElement;
-  const imageWrap = card.querySelector("#gate-panel-image-wrap") as HTMLDivElement;
-  const imageEl = card.querySelector("#gate-panel-image") as HTMLImageElement;
-  const imgCaptionEl = card.querySelector("#gate-panel-img-caption") as HTMLDivElement;
+function populateCard(
+  card: HTMLDivElement,
+  data: StopData,
+  options?: GatePanelOptions,
+): void {
+  const yearEl         = card.querySelector("#gate-panel-year") as HTMLDivElement;
+  const titleEl        = card.querySelector("#gate-panel-title") as HTMLDivElement;
+  const subtitleEl     = card.querySelector("#gate-panel-subtitle") as HTMLDivElement;
+  const logoWrap       = card.querySelector("#gate-panel-logo-wrap") as HTMLDivElement;
+  const logoImg        = card.querySelector("#gate-panel-logo-img") as HTMLImageElement;
+  const contextEl      = card.querySelector("#gate-panel-context") as HTMLDivElement;
+  const bulletsEl      = card.querySelector("#gate-panel-bullets") as HTMLUListElement;
+  const linksEl        = card.querySelector("#gate-panel-links") as HTMLDivElement;
+  const imageWrap      = card.querySelector("#gate-panel-image-wrap") as HTMLDivElement;
+  const imageEl        = card.querySelector("#gate-panel-image") as HTMLImageElement;
+  const imgCaptionEl   = card.querySelector("#gate-panel-img-caption") as HTMLDivElement;
+  const progressEl     = card.querySelector("#gate-panel-progress") as HTMLDivElement;
+  const dotsEl         = card.querySelector("#gate-panel-dots") as HTMLDivElement;
+  const gateLabelEl    = card.querySelector("#gate-panel-gate-label") as HTMLDivElement;
+  const exploredEl     = card.querySelector("#gate-panel-explored") as HTMLSpanElement;
+  const skillsPreviewEl = card.querySelector("#gate-panel-skills-preview") as HTMLDivElement;
+  const shimmerStripe  = card.querySelector("#gate-panel-shimmer-stripe") as HTMLDivElement;
 
-  // Image header strip
+  // ── Image header strip ─────────────────────────────────────────────────
   if (data.image) {
     imageEl.src = data.image;
     imageEl.alt = data.imageCaption ?? "";
@@ -437,7 +541,7 @@ function populateCard(card: HTMLDivElement, data: StopData): void {
     imageWrap.style.display = "none";
   }
 
-  // Logo badge
+  // ── Logo badge ──────────────────────────────────────────────────────────
   if (data.logo) {
     logoImg.src = data.logo;
     logoImg.alt = "";
@@ -447,7 +551,32 @@ function populateCard(card: HTMLDivElement, data: StopData): void {
     logoWrap.style.display = "none";
   }
 
-  // Parse "2018 — ASML — Field Service Engineer" → year + company + role
+  // ── Progress dots ───────────────────────────────────────────────────────
+  if (options?.stopIndex !== undefined && options?.totalStops !== undefined) {
+    dotsEl.innerHTML = "";
+    for (let i = 0; i < options.totalStops; i++) {
+      const dot = document.createElement("div");
+      dot.className = "gp-dot";
+      if (i < options.stopIndex) {
+        dot.classList.add("gp-dot-completed");
+        dot.title = `Gate ${i + 1} visited`;
+      } else if (i === options.stopIndex) {
+        dot.classList.add("gp-dot-current");
+      } else {
+        dot.classList.add("gp-dot-upcoming");
+      }
+      dotsEl.appendChild(dot);
+    }
+    gateLabelEl.textContent = `Gate ${options.stopIndex + 1} / ${options.totalStops}`;
+    progressEl.style.display = "flex";
+  } else {
+    progressEl.style.display = "none";
+  }
+
+  // ── Explored badge ──────────────────────────────────────────────────────
+  exploredEl.style.display = options?.isCompleted ? "inline-flex" : "none";
+
+  // ── Title parsing: "2018 — ASML — Field Service Engineer" ───────────────
   const parts = data.title.split(" — ");
   if (parts.length >= 2) {
     yearEl.textContent = parts[0];
@@ -481,6 +610,18 @@ function populateCard(card: HTMLDivElement, data: StopData): void {
     bulletsEl.style.display = "none";
   }
 
+  // ── Skill chips preview (top 4) ────────────────────────────────────────
+  if (data.skills && data.skills.length > 0) {
+    skillsPreviewEl.innerHTML = data.skills
+      .slice(0, 4)
+      .map((s) => `<span class="gp-skill-chip">${s}</span>`)
+      .join("");
+    skillsPreviewEl.style.display = "flex";
+  } else {
+    skillsPreviewEl.innerHTML = "";
+    skillsPreviewEl.style.display = "none";
+  }
+
   if (data.links && data.links.length > 0) {
     linksEl.innerHTML = data.links
       .map(
@@ -493,4 +634,61 @@ function populateCard(card: HTMLDivElement, data: StopData): void {
     linksEl.innerHTML = "";
     linksEl.style.display = "none";
   }
+
+  // ── Animations ─────────────────────────────────────────────────────────
+  triggerShimmer(shimmerStripe);
+  // Defer stagger by one frame so display:block changes have settled
+  requestAnimationFrame(() => triggerCardStagger(card));
+}
+
+// ── Animation helpers ──────────────────────────────────────────────────────
+
+function triggerCardStagger(card: HTMLDivElement): void {
+  const spring = "cubic-bezier(0.16,1,0.3,1)";
+  const elastic = "cubic-bezier(0.34,1.56,0.64,1)";
+
+  // Use querySelectorAll approach: animate visible direct content blocks
+  const allSections: HTMLElement[] = [
+    card.querySelector<HTMLElement>("#gate-panel-progress"),
+    card.querySelector<HTMLElement>("#gate-panel-year"),
+    // title+logo row (closest styled div ancestor of the title)
+    card.querySelector<HTMLElement>("#gate-panel-title")?.closest<HTMLElement>("div[style]") ?? null,
+    card.querySelector<HTMLElement>("#gate-panel-subtitle"),
+    card.querySelector<HTMLElement>("#gate-panel-context"),
+    card.querySelector<HTMLElement>("#gate-panel-bullets"),
+    card.querySelector<HTMLElement>("#gate-panel-skills-preview"),
+  ].filter((el): el is HTMLElement => !!el && el.style.display !== "none");
+
+  let delay = 0;
+  for (const el of allSections) {
+    el.style.animation = "none";
+    void el.offsetWidth;
+    el.style.animation = `gpFadeSlideUp 0.34s ${spring} ${delay}ms both`;
+    delay += 52;
+  }
+
+  // Bullet items stagger
+  const bullets = card.querySelectorAll<HTMLElement>("#gate-panel-bullets li");
+  bullets.forEach((li, i) => {
+    li.style.animation = "none";
+    void li.offsetWidth;
+    li.style.animation = `gpFadeSlideUp 0.28s ${spring} ${Math.max(delay - 52, 180) + i * 60}ms both`;
+  });
+
+  // Skill chips pop in with elastic spring
+  const chips = card.querySelectorAll<HTMLElement>(".gp-skill-chip");
+  chips.forEach((chip, i) => {
+    chip.style.animation = "none";
+    void chip.offsetWidth;
+    chip.style.animation = `gpChipPop 0.32s ${elastic} ${delay + i * 38}ms both`;
+  });
+}
+
+function triggerShimmer(stripeEl: HTMLDivElement): void {
+  stripeEl.style.animation = "none";
+  stripeEl.style.opacity = "0";
+  void stripeEl.offsetWidth;
+  stripeEl.style.opacity = "1";
+  stripeEl.style.animation = "gpShimmerSweep 0.72s cubic-bezier(0.16,1,0.3,1) 0.1s forwards";
+  setTimeout(() => { stripeEl.style.opacity = "0"; }, 950);
 }

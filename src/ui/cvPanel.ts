@@ -22,7 +22,7 @@ const CARD_PHOTOS: Record<string, PhotoEntry[]> = {
   ],
   mtb: [
     { src: "/img/discoveries/mtb-riding.png", caption: "05:30 AM · 80 km done before my first standup",                              objectPosition: "center 75%" },
-    { src: "/img/discoveries/mtb-bike.png",   caption: "Full-carbon hardtail · weighs less than my node_modules folder",              objectPosition: "center 60%" },
+    { src: "/img/discoveries/mtb-bike.png",   caption: "Full-carbon · weighs less than my node_modules folder",              objectPosition: "center 60%" },
     { src: "/img/discoveries/mtb-road.png",   caption: "Road ride · Ra'anana promenade",                                              objectPosition: "center 40%" },
   ],
   lego: [

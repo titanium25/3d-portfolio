@@ -602,7 +602,11 @@ export async function initApp(container: HTMLElement): Promise<void> {
             );
           }
         };
-        updateGatePanel(nearbyGate.stop.data, factor, canInteract, openGateOverlay);
+        updateGatePanel(nearbyGate.stop.data, factor, canInteract, openGateOverlay, {
+          stopIndex: TIMELINE_STOPS.findIndex((s) => s.id === nearbyGate.stop.data.id),
+          totalStops: TIMELINE_STOPS.length,
+          isCompleted: isStopCompleted(nearbyGate.stop.data.id),
+        });
         if (canInteract && eJustPressed) {
           openGateOverlay();
         }
