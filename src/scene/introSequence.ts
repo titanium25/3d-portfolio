@@ -273,60 +273,76 @@ export class IntroSequence {
     el.id = "intro-ident";
     el.style.cssText = `
       position: fixed;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
+      bottom: clamp(36px, 6vh, 56px);
+      left: clamp(36px, 6vw, 72px);
       z-index: 1001;
       pointer-events: none;
-      padding: 32px 48px;
-      border-left: 3px solid rgba(0, 229, 204, 0.6);
-      border-right: 3px solid rgba(0, 229, 204, 0.6);
-      background: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.4) 20%, rgba(0, 0, 0, 0.5) 50%, rgba(0, 0, 0, 0.4) 80%, transparent 100%);
-      box-shadow: 0 0 40px rgba(0, 229, 204, 0.08), inset 0 0 60px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      animation: ident-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
     `;
+
+    // Frosted strip
+    const strip = document.createElement("div");
+    strip.style.cssText = `
+      position: relative;
+      display: flex;
+      align-items: center;
+      padding: 16px 32px 16px 26px;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-radius: 2px;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+    `;
+
+    // Glowing accent line on left edge
+    const accent = document.createElement("div");
+    accent.style.cssText = `
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 2px;
+      border-radius: 2px 0 0 2px;
+      background: rgb(0, 229, 204);
+      box-shadow: 0 0 10px rgba(0, 229, 204, 0.55);
+    `;
+
+    const texts = document.createElement("div");
+    texts.style.cssText = `display: flex; flex-direction: column; gap: 7px;`;
 
     const nameEl = document.createElement("div");
     nameEl.style.cssText = `
       font-family: 'Cormorant Garamond', 'Georgia', serif;
-      font-size: clamp(28px, 4.5vw, 42px);
-      font-weight: 600;
-      color: #ffffff;
-      letter-spacing: 0.18em;
+      font-size: clamp(18px, 2.2vw, 26px);
+      font-weight: 500;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-      text-shadow: 0 0 30px rgba(255, 255, 255, 0.15), 0 2px 4px rgba(0, 0, 0, 0.5);
-      opacity: 0;
-      animation: intro-name 1s ease-out 0.2s forwards;
+      color: #ffffff;
+      white-space: nowrap;
+      line-height: 1;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
     `;
     nameEl.textContent = "Alexander Lazarovich";
-
-    const divider = document.createElement("div");
-    divider.style.cssText = `
-      width: 40px;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(0, 229, 204, 0.6), transparent);
-      margin: 16px auto;
-      opacity: 0;
-      animation: intro-line 0.6s ease-out 0.8s forwards;
-    `;
 
     const titleEl = document.createElement("div");
     titleEl.style.cssText = `
       font-family: 'Cormorant Garamond', 'Georgia', serif;
-      font-size: clamp(13px, 1.6vw, 16px);
+      font-size: clamp(10px, 1.1vw, 13px);
       font-weight: 400;
-      color: rgba(0, 229, 204, 0.9);
-      letter-spacing: 0.25em;
+      letter-spacing: 0.2em;
       text-transform: uppercase;
-      opacity: 0;
-      animation: intro-subtitle 0.8s ease-out 1s forwards;
+      color: rgba(255, 255, 255, 0.52);
+      white-space: nowrap;
+      line-height: 1;
     `;
-    titleEl.textContent = "Full-Stack Engineer · Ra'anana";
+    titleEl.textContent = "Full-Stack Engineer  \u00b7  Ra\u2019anana";
+
+    texts.appendChild(nameEl);
+    texts.appendChild(titleEl);
+    strip.appendChild(accent);
+    strip.appendChild(texts);
+    el.appendChild(strip);
 
     this.injectIntroKeyframes();
-    el.appendChild(nameEl);
-    el.appendChild(divider);
-    el.appendChild(titleEl);
     return el;
   }
 
@@ -335,17 +351,9 @@ export class IntroSequence {
     const style = document.createElement("style");
     style.id = "intro-keyframes";
     style.textContent = `
-      @keyframes intro-name {
-        from { opacity: 0; transform: translateY(16px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      @keyframes intro-line {
-        from { opacity: 0; width: 0; margin-left: 20px; margin-right: 20px; }
-        to { opacity: 1; width: 40px; margin-left: auto; margin-right: auto; }
-      }
-      @keyframes intro-subtitle {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
+      @keyframes ident-in {
+        from { opacity: 0; transform: translateX(-110%); }
+        to   { opacity: 1; transform: translateX(0);     }
       }
     `;
     document.head.appendChild(style);

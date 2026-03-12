@@ -191,7 +191,6 @@ export async function initApp(container: HTMLElement): Promise<void> {
   let collisionStops: Stop[] = [...mockStops, bikeStop, mtbStop];
   // Timeline gates use proximity-based floating panel; only building stops use E-key
   const interactionStops: Stop[] = mockStops;
-  let allAssetsLoaded = false;
 
   // ── Load all assets ──────────────────────────────────────────────────────
   // 1. Images — start first, network-only
@@ -233,17 +232,6 @@ export async function initApp(container: HTMLElement): Promise<void> {
       return d;
     }),
   );
-
-  // Intro: boot + establishing shot during loading; approach when hero ready
-  const heroReadyPromise = Promise.all([characterPromise, dogPromise]).then(
-    ([c]) => {
-      intro.setCharacter(c);
-    },
-  );
-  intro = new IntroSequence(camera, scene, null, {
-    heroReady: heroReadyPromise,
-  });
-  console.log("🎬 Intro ready (black loading screen)");
 
   // 4. Timeline stops (portal GLB)
   const timelinePromise = ENABLE_TIMELINE_STOPS
@@ -302,18 +290,22 @@ export async function initApp(container: HTMLElement): Promise<void> {
     },
   );
 
-  Promise.all([
+  // Intro: shows loading text on black screen until ALL assets are ready,
+  // then hides the progress bar before the black overlay ever fades.
+  const heroReadyPromise = Promise.all([
     imagePromise,
     characterPromise,
     dogPromise,
     timelinePromise,
     arenaPropsPromise,
-  ])
-    .then(() => {
-      allAssetsLoaded = true;
-      console.log("📦 All assets loaded!");
-    })
-    .catch((err) => console.error("Asset loading error:", err));
+  ]).then(async () => {
+    if (character) intro.setCharacter(character);
+    await hideProgressIndicator(); // "Ready" → fade out → THEN reveal 3D world
+  }).catch((err) => console.error("Asset loading error:", err));
+
+  intro = new IntroSequence(camera, scene, null, {
+    heroReady: heroReadyPromise,
+  });
 
   initKeyboard();
   let lastEPressed = false;
@@ -437,9 +429,6 @@ export async function initApp(container: HTMLElement): Promise<void> {
   let postWaveStartPos = new THREE.Vector3();
   let postWaveStartLookAt = new THREE.Vector3();
   
-  // Track when to hide progress indicator
-  let progressHidden = false;
-
   function animate(time: number): void {
     requestAnimationFrame((t) => animate(t));
 
@@ -447,13 +436,6 @@ export async function initApp(container: HTMLElement): Promise<void> {
     lastTime = time;
 
     const introActive = intro.update(deltaSec);
-
-    // Hide progress indicator when BOTH intro is done AND all assets are loaded
-    if (!progressHidden && !introActive && allAssetsLoaded) {
-      console.log("🎉 Everything ready! Hiding progress indicator...");
-      hideProgressIndicator();
-      progressHidden = true;
-    }
 
     // When intro just ended: dog goes behind character in idle + start keyboard tutorial
     if (wasIntroActive && !introActive) {
