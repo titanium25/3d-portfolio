@@ -27,7 +27,7 @@ const DISCOVERY_SUBTITLES: Record<DiscoveryId, string> = {
   bmw:      "199hp of weekend therapy — found on the spawn pad",
   mtb:      "Friday morning chariot — found on the spawn pad",
   meny:     "Named after Manny from Ice Age — he's been following you",
-  monogram: "The author of this world — found on the spawn pad",
+  monogram: "The author of this world — found on the arena",
   lego:     "Still building things, one brick at a time",
   gym:      "5 days a week, no exceptions",
   twins:    "By Tomer & Alma, age 6",

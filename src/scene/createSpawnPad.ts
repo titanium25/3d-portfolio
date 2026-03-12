@@ -86,8 +86,6 @@ export interface SpawnPadContext {
   bikeCollisionGroup: THREE.Group;
   /** Collision proxy for the MTB bike (left side of spawn pad). */
   mtbCollisionGroup: THREE.Group;
-  /** AL monogram mesh on the spawn pad floor (synchronously available). */
-  monogramMesh: THREE.Mesh;
 }
 
 export interface SpawnPadOptions {
@@ -569,59 +567,6 @@ export function createSpawnPad(scene: Scene, options?: SpawnPadOptions): SpawnPa
   });
   spawnGroup.add(new THREE.Points(wfGuideGeom, wfGuideMat));
 
-  /* A-MG. Center floor monogram — abstract AL glyph
-   *       Geometric mark at very low opacity with slow rotation.
-   *       Reads as a decorative sigil, not literal text.
-   */
-  const monoSize = 512;
-  const monoCanvas = document.createElement("canvas");
-  monoCanvas.width = monoSize;
-  monoCanvas.height = monoSize;
-  const monoCtx = monoCanvas.getContext("2d")!;
-  monoCtx.clearRect(0, 0, monoSize, monoSize);
-
-  const mc = monoSize / 2;
-  const ms = monoSize * 0.25;
-
-  monoCtx.strokeStyle = "rgba(0, 229, 204, 0.55)";
-  monoCtx.lineWidth = 9;
-  monoCtx.lineCap = "round";
-  monoCtx.lineJoin = "round";
-
-  monoCtx.beginPath();
-  monoCtx.moveTo(mc + ms * 0.55, mc + ms * 0.45);
-  monoCtx.lineTo(mc - ms * 0.3, mc + ms * 0.45);
-  monoCtx.lineTo(mc - ms * 0.3, mc - ms * 0.1);
-  monoCtx.lineTo(mc, mc - ms * 0.5);
-  monoCtx.lineTo(mc + ms * 0.3, mc + ms * 0.05);
-  monoCtx.stroke();
-
-  monoCtx.lineWidth = 5;
-  monoCtx.beginPath();
-  monoCtx.moveTo(mc - ms * 0.12, mc + ms * 0.05);
-  monoCtx.lineTo(mc + ms * 0.12, mc + ms * 0.05);
-  monoCtx.stroke();
-
-  monoCtx.strokeStyle = "rgba(0, 229, 204, 0.15)";
-  monoCtx.lineWidth = 2;
-  monoCtx.beginPath();
-  monoCtx.arc(mc, mc, ms * 0.85, 0, Math.PI * 2);
-  monoCtx.stroke();
-
-  const monoTex = new THREE.CanvasTexture(monoCanvas);
-  const monoGeom = new THREE.PlaneGeometry(3.0, 3.0);
-  monoGeom.rotateX(-Math.PI / 2);
-  const monogramMesh = new THREE.Mesh(monoGeom, new THREE.MeshBasicMaterial({
-    map: monoTex,
-    transparent: true,
-    opacity: 0.10,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  }));
-  monogramMesh.position.set(0, 0.02, 0);
-  spawnGroup.add(monogramMesh);
-
   /* A9. BMW bike — parked at back-right edge of spawn pad
    *     Loaded async so it doesn't block the intro sequence.
    *     Position is in spawnGroup local space (centre = spawn pad centre).
@@ -1044,7 +989,6 @@ export function createSpawnPad(scene: Scene, options?: SpawnPadOptions): SpawnPa
     }
 
     floorMat.emissiveIntensity = 0.015 + Math.sin(time * 0.6) * 0.015;
-    monogramMesh.rotation.y = time * 0.08;
   }
 
   /* ── Add to scene ────────────────────────────────────────── */
@@ -1057,7 +1001,6 @@ export function createSpawnPad(scene: Scene, options?: SpawnPadOptions): SpawnPa
     update,
     bikeCollisionGroup,
     mtbCollisionGroup,
-    monogramMesh,
   };
 }
 

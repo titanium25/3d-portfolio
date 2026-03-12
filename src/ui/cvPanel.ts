@@ -1897,7 +1897,7 @@ function buildAboutTab(): HTMLDivElement {
         <span class="cv-interest-card-icon">🎮</span>
         <span class="cv-interest-card-label">Game Dev</span>
         <span class="cv-interest-card-sub">Side passion</span>
-        <span class="cv-interest-detail">Find the AL monogram on the spawn pad</span>
+        <span class="cv-interest-detail">Find the AL monogram on the arena</span>
       </div>
       <div class="cv-interest-card" data-discovery-id="lego" data-photo-album="lego">
         <span class="cv-interest-world">↗ In 3D world</span>

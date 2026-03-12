@@ -151,23 +151,23 @@ export async function initApp(container: HTMLElement): Promise<void> {
 
   // ── Monogram tooltip (synchronous — mesh is ready immediately) ───────────
   registerTooltipTarget({
-    object: spawnPad.monogramMesh,
+    object: ground.monogramMesh,
     title: "Alexander Lazarovich",
     subtitle: "Ra'anana, Israel · Full-stack engineer",
     yOffset: 0.3,
     discoveryId: "monogram",
     onClick: () => markDiscovered("monogram"),
     onHoverStart: () => {
-      const mat = spawnPad.monogramMesh.material as THREE.MeshBasicMaterial;
+      const mat = ground.monogramMesh.material as THREE.MeshBasicMaterial;
       if (mat) mat.opacity = 0.45;
     },
     onHoverEnd: () => {
-      const mat = spawnPad.monogramMesh.material as THREE.MeshBasicMaterial;
+      const mat = ground.monogramMesh.material as THREE.MeshBasicMaterial;
       if (mat) mat.opacity = 0.10;
     },
   });
   registerDiscoverableBeacon({
-    object: spawnPad.monogramMesh, discoveryId: "monogram",
+    object: ground.monogramMesh, discoveryId: "monogram",
     radius: 0.5, count: 3, rise: 0.4,
   });
 

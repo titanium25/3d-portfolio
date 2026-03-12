@@ -69,6 +69,8 @@ const COL_HUB = 0x263a4a;
 export interface GroundContext {
   group: THREE.Group;
   update(time: number): void;
+  /** AL monogram mesh on the arena hub floor (synchronously available). */
+  monogramMesh: THREE.Mesh;
 }
 
 /* ── Geometry helpers (hub pentagon uses point-up orientation) ── */
@@ -537,6 +539,57 @@ export function createGround(scene: Scene): GroundContext {
   });
   group.add(new THREE.Points(particleGeom, particleMat));
 
+  /* ── AL Monogram — abstract sigil on hub floor ───────────── */
+
+  const monoSize = 512;
+  const monoCanvas = document.createElement("canvas");
+  monoCanvas.width = monoSize;
+  monoCanvas.height = monoSize;
+  const monoCtx = monoCanvas.getContext("2d")!;
+  monoCtx.clearRect(0, 0, monoSize, monoSize);
+
+  const mc = monoSize / 2;
+  const ms = monoSize * 0.25;
+
+  monoCtx.strokeStyle = "rgba(0, 229, 204, 0.55)";
+  monoCtx.lineWidth = 9;
+  monoCtx.lineCap = "round";
+  monoCtx.lineJoin = "round";
+
+  monoCtx.beginPath();
+  monoCtx.moveTo(mc + ms * 0.55, mc + ms * 0.45);
+  monoCtx.lineTo(mc - ms * 0.3, mc + ms * 0.45);
+  monoCtx.lineTo(mc - ms * 0.3, mc - ms * 0.1);
+  monoCtx.lineTo(mc, mc - ms * 0.5);
+  monoCtx.lineTo(mc + ms * 0.3, mc + ms * 0.05);
+  monoCtx.stroke();
+
+  monoCtx.lineWidth = 5;
+  monoCtx.beginPath();
+  monoCtx.moveTo(mc - ms * 0.12, mc + ms * 0.05);
+  monoCtx.lineTo(mc + ms * 0.12, mc + ms * 0.05);
+  monoCtx.stroke();
+
+  monoCtx.strokeStyle = "rgba(0, 229, 204, 0.15)";
+  monoCtx.lineWidth = 2;
+  monoCtx.beginPath();
+  monoCtx.arc(mc, mc, ms * 0.85, 0, Math.PI * 2);
+  monoCtx.stroke();
+
+  const monoTex = new THREE.CanvasTexture(monoCanvas);
+  const monoGeom = new THREE.PlaneGeometry(3.0, 3.0);
+  monoGeom.rotateX(-Math.PI / 2);
+  const monogramMesh = new THREE.Mesh(monoGeom, new THREE.MeshBasicMaterial({
+    map: monoTex,
+    transparent: true,
+    opacity: 0.10,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  }));
+  monogramMesh.position.set(0, HUB_HEIGHT + 0.002, 0);
+  group.add(monogramMesh);
+
   /* ── Add to scene ────────────────────────────────────────── */
 
   scene.add(group);
@@ -570,7 +623,8 @@ export function createGround(scene: Scene): GroundContext {
       );
     }
     posAttr.needsUpdate = true;
+    monogramMesh.rotation.y = time * 0.08;
   }
 
-  return { group, update };
+  return { group, update, monogramMesh };
 }
