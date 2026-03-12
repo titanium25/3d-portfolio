@@ -9,6 +9,9 @@ build/
 .env
 .env.local
 
+# Claude Code local data (skills, cache)
+.claude/
+
 # IDE
 .vscode/
 .idea/
@@ -28,3 +31,17 @@ yarn-error.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# Vite
+.vite/
+
+# Local env variants
+.env.*.local
+.env.development
+.env.production
+
+# Coverage
+coverage/
+
+# Scripts output (generated assets are committed, but keep this as a note)
+# scripts/generate-favicons.mjs is intentionally committed

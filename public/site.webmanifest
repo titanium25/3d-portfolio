@@ -1,0 +1,21 @@
+{
+  "name": "Alexander Lazarovich — Full Stack Engineer",
+  "short_name": "AL Portfolio",
+  "description": "Interactive 3D portfolio of Alexander Lazarovich, Full Stack Engineer.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1d2e",
+  "theme_color": "#1a1d2e",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

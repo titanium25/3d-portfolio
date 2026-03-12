@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Disallow large asset directories that don't need indexing
+Disallow: /models/
+Disallow: /textures/
+
+Sitemap: https://3d-portfolio-eight-eta.vercel.app/sitemap.xml
