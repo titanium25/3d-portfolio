@@ -106,18 +106,28 @@ function injectStyles(): void {
       70%  { transform: scale(0.92); }
       100% { transform: scale(1); opacity: 1; }
     }
+    @keyframes cvBadgeBump {
+      0%   { transform: scale(1);    box-shadow: 0 0 0 3px #0a0e14, 0 0 8px rgba(0,229,204,0.4), 0 0 0 0px rgba(0,229,204,0.7); }
+      35%  { transform: scale(1.25); box-shadow: 0 0 0 3px #0a0e14, 0 0 18px rgba(0,229,204,0.9), 0 0 0 5px rgba(0,229,204,0.25); }
+      65%  { transform: scale(0.93); box-shadow: 0 0 0 3px #0a0e14, 0 0 12px rgba(0,229,204,0.5), 0 0 0 9px rgba(0,229,204,0.07); }
+      100% { transform: scale(1);    box-shadow: 0 0 0 3px #0a0e14, 0 0 8px rgba(0,229,204,0.4), 0 0 0 12px rgba(0,229,204,0); }
+    }
+    .cv-badge-bump { animation: cvBadgeBump 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) !important; }
     @keyframes cvBadgeGlow {
       0%, 100% { box-shadow: 0 0 0 3px #0a0e14, 0 0 8px rgba(251,191,36,0.35), 0 0 20px rgba(251,191,36,0.1), inset 0 0 6px rgba(251,191,36,0.08); }
       50%      { box-shadow: 0 0 0 3px #0a0e14, 0 0 14px rgba(251,191,36,0.55), 0 0 32px rgba(251,191,36,0.2), inset 0 0 8px rgba(251,191,36,0.15); }
     }
 
     #cv-btn.cv-btn-has-unlocks {
-      border-color: rgba(0,229,204,0.5);
-      box-shadow: 0 0 18px rgba(0,229,204,0.2);
+      border-color: rgba(0,229,204,0.55);
     }
     #cv-btn.cv-btn-complete {
-      border-color: rgba(251, 191, 36, 0.35) !important;
-      box-shadow: 0 0 16px rgba(251,191,36,0.12), 0 0 16px rgba(0,229,204,0.15) !important;
+      border-color: rgba(251,191,36,0.45);
+      animation-name: cvBtnComplete;
+    }
+    @keyframes cvBtnComplete {
+      0%, 100% { box-shadow: inset 0 0 0 1px rgba(251,191,36,0.08), 0 0 14px rgba(251,191,36,0.12), 0 0 18px rgba(0,229,204,0.08), 0 2px 12px rgba(0,0,0,0.5); }
+      50%       { box-shadow: inset 0 0 0 1px rgba(251,191,36,0.14), 0 0 26px rgba(251,191,36,0.22), 0 0 26px rgba(0,229,204,0.12), 0 2px 12px rgba(0,0,0,0.5); }
     }
 
     #gate-unlock-tooltip {
@@ -242,13 +252,13 @@ function injectStyles(): void {
     /* ── Game notification toast ── */
     .unlock-toast {
       position: fixed;
-      top: 4.5rem;
-      right: 1.25rem;
+      top: calc(4.8rem + env(safe-area-inset-top, 0px));
+      right: calc(1.25rem + env(safe-area-inset-right, 0px));
       z-index: 2052;
       display: flex;
       align-items: stretch;
-      width: 308px;
-      border-radius: 12px;
+      width: min(308px, calc(100vw - 2rem));
+      border-radius: 6px;
       background: rgba(8, 12, 18, 0.97);
       border: 1px solid rgba(0,229,204,0.16);
       backdrop-filter: blur(20px);
@@ -293,9 +303,11 @@ function injectStyles(): void {
       pointer-events: none;
     }
     .toast-icon-glyph {
-      font-size: 1.35rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       color: #00e5cc;
-      text-shadow: 0 0 10px rgba(0,229,204,1), 0 0 24px rgba(0,229,204,0.6);
+      filter: drop-shadow(0 0 7px rgba(0,229,204,0.95)) drop-shadow(0 0 18px rgba(0,229,204,0.5));
       position: relative;
       z-index: 1;
       animation: toastIconPop 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.18s both;
@@ -309,15 +321,33 @@ function injectStyles(): void {
     /* Body */
     .toast-body {
       flex: 1;
-      padding: 0.62rem 0.9rem 0.75rem;
+      padding: 0.62rem 1.8rem 0.75rem 0.9rem;
       display: flex;
       flex-direction: column;
       gap: 0.12rem;
       min-width: 0;
     }
+    /* Dismiss button */
+    .toast-dismiss {
+      position: absolute;
+      top: 5px; right: 6px;
+      width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.18);
+      font-size: 0.85rem;
+      line-height: 1;
+      cursor: pointer;
+      border-radius: 3px;
+      padding: 0;
+      transition: color 0.15s ease, background 0.15s ease;
+      z-index: 2;
+    }
+    .toast-dismiss:hover { color: rgba(255,255,255,0.65); background: rgba(255,255,255,0.07); }
     .toast-category {
       font-family: 'Inter', system-ui, sans-serif;
-      font-size: 0.44rem;
+      font-size: 0.56rem;
       font-weight: 800;
       letter-spacing: 0.14em;
       text-transform: uppercase;
@@ -499,7 +529,7 @@ function injectStyles(): void {
     }
     .unlock-toast.is-final .toast-icon-glyph {
       color: #fbbf24;
-      text-shadow: 0 0 10px rgba(251,191,36,1), 0 0 24px rgba(251,191,36,0.6);
+      filter: drop-shadow(0 0 7px rgba(251,191,36,0.95)) drop-shadow(0 0 18px rgba(251,191,36,0.5));
     }
     .unlock-toast.is-final .toast-category { color: rgba(251,191,36,0.6); }
     .unlock-toast.is-final .toast-shimmer {
@@ -568,12 +598,11 @@ export function refreshProgressDots(): void {
   const isFull = gateCount === TIMELINE_STOPS.length;
   const newText = isFull ? "✦" : String(total);
 
-  // Animate the number change with a quick scale bump
   if (badge.textContent !== newText) {
     badge.textContent = newText;
-    badge.style.animation = "none";
-    void badge.offsetHeight;
-    badge.style.animation = "";
+    badge.classList.remove("cv-badge-bump");
+    requestAnimationFrame(() => badge.classList.add("cv-badge-bump"));
+    badge.addEventListener("animationend", () => badge.classList.remove("cv-badge-bump"), { once: true });
   }
 
   badge.classList.toggle("is-complete", isFull);
@@ -935,11 +964,20 @@ export async function showGameToast(opts: GameToastOptions): Promise<void> {
       ${opts.hint ? `<div class="toast-hint">${opts.hint}</div>` : ""}
       ${tab ? `<div class="toast-open-cta">${ctaLabel} <span class="toast-open-cta-arrow">→</span></div>` : ""}
     </div>
+    <button class="toast-dismiss" aria-label="Dismiss">&times;</button>
     <div class="toast-shimmer"></div>
     <div class="toast-drain">
       <div class="toast-drain-fill" style="--hold-ms: ${holdMs}ms"></div>
     </div>
   `;
+
+  toast.querySelector<HTMLButtonElement>('.toast-dismiss')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toast.classList.remove('visible');
+    if (activeToastEl === toast) { activeToastEl = null; }
+    if (activeToastTimer) { clearTimeout(activeToastTimer); activeToastTimer = null; }
+    setTimeout(() => toast.remove(), 420);
+  }, { once: true });
   document.body.appendChild(toast);
   activeToastEl = toast;
 
@@ -996,8 +1034,11 @@ async function playRevelation(
   const isFinal = completedCount === totalGates;
   const holdMs = isFinal ? 4000 : 2500;
 
+  const iconMilestone = `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 2L13.8 8.2L20.5 8.2L15.2 12.3L17.4 18.8L11 15L4.6 18.8L6.8 12.3L1.5 8.2L8.2 8.2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="rgba(0,229,204,0.12)"/></svg>`;
+  const iconFinal     = `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 2L13.8 8.2L20.5 8.2L15.2 12.3L17.4 18.8L11 15L4.6 18.8L6.8 12.3L1.5 8.2L8.2 8.2Z" fill="currentColor"/></svg>`;
+
   const toastPromise = showGameToast({
-    icon: isFinal ? "\u2605" : "\u2726",
+    icon: isFinal ? iconFinal : iconMilestone,
     category: isFinal ? "JOURNEY COMPLETE" : "MILESTONE EXPLORED",
     title: isFinal ? "Journey Complete" : `${stopCompany} ${stopYear} \u2014 Explored`,
     subtitle: isFinal

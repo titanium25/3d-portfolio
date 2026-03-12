@@ -60,8 +60,11 @@ export function markDiscovered(id: DiscoveryId): boolean {
 
   addDiscoveryToBadge();
 
+  const iconDiscover = `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 4h3.5M4 4v3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M18 4h-3.5M18 4v3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M18 18h-3.5M18 18v-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4 18h3.5M4 18v-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="11" cy="11" r="2.2" fill="currentColor"/><line x1="11" y1="7.5" x2="11" y2="9.3" stroke="currentColor" stroke-width="1.2" opacity="0.5" stroke-linecap="round"/><line x1="11" y1="12.7" x2="11" y2="14.5" stroke="currentColor" stroke-width="1.2" opacity="0.5" stroke-linecap="round"/><line x1="7.5" y1="11" x2="9.3" y2="11" stroke="currentColor" stroke-width="1.2" opacity="0.5" stroke-linecap="round"/><line x1="12.7" y1="11" x2="14.5" y2="11" stroke="currentColor" stroke-width="1.2" opacity="0.5" stroke-linecap="round"/></svg>`;
+  const iconAllFound  = `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 2L13.8 8.2L20.5 8.2L15.2 12.3L17.4 18.8L11 15L4.6 18.8L6.8 12.3L1.5 8.2L8.2 8.2Z" fill="currentColor"/></svg>`;
+
   showGameToast({
-    icon: "◆",
+    icon: iconDiscover,
     category: "OBJECT DISCOVERED",
     title: DISCOVERY_LABELS[id],
     subtitle: DISCOVERY_SUBTITLES[id],
@@ -76,7 +79,7 @@ export function markDiscovered(id: DiscoveryId): boolean {
     bonusShown = true;
     setTimeout(() => {
       showGameToast({
-        icon: "★",
+        icon: iconAllFound,
         category: "ALL SECRETS FOUND",
         title: "Portfolio — Fully Explored",
         subtitle: "Every hidden object discovered · Check the About tab",

@@ -63,36 +63,146 @@ function injectStyles(): void {
     /* ── Button ── */
     #cv-btn {
       position: fixed;
-      top: 1.1rem;
-      right: 1.25rem;
+      top: calc(1rem + env(safe-area-inset-top, 0px));
+      right: calc(1.25rem + env(safe-area-inset-right, 0px));
       z-index: 2000;
       display: flex;
       align-items: center;
-      gap: 0.45rem;
-      padding: 0.48rem 1rem 0.48rem 0.75rem;
-      background: rgba(0,229,204,0.08);
-      border: 1px solid rgba(0,229,204,0.35);
-      border-radius: 24px;
+      gap: 0.6rem;
+      padding: 0.52rem 1.1rem 0.52rem 0.85rem;
+      background: rgba(6,11,20,0.88);
+      border: 1px solid rgba(0,229,204,0.4);
+      border-radius: 5px;
       color: #00e5cc;
-      font-size: 0.8rem;
-      font-weight: 600;
       cursor: pointer;
-      letter-spacing: 0.03em;
-      box-shadow: 0 0 16px rgba(0,229,204,0.1);
-      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.15s;
-      animation: cvBtnPulse 3.5s ease-in-out infinite;
+      white-space: nowrap;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow:
+        0 0 20px rgba(0,229,204,0.12),
+        0 4px 16px rgba(0,0,0,0.6),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+      transition: background 0.2s ease, border-color 0.25s ease, box-shadow 0.3s ease, transform 0.15s ease;
+      animation: cvBtnIdle 5s ease-in-out infinite;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
+    /* Scanline + accent layer — position:absolute overlay so overflow:hidden
+       never touches the badge which is appended directly to #cv-btn */
+    .cv-btn-inner {
+      position: absolute;
+      inset: 0;
+      border-radius: 4px;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    /* Scanline sweep */
+    .cv-btn-inner::before {
+      content: '';
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 70px;
+      left: -70px;
+      background: linear-gradient(
+        to right,
+        transparent,
+        rgba(0,229,204,0.1) 35%,
+        rgba(255,255,255,0.18) 50%,
+        rgba(0,229,204,0.1) 65%,
+        transparent
+      );
+      animation: cvBtnScan 7s ease-in-out infinite 2s;
+    }
+    @keyframes cvBtnScan {
+      0%   { left: -70px; }
+      100% { left: calc(100% + 70px); }
+    }
+    /* Bottom accent line */
+    .cv-btn-inner::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 15%; right: 15%;
+      height: 1px;
+      background: linear-gradient(to right, transparent, rgba(0,229,204,0.75) 50%, transparent);
+      opacity: 0.45;
+      transition: opacity 0.25s ease, left 0.25s ease, right 0.25s ease;
+    }
+    #cv-btn:hover .cv-btn-inner::after { opacity: 1; left: 5%; right: 5%; }
+    /* Corner brackets (DOM spans, not pseudo) */
+    .cv-btn-tl, .cv-btn-br {
+      position: absolute;
+      width: 7px; height: 7px;
+      pointer-events: none;
+      transition: width 0.22s ease, height 0.22s ease, border-color 0.22s ease;
+    }
+    .cv-btn-tl {
+      top: 3px; left: 3px;
+      border-top: 1.5px solid rgba(0,229,204,0.5);
+      border-left: 1.5px solid rgba(0,229,204,0.5);
+    }
+    .cv-btn-br {
+      bottom: 3px; right: 3px;
+      border-bottom: 1.5px solid rgba(0,229,204,0.5);
+      border-right: 1.5px solid rgba(0,229,204,0.5);
+    }
+    #cv-btn:hover .cv-btn-tl,
+    #cv-btn:hover .cv-btn-br { width: 12px; height: 12px; border-color: #00e5cc; }
+    /* Hover */
     #cv-btn:hover {
-      background: rgba(0,229,204,0.16);
-      border-color: rgba(0,229,204,0.65);
-      box-shadow: 0 0 24px rgba(0,229,204,0.22);
+      background: rgba(0,229,204,0.07);
+      border-color: rgba(0,229,204,0.72);
+      box-shadow:
+        0 0 38px rgba(0,229,204,0.28),
+        0 4px 16px rgba(0,0,0,0.6),
+        inset 0 1px 0 rgba(255,255,255,0.07);
       transform: translateY(-1px);
-      animation: none;
+      animation-play-state: paused;
     }
-    #cv-btn:active { transform: translateY(0) scale(0.97); animation: none; }
-    @keyframes cvBtnPulse {
-      0%, 100% { box-shadow: 0 0 12px rgba(0,229,204,0.1); }
-      50%       { box-shadow: 0 0 22px rgba(0,229,204,0.28); }
+    #cv-btn:active { transform: translateY(0) scale(0.96); animation-play-state: paused; }
+    #cv-btn:focus-visible { outline: 2px solid rgba(0,229,204,0.7); outline-offset: 3px; }
+    @keyframes cvBtnIdle {
+      0%, 100% {
+        box-shadow: 0 0 16px rgba(0,229,204,0.1), 0 4px 16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04);
+        border-color: rgba(0,229,204,0.38);
+      }
+      50% {
+        box-shadow: 0 0 32px rgba(0,229,204,0.22), 0 4px 16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+        border-color: rgba(0,229,204,0.58);
+      }
+    }
+    /* Icon */
+    .cv-btn-icon { flex-shrink: 0; opacity: 0.85; transition: opacity 0.2s ease, transform 0.2s ease; }
+    #cv-btn:hover .cv-btn-icon { opacity: 1; transform: scale(1.12); }
+    /* Text stack */
+    .cv-btn-text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.1rem;
+      line-height: 1;
+    }
+    .cv-btn-label {
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      color: #00e5cc;
+      transition: color 0.2s ease;
+    }
+    #cv-btn:hover .cv-btn-label { color: #fff; }
+    .cv-btn-sub {
+      font-size: 0.57rem;
+      font-weight: 500;
+      letter-spacing: 0.07em;
+      color: rgba(0,229,204,0.42);
+      font-family: 'Courier New', Courier, monospace;
+      transition: color 0.2s ease;
+    }
+    #cv-btn:hover .cv-btn-sub { color: rgba(0,229,204,0.72); }
+    /* Mobile: hide subtitle, ensure 44px touch target */
+    @media (max-width: 480px) {
+      #cv-btn { padding: 0 0.85rem; min-height: 44px; }
+      .cv-btn-sub { display: none; }
     }
 
     /* ── Overlay ── */
@@ -1269,6 +1379,60 @@ function getCompletedCount(): number {
   return TIMELINE_STOPS.filter((s) => isStopCompleted(s.id)).length;
 }
 
+// ── Button animations ─────────────────────────────────────────────────────────
+
+const GLITCH_CHARS = '▓▒░█01XABCF><#/';
+
+function bootSequence(btn: HTMLButtonElement): void {
+  const label = btn.querySelector<HTMLElement>('.cv-btn-label');
+  const sub   = btn.querySelector<HTMLElement>('.cv-btn-sub');
+  if (!label) return;
+
+  const target = 'RESUME';
+  if (sub) { sub.style.opacity = '0'; sub.style.transition = 'opacity 0.5s ease'; }
+
+  // Start with noise, resolve letter by letter
+  let i = 0;
+  const tick = setInterval(() => {
+    label.textContent = target.slice(0, i)
+      + Array.from({ length: target.length - i }, () =>
+          GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)]
+        ).join('');
+    i++;
+    if (i > target.length) {
+      label.textContent = target;
+      clearInterval(tick);
+      if (sub) requestAnimationFrame(() => { sub.style.opacity = '1'; });
+    }
+  }, 65);
+}
+
+function addGlitchEffect(btn: HTMLButtonElement): void {
+  const label = btn.querySelector<HTMLElement>('.cv-btn-label');
+  if (!label) return;
+
+  const target = 'RESUME';
+
+  function glitch(): void {
+    // Skip if button is hovered or label isn't showing the resolved text
+    if (label.textContent !== target) return;
+    let frame = 0;
+    const total = 14;
+    const run = setInterval(() => {
+      if (frame >= total) { label.textContent = target; clearInterval(run); return; }
+      label.textContent = target
+        .split('')
+        .map((c, idx) => idx < Math.floor(frame / 2) ? c : GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)])
+        .join('');
+      frame++;
+    }, 40);
+  }
+
+  const schedule = () => setTimeout(() => { glitch(); schedule(); }, 11000 + Math.random() * 7000);
+  schedule();
+  btn.addEventListener('mouseenter', glitch);
+}
+
 // ── DOM ──────────────────────────────────────────────────────────────────────
 
 function createCVPanel(): void {
@@ -1279,15 +1443,27 @@ function createCVPanel(): void {
   // Button
   const btn = document.createElement("button");
   btn.id = "cv-btn";
+  btn.setAttribute("aria-label", "Open Resume — Alexander Lazarovich");
   btn.innerHTML = `
-    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-      <rect x="1" y="1" width="12" height="12" rx="2" stroke="#00e5cc" stroke-width="1.4"/>
-      <path d="M4 5h6M4 7.5h6M4 10h4" stroke="#00e5cc" stroke-width="1.3" stroke-linecap="round"/>
+    <span class="cv-btn-inner" aria-hidden="true"></span>
+    <span class="cv-btn-tl" aria-hidden="true"></span>
+    <span class="cv-btn-br" aria-hidden="true"></span>
+    <svg class="cv-btn-icon" width="18" height="15" viewBox="0 0 22 18" fill="none" aria-hidden="true">
+      <circle cx="7" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M1 16c0-3.2 2.5-5 6-5s6 1.8 6 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="15" y1="6"  x2="21" y2="6"  stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="15" y1="9"  x2="20" y2="9"  stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="15" y1="12" x2="18" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
-    Resume
+    <span class="cv-btn-text">
+      <span class="cv-btn-label">RESUME</span>
+      <span class="cv-btn-sub">// access file</span>
+    </span>
   `;
   btn.onclick = openCVPanel;
   document.body.appendChild(btn);
+  bootSequence(btn);
+  addGlitchEffect(btn);
 
   // Overlay
   const overlay = document.createElement("div");
