@@ -61,11 +61,11 @@ function injectStyles(): void {
 
     #ls-status {
       font-family: 'Cormorant Garamond', 'Georgia', serif;
-      font-size: clamp(9px, 1.2vw, 11px);
+      font-size: clamp(11px, 1.4vw, 12px);
       font-weight: 400;
       letter-spacing: 0.16em;
       text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.45);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -74,10 +74,10 @@ function injectStyles(): void {
 
     #ls-pct {
       font-family: 'Cormorant Garamond', 'Georgia', serif;
-      font-size: clamp(9px, 1.2vw, 11px);
+      font-size: clamp(11px, 1.4vw, 12px);
       font-weight: 300;
       letter-spacing: 0.1em;
-      color: rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.38);
       white-space: nowrap;
       font-variant-numeric: tabular-nums;
       flex-shrink: 0;
@@ -88,8 +88,8 @@ function injectStyles(): void {
 
     #ls-track {
       width: 100%;
-      height: 1px;
-      background: rgba(255, 255, 255, 0.06);
+      height: 2px;
+      background: rgba(255, 255, 255, 0.10);
       position: relative;
       border-radius: 1px;
       overflow: hidden;
@@ -98,27 +98,57 @@ function injectStyles(): void {
     #ls-fill {
       height: 100%;
       width: 0%;
-      background: rgba(255, 255, 255, 0.5);
-      box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.6);
+      box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
       transition: width 0.42s cubic-bezier(0.4, 0, 0.2, 1);
       border-radius: 1px;
     }
 
     /* Complete state */
     #ls-fill.ls-done {
-      background: rgba(255, 255, 255, 0.65);
-      box-shadow: 0 0 6px rgba(255, 255, 255, 0.4);
+      background: rgba(0, 229, 204, 0.6);
+      box-shadow: 0 0 8px rgba(0, 229, 204, 0.35);
     }
 
     #ls-status.ls-done,
     #ls-pct.ls-done {
-      color: rgba(255, 255, 255, 0.3);
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    @keyframes ls-phase-swap {
+      0%   { opacity: 1; }
+      30%  { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
+
+    #ls-status.ls-phase-swap {
+      animation: ls-phase-swap 0.4s ease both;
     }
 
     @media (max-width: 600px) {
       #ls-inner {
         padding: 9px 20px calc(13px + env(safe-area-inset-bottom, 0px));
         gap: 8px;
+      }
+
+      #ls-status {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      #ls-pct {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.45);
+      }
+
+      #ls-track {
+        height: 3px;
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      #ls-fill {
+        background: rgba(0, 229, 204, 0.5);
+        box-shadow: 0 0 8px rgba(0, 229, 204, 0.3);
       }
     }
   `;
@@ -193,8 +223,17 @@ export function assetLoaded(): void {
     progressBar.style.width = `${pct}%`;
   }
 
-  if (statusLabel) statusLabel.textContent = getPhaseMsg(pct);
-  if (pctEl)       pctEl.textContent = `${pct}%`;
+  if (statusLabel) {
+    const nextMsg = getPhaseMsg(pct);
+    if (statusLabel.textContent !== nextMsg) {
+      statusLabel.classList.remove("ls-phase-swap");
+      void statusLabel.offsetWidth; // force reflow to restart animation
+      statusLabel.textContent = nextMsg;
+      statusLabel.classList.add("ls-phase-swap");
+      statusLabel.addEventListener("animationend", () => statusLabel!.classList.remove("ls-phase-swap"), { once: true });
+    }
+  }
+  if (pctEl) pctEl.textContent = `${pct}%`;
 }
 
 /**

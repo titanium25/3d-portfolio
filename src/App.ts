@@ -47,7 +47,12 @@ import {
   registerTooltipTarget,
   updateWorldTooltip,
 } from "./ui/worldTooltip";
-import { markDiscovered } from "./ui/discoveryTracker";
+import { markDiscovered, getDiscoveryCount } from "./ui/discoveryTracker";
+import {
+  initDevPanel,
+  updateDevPanel,
+  isDevPanelVisible,
+} from "./ui/devPanel";
 import {
   registerDiscoverableBeacon,
   updateDiscoverableBeacons,
@@ -314,113 +319,63 @@ export async function initApp(container: HTMLElement): Promise<void> {
   let lastTime = performance.now();
 
   // ── Dev Mode: free camera with OrbitControls + debug HUD ──
-  let devMode = false;
   const orbitControls = new OrbitControls(camera, renderer.domElement);
   orbitControls.enabled = false;
   orbitControls.enableDamping = true;
   orbitControls.dampingFactor = 0.08;
-  orbitControls.minDistance = 1;
-  orbitControls.maxDistance = 60;
-  orbitControls.maxPolarAngle = Math.PI * 0.85;
+  orbitControls.minDistance = 0.5;
+  orbitControls.maxDistance = 120;
+  orbitControls.maxPolarAngle = Math.PI; // allow full vertical range in dev mode
+  orbitControls.screenSpacePanning = true; // pan parallel to screen, not world floor
+  // Left-click/single-touch = pan  ·  right-click/two-touch = orbit
+  orbitControls.mouseButtons = {
+    LEFT:   THREE.MOUSE.PAN,
+    MIDDLE: THREE.MOUSE.DOLLY,
+    RIGHT:  THREE.MOUSE.ROTATE,
+  };
+  orbitControls.touches = {
+    ONE: THREE.TOUCH.PAN,
+    TWO: THREE.TOUCH.DOLLY_ROTATE,
+  };
 
-  // ── Debug HUD panel ──
-  const devPanel = document.createElement("div");
-  Object.assign(devPanel.style, {
-    position: "fixed",
-    top: "0",
-    left: "0",
-    width: "320px",
-    maxHeight: "100vh",
-    overflowY: "auto",
-    background: "rgba(10, 10, 18, 0.88)",
-    color: "#e0e0e0",
-    fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', monospace",
-    fontSize: "11px",
-    lineHeight: "1.5",
-    padding: "10px 14px",
-    zIndex: "9999",
-    pointerEvents: "none",
-    display: "none",
-    borderRight: "1px solid rgba(255,255,255,0.08)",
-    backdropFilter: "blur(8px)",
-    boxSizing: "border-box",
+  // Free-camera WASD velocity (dev mode only)
+  const freeCamVel = new THREE.Vector3();
+  const _camDir    = new THREE.Vector3();
+  const _camRight  = new THREE.Vector3();
+  const _up        = new THREE.Vector3(0, 1, 0);
+
+  initDevPanel({
+    camera,
+    renderer,
+    getCharacter: () => character,
+    getDog: () => dog,
+    getCompletedGateCount: () => TIMELINE_STOPS.filter((s) => isStopCompleted(s.id)).length,
+    getDiscoveryCount,
+    getOrbitTarget: () => orbitControls.target,
+    setCameraLookAt: (camPos, target) => {
+      camera.position.set(...camPos);
+      orbitControls.target.set(...target);
+      freeCamVel.set(0, 0, 0);
+      orbitControls.update();
+    },
   });
-  document.body.appendChild(devPanel);
 
-  // FPS tracking
-  let fpsFrames = 0;
-  let fpsLastTime = performance.now();
-  let fpsDisplay = 0;
-
-  function buildSection(title: string, data: Record<string, string>, color: string): string {
-    let html = `<div style="color:${color};font-weight:bold;font-size:12px;margin-top:8px;margin-bottom:3px;border-bottom:1px solid ${color}33;padding-bottom:2px">${title}</div>`;
-    for (const [key, val] of Object.entries(data)) {
-      html += `<div style="display:flex;justify-content:space-between"><span style="color:#888">${key}</span><span style="color:#ccc">${val}</span></div>`;
-    }
-    return html;
-  }
-
-  function updateDevHUD(): void {
-    // FPS
-    fpsFrames++;
-    const now = performance.now();
-    if (now - fpsLastTime >= 500) {
-      fpsDisplay = Math.round((fpsFrames * 1000) / (now - fpsLastTime));
-      fpsFrames = 0;
-      fpsLastTime = now;
-    }
-
-    const info = renderer.info;
-    const cp = camera.position;
-
-    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">` +
-      `<span style="color:#ff3c3c;font-weight:bold;font-size:13px;letter-spacing:1px">DEV MODE</span>` +
-      `<span style="color:#6f6;font-weight:bold;font-size:13px">${fpsDisplay} FPS</span></div>`;
-
-    // Scene
-    html += buildSection("Scene", {
-      triangles: info.render.triangles.toLocaleString(),
-      "draw calls": String(info.render.calls),
-      geometries: String(info.memory.geometries),
-      textures: String(info.memory.textures),
-    }, "#7cacf8");
-
-    // Camera
-    html += buildSection("Camera", {
-      position: `${cp.x.toFixed(2)}, ${cp.y.toFixed(2)}, ${cp.z.toFixed(2)}`,
-      rotation: `${THREE.MathUtils.radToDeg(camera.rotation.x).toFixed(1)}°, ${THREE.MathUtils.radToDeg(camera.rotation.y).toFixed(1)}°, ${THREE.MathUtils.radToDeg(camera.rotation.z).toFixed(1)}°`,
-      fov: `${camera.fov.toFixed(0)}°`,
-    }, "#f8c87c");
-
-    // Player
-    if (character) {
-      html += buildSection("Player", character.getDebugInfo(), "#7cf8a4");
-    }
-
-    // Dog
-    if (dog) {
-      const dogDebug = dog.getDebugInfo();
-      html += buildSection("Dog", dogDebug, "#c87cf8");
-    }
-
-    // Controls hint
-    html += `<div style="margin-top:10px;color:#555;font-size:10px;text-align:center;border-top:1px solid #ffffff10;padding-top:6px">` +
-      `drag to rotate · scroll to zoom · \` to exit</div>`;
-
-    devPanel.innerHTML = html;
-  }
-
+  // Sync orbit controls whenever dev panel visibility changes
   window.addEventListener("keydown", (e) => {
     if (e.code === "Backquote") {
-      devMode = !devMode;
-      orbitControls.enabled = devMode;
-      devPanel.style.display = devMode ? "block" : "none";
-
-      if (devMode && character) {
-        const p = character.group.position;
-        orbitControls.target.set(p.x, 0.5, p.z);
-        orbitControls.update();
-      }
+      // visibility has already been toggled by devPanel's own keydown listener
+      // (both listeners share the same event, so read state after a microtask)
+      queueMicrotask(() => {
+        const nowVisible = isDevPanelVisible();
+        orbitControls.enabled = nowVisible;
+        if (nowVisible && character) {
+          const p = character.group.position;
+          orbitControls.target.set(p.x, 0.5, p.z);
+          orbitControls.update();
+        } else {
+          freeCamVel.set(0, 0, 0);
+        }
+      });
     }
   });
 
@@ -471,9 +426,33 @@ export async function initApp(container: HTMLElement): Promise<void> {
       updateDiscoverableBeacons(time * 0.001, character.group.position);
     }
 
-    if (devMode) {
+    if (isDevPanelVisible()) {
+      // ── Free camera WASD movement ────────────────────────────────────────
+      const sprint   = isKeyPressed("ShiftLeft") || isKeyPressed("ShiftRight");
+      const CAM_ACCEL = sprint ? 0.22 : 0.07;
+      const CAM_DECEL = 0.82;
+
+      camera.getWorldDirection(_camDir);
+      _camDir.y = 0;
+      if (_camDir.lengthSq() > 0.0001) _camDir.normalize();
+      _camRight.crossVectors(_camDir, _up).normalize();
+
+      if (isKeyPressed("KeyW") || isKeyPressed("ArrowUp"))    freeCamVel.addScaledVector(_camDir,  CAM_ACCEL);
+      if (isKeyPressed("KeyS") || isKeyPressed("ArrowDown"))  freeCamVel.addScaledVector(_camDir, -CAM_ACCEL);
+      if (isKeyPressed("KeyA") || isKeyPressed("ArrowLeft"))  freeCamVel.addScaledVector(_camRight, -CAM_ACCEL);
+      if (isKeyPressed("KeyD") || isKeyPressed("ArrowRight")) freeCamVel.addScaledVector(_camRight,  CAM_ACCEL);
+      if (isKeyPressed("KeyE")) freeCamVel.y += CAM_ACCEL;
+      if (isKeyPressed("KeyQ")) freeCamVel.y -= CAM_ACCEL;
+
+      freeCamVel.multiplyScalar(CAM_DECEL);
+
+      if (freeCamVel.lengthSq() > 0.00001) {
+        orbitControls.target.add(freeCamVel);
+        camera.position.add(freeCamVel);
+      }
+
       orbitControls.update();
-      updateDevHUD();
+      updateDevPanel();
     } else if (!introActive && !isTransitionOpen() && character) {
       const isWaving = character.isWaving();
 

@@ -1,0 +1,41 @@
+# Alexander Lazarovich — Full Stack Engineer
+
+> Interactive 3D portfolio at https://www.alexlaz.dev — explore my career in an immersive Three.js world.
+
+## Who I Am
+
+Alexander Lazarovich (Alex Laz) is a Full Stack Engineer with 5+ years of experience building production web applications. Based in Israel. Passionate about clean architecture, interactive UIs, and developer tooling.
+
+## Skills & Stack
+
+- **Frontend**: React, TypeScript, Redux, Next.js, Three.js, WebGL
+- **Backend**: Node.js, NestJS, REST APIs, GraphQL, Microservices
+- **Databases**: PostgreSQL, MongoDB, Redis
+- **Cloud & DevOps**: AWS, Docker, CI/CD pipelines
+- **Other**: WebSockets, Jest, Cypress, Storybook
+
+## Career Timeline
+
+### The5ers (2024 – present)
+Full Stack Engineer at a proprietary trading firm. Built trading dashboards, risk management tools, and real-time data pipelines.
+
+### Triolla (2023 – 2024)
+Full Stack Engineer. Developed SaaS platform features and led frontend architecture decisions using React and NestJS.
+
+### Restigo (2022 – 2023)
+Full Stack Engineer at a restaurant management SaaS startup. Implemented core product features end-to-end.
+
+### ASML (2018 – 2022)
+Software Engineer at the world's leading semiconductor lithography company. Built internal tooling and automation systems in a high-precision engineering environment.
+
+## About This Site
+
+This portfolio is itself a demonstration of technical skill — an open-world 3D experience built entirely from scratch:
+- Engine: Three.js (WebGL), TypeScript, Vite
+- Features: GLTF character models with animation state machines, procedural dog AI, timeline gate portals, click-to-discover objects, cinematic overlays, mobile touch controls
+- No frameworks or game engines — pure Three.js + custom physics
+
+## Contact & CV
+
+- Portfolio: https://www.alexlaz.dev/
+- CV download: https://www.alexlaz.dev/AL_CV_TH5_v1.pdf
