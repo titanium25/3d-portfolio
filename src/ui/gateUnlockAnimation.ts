@@ -587,6 +587,88 @@ function injectStyles(): void {
       background: linear-gradient(90deg, rgba(251,191,36,0.15) 0%, #fbbf24 100%);
     }
 
+    /* ── Mobile overrides ── */
+    @media (max-width: 768px) {
+      .unlock-toast {
+        /* Push further from the edge so nothing clips behind notch/island */
+        top: calc(5.5rem + env(safe-area-inset-top, 0px));
+        right: calc(0.75rem + env(safe-area-inset-right, 0px));
+        left: calc(0.75rem + env(safe-area-inset-left, 0px));
+        width: auto;
+        /* Touch devices: prevent callout / highlight flash */
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+      }
+
+      /* Narrower icon column saves space for text */
+      .toast-icon-col {
+        width: 46px;
+      }
+      .toast-shimmer {
+        left: 46px;
+      }
+      .toast-drain {
+        left: 46px;
+      }
+
+      /* Bigger tap target for dismiss — 44×44 minimum */
+      .toast-dismiss {
+        top: 0;
+        right: 0;
+        width: 44px;
+        height: 44px;
+        font-size: 1.1rem;
+      }
+
+      /* Give body enough right padding so text doesn't run under dismiss */
+      .toast-body {
+        padding: 0.65rem 3rem 0.75rem 0.75rem;
+      }
+
+      /* Slightly larger text so it's readable at arm's length */
+      .toast-category {
+        font-size: 0.62rem;
+      }
+      .unlock-toast-title {
+        font-size: 0.88rem;
+        white-space: normal;
+      }
+      .unlock-toast-sub {
+        font-size: 0.7rem;
+      }
+      .toast-hint {
+        font-size: 0.65rem;
+      }
+
+      /* CTA: always visible on touch — no hover to reveal it */
+      .toast-open-cta {
+        font-size: 0.65rem;
+        color: rgba(0,229,204,0.8);
+        margin-top: 7px;
+      }
+      .unlock-toast.is-final .toast-open-cta {
+        color: rgba(251,191,36,0.8);
+      }
+
+      /* Active (tap) state replaces hover lift */
+      .unlock-toast.is-clickable:active {
+        transform: scale(0.97);
+        border-color: rgba(0,229,204,0.32);
+        box-shadow:
+          0 12px 36px rgba(0,0,0,0.75),
+          0 0 0 1px rgba(0,229,204,0.18),
+          0 0 32px rgba(0,229,204,0.12);
+      }
+      .unlock-toast.is-clickable.is-final:active {
+        border-color: rgba(251,191,36,0.38);
+      }
+
+      /* Disable the horizontal hover slide — just use opacity feedback */
+      .unlock-toast.is-clickable:hover {
+        transform: none;
+      }
+    }
+
   `;
   document.head.appendChild(s);
 }
