@@ -13,6 +13,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { computeProximityFactor } from "../collision/proximityUtils";
+import type { StopData } from "../scene/types";
 
 /* ══════════════════════════════════════════════════════════════
  *  Constants
@@ -34,7 +35,71 @@ const COL_CYAN = 0x00e5cc;
 export interface CommandSpireContext {
   group: THREE.Group;
   update(time: number, playerPosition: THREE.Vector3): void;
+  stopData: StopData;
+  collisionRadius: number;
 }
+
+/* ══════════════════════════════════════════════════════════════
+ *  Overlay content data
+ * ════════════════════════════════════════════════════════════ */
+
+const SPIRE_STOP_DATA: StopData = {
+  id: "ops-center",
+  title: "The Ops Center",
+  description: "Full-stack architecture across 20+ microservices, 100K+ users, and company-wide engineering standards.",
+  subtitle: "Full-stack architecture · From interface to infrastructure",
+  companyContext: "System architecture across 20+ microservices, 100+ shared libraries, and dashboards serving 100K+ users.",
+  layers: [
+    {
+      id: "frontend",
+      label: "FRONTEND COMMAND",
+      accent: "#4ecdc4",
+      accentRgb: "78, 205, 196",
+      metric: "100K+ users",
+      pills: ["React", "TypeScript", "React Query", "MUI", "Storybook", "i18n"],
+      bullets: [
+        "Dashboards for {100K+ users} ({70K active}). Smart polling synced to backend 30s refresh.",
+        "Introduced {React Query} company-wide — cache strategy, invalidation rules, shared defaults.",
+        "MUI foundation: theme tokens, component patterns, Storybook docs. Aligned eng with Figma.",
+      ],
+    },
+    {
+      id: "backend",
+      label: "BACKEND & SERVICES",
+      accent: "#f0a500",
+      accentRgb: "240, 165, 0",
+      metric: "20+ microservices",
+      pills: ["Node.js", "NestJS", "Nx", "Redis", "BullMQ", "MongoDB"],
+      bullets: [
+        "{20+} microservices, {100+} shared libs in Nx monorepo. Owned {3} services end-to-end.",
+        "Redis cache for trade scores — eliminated rate-limit failures, cut API cost {30–40%}.",
+        "BullMQ async processing across service boundaries.",
+      ],
+    },
+    {
+      id: "infra",
+      label: "INFRASTRUCTURE & QUALITY",
+      accent: "#8b7ec8",
+      accentRgb: "139, 126, 200",
+      metric: "6 teams trained",
+      pills: ["Docker", "GitHub Actions", "Grafana", "Prometheus", "Sentry", "Coralogix"],
+      bullets: [
+        "Docker + GitHub Actions CI/CD. Drove CI/CD adoption at Restigo.",
+        "Observability: Grafana/Prometheus, Sentry, Coralogix across production.",
+        "AI workflow: {Cursor} + {Claude Code} for planning, refactors, code review, tests.",
+      ],
+    },
+  ],
+  leadershipBar: "Architecture training for {6 teams} (~18–24 developers) — structure, theming, i18n, UX states, best practices.",
+  // Keep for StopData interface compatibility
+  bullets: [],
+  skills: [
+    "React", "TypeScript", "Node.js", "NestJS", "Nx",
+    "Redis", "BullMQ", "MUI", "React Query", "Storybook",
+    "Docker", "MongoDB", "SQL", "GitHub Actions",
+    "Grafana", "Sentry", "Cursor", "Claude Code",
+  ],
+};
 
 /* ══════════════════════════════════════════════════════════════
  *  Main factory
@@ -354,5 +419,5 @@ export async function createCommandSpire(
     tipLight.intensity = 0.1 + proximity * 1.5;
   }
 
-  return { group, update };
+  return { group, update, stopData: SPIRE_STOP_DATA, collisionRadius: 1.2 };
 }

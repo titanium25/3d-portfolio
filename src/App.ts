@@ -398,6 +398,11 @@ export async function initApp(container: HTMLElement): Promise<void> {
     }
   });
 
+  // Reusable tower position vector — avoids per-frame allocation
+  const TOWER_POS = new THREE.Vector3(0, 0, 0);
+  const TOWER_PROXIMITY = 3.5;
+  const TOWER_INTERACT  = 1.8;
+
   // Track wave → gameplay camera transition
   let wasWaving = false;
   let wasIntroActive = true; // intro starts active
@@ -618,6 +623,57 @@ export async function initApp(container: HTMLElement): Promise<void> {
         }
         if (canInteract && eJustPressed) {
           openGateOverlay();
+        }
+      } else if (spire) {
+        // ── Tower (Ops Center) proximity panel ───────────────────────────
+        const towerDist = character.group.position.distanceTo(TOWER_POS);
+
+        if (towerDist < TOWER_PROXIMITY) {
+          const factor = computeProximityFactor(towerDist, TOWER_PROXIMITY, TOWER_INTERACT);
+          const canInteract = towerDist < TOWER_INTERACT;
+          const char = character;
+
+          const openSpireOverlay = () => {
+            if (!isTransitionOpen() && char) {
+              openTransition(
+                spire!.stopData,
+                TOWER_POS,
+                camera,
+                undefined,
+                () => ({
+                  position: new THREE.Vector3(
+                    char.group.position.x + CAMERA_OFFSET_X,
+                    CAMERA_HEIGHT,
+                    char.group.position.z + CAMERA_DISTANCE,
+                  ),
+                  lookAt: new THREE.Vector3(
+                    char.group.position.x + CAMERA_OFFSET_X * 0.3,
+                    0.5,
+                    char.group.position.z + CAMERA_DISTANCE * 0.2,
+                  ),
+                }),
+              );
+            }
+          };
+
+          updateGatePanel(spire.stopData, factor, canInteract, openSpireOverlay, {
+            stopIndex: -1,
+            totalStops: 0,
+            isCompleted: false,
+          });
+
+          if (canInteract) {
+            showMobileInteract(openSpireOverlay);
+          } else {
+            hideMobileInteract();
+          }
+
+          if (canInteract && eJustPressed) {
+            openSpireOverlay();
+          }
+        } else {
+          updateGatePanel(null, 0);
+          hideMobileInteract();
         }
       } else {
         updateGatePanel(null, 0);

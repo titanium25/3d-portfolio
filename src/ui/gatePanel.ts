@@ -591,8 +591,9 @@ function populateCard(
     logoWrap.style.display = "none";
   }
 
-  // ── Progress dots ───────────────────────────────────────────────────────
-  if (options?.stopIndex !== undefined && options?.totalStops !== undefined) {
+  // ── Progress dots (hidden for tower, stopIndex === -1) ─────────────────
+  const isTower = data.id === "ops-center";
+  if (!isTower && options?.stopIndex !== undefined && options.stopIndex >= 0 && options?.totalStops !== undefined && options.totalStops > 0) {
     dotsEl.innerHTML = "";
     for (let i = 0; i < options.totalStops; i++) {
       const dot = document.createElement("div");
@@ -613,8 +614,8 @@ function populateCard(
     progressEl.style.display = "none";
   }
 
-  // ── Explored badge ──────────────────────────────────────────────────────
-  exploredEl.style.display = options?.isCompleted ? "inline-flex" : "none";
+  // ── Explored badge (hidden for tower) ───────────────────────────────────
+  exploredEl.style.display = (!isTower && options?.isCompleted) ? "inline-flex" : "none";
 
   // ── Title parsing: "2018 — ASML — Field Service Engineer" ───────────────
   const parts = data.title.split(" — ");
@@ -670,6 +671,12 @@ function populateCard(
   } else {
     linksEl.innerHTML = "";
     linksEl.style.display = "none";
+  }
+
+  // ── CTA label (context-sensitive) ──────────────────────────────────────
+  const ctaLabel = card.querySelector<HTMLSpanElement>("#gate-panel-cta-label");
+  if (ctaLabel) {
+    ctaLabel.textContent = isTower ? "[E] Explore the Stack" : "Press E or click to explore";
   }
 
   // ── Animations ─────────────────────────────────────────────────────────
