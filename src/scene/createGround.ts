@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { Scene } from "three";
 import { ARENA_SIZE, ARENA_SIDES } from "./layoutConstants";
+import { isMobile } from "../utils/mobileDetect";
 import {
   createHexShape,
   createHexPath,
@@ -229,7 +230,9 @@ export function createGround(scene: Scene): GroundContext {
   glowMesh.position.y = -(PLATFORM_DEPTH + UNDERGLOW_OFFSET);
   group.add(glowMesh);
 
-  const underLight = new THREE.PointLight(COL_ACCENT, 1.5, 20, 2);
+  // Fix 5: underLight sits below the platform at negative Y — camera never looks
+  // there, it contributes zero visible light on mobile. Skip to save shader cost.
+  const underLight = new THREE.PointLight(COL_ACCENT, isMobile ? 0 : 1.5, 20, 2);
   underLight.position.set(0, -PLATFORM_DEPTH * 0.6, 0);
   group.add(underLight);
 
@@ -381,8 +384,8 @@ export function createGround(scene: Scene): GroundContext {
   group.add(centerGlow);
 
   /* ──────────────────────────────────────────────────────────
-   * 9. Edge Energy Barrier — vertical glow planes per hex edge
-   *    with scanline + shimmer animation
+   * 9. Edge Energy Barrier — one merged mesh for all 6 hex edges
+   *    Fix 3: was 6 separate draw calls, now 1
    * ────────────────────────────────────────────────────────── */
 
   const barrierMat = new THREE.ShaderMaterial({
@@ -416,28 +419,31 @@ export function createGround(scene: Scene): GroundContext {
     depthWrite: false,
   });
 
-  for (let i = 0; i < SIDES; i++) {
-    const [sx1, sy1] = hexVertex(i, SIDES, SIZE * 0.99);
-    const [sx2, sy2] = hexVertex((i + 1) % SIDES, SIDES, SIZE * 0.99);
-    const wx1 = sx1,
-      wz1 = -sy1;
-    const wx2 = sx2,
-      wz2 = -sy2;
-
-    const positions = new Float32Array([
-      wx1, 0, wz1, wx2, 0, wz2, wx2, BARRIER_HEIGHT, wz2, wx1, 0, wz1, wx2,
-      BARRIER_HEIGHT, wz2, wx1, BARRIER_HEIGHT, wz1,
-    ]);
-    const uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1]);
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geom.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-    geom.computeVertexNormals();
-    group.add(new THREE.Mesh(geom, barrierMat));
+  {
+    const VERTS_PER_QUAD = 6;
+    const allBarrierPos = new Float32Array(SIDES * VERTS_PER_QUAD * 3);
+    const allBarrierUvs = new Float32Array(SIDES * VERTS_PER_QUAD * 2);
+    for (let i = 0; i < SIDES; i++) {
+      const [sx1, sy1] = hexVertex(i, SIDES, SIZE * 0.99);
+      const [sx2, sy2] = hexVertex((i + 1) % SIDES, SIDES, SIZE * 0.99);
+      const wx1 = sx1, wz1 = -sy1, wx2 = sx2, wz2 = -sy2;
+      const p = i * VERTS_PER_QUAD * 3;
+      allBarrierPos.set([
+        wx1, 0, wz1, wx2, 0, wz2, wx2, BARRIER_HEIGHT, wz2,
+        wx1, 0, wz1, wx2, BARRIER_HEIGHT, wz2, wx1, BARRIER_HEIGHT, wz1,
+      ], p);
+      allBarrierUvs.set([0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1], i * VERTS_PER_QUAD * 2);
+    }
+    const barrierGeom = new THREE.BufferGeometry();
+    barrierGeom.setAttribute("position", new THREE.BufferAttribute(allBarrierPos, 3));
+    barrierGeom.setAttribute("uv", new THREE.BufferAttribute(allBarrierUvs, 2));
+    barrierGeom.computeVertexNormals();
+    group.add(new THREE.Mesh(barrierGeom, barrierMat));
   }
 
   /* ──────────────────────────────────────────────────────────
-   * 10. Void Cascade — energy waterfall below platform edges
+   * 10. Void Cascade — one merged mesh for all 6 hex edges
+   *     Fix 3: was 6 separate draw calls, now 1
    * ────────────────────────────────────────────────────────── */
 
   const voidCascadeMat = new THREE.ShaderMaterial({
@@ -473,26 +479,27 @@ export function createGround(scene: Scene): GroundContext {
     blending: THREE.AdditiveBlending,
   });
 
-  for (let i = 0; i < SIDES; i++) {
-    const [sx1, sy1] = hexVertex(i, SIDES, SIZE * 1.01);
-    const [sx2, sy2] = hexVertex((i + 1) % SIDES, SIDES, SIZE * 1.01);
-    const wx1 = sx1,
-      wz1 = -sy1;
-    const wx2 = sx2,
-      wz2 = -sy2;
-    const yTop = 0;
-    const yBot = -VOID_CASCADE_HEIGHT;
-
-    const positions = new Float32Array([
-      wx1, yTop, wz1, wx2, yTop, wz2, wx2, yBot, wz2, wx1, yTop, wz1, wx2,
-      yBot, wz2, wx1, yBot, wz1,
-    ]);
-    const uvs = new Float32Array([0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0]);
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geom.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-    geom.computeVertexNormals();
-    group.add(new THREE.Mesh(geom, voidCascadeMat));
+  {
+    const VERTS_PER_QUAD = 6;
+    const allCascadePos = new Float32Array(SIDES * VERTS_PER_QUAD * 3);
+    const allCascadeUvs = new Float32Array(SIDES * VERTS_PER_QUAD * 2);
+    const yTop = 0, yBot = -VOID_CASCADE_HEIGHT;
+    for (let i = 0; i < SIDES; i++) {
+      const [sx1, sy1] = hexVertex(i, SIDES, SIZE * 1.01);
+      const [sx2, sy2] = hexVertex((i + 1) % SIDES, SIDES, SIZE * 1.01);
+      const wx1 = sx1, wz1 = -sy1, wx2 = sx2, wz2 = -sy2;
+      const p = i * VERTS_PER_QUAD * 3;
+      allCascadePos.set([
+        wx1, yTop, wz1, wx2, yTop, wz2, wx2, yBot, wz2,
+        wx1, yTop, wz1, wx2, yBot, wz2, wx1, yBot, wz1,
+      ], p);
+      allCascadeUvs.set([0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0], i * VERTS_PER_QUAD * 2);
+    }
+    const cascadeGeom = new THREE.BufferGeometry();
+    cascadeGeom.setAttribute("position", new THREE.BufferAttribute(allCascadePos, 3));
+    cascadeGeom.setAttribute("uv", new THREE.BufferAttribute(allCascadeUvs, 2));
+    cascadeGeom.computeVertexNormals();
+    group.add(new THREE.Mesh(cascadeGeom, voidCascadeMat));
   }
 
   /* ──────────────────────────────────────────────────────────

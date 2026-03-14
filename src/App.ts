@@ -57,6 +57,7 @@ import {
   registerDiscoverableBeacon,
   updateDiscoverableBeacons,
 } from "./scene/discoverableGlow";
+import { logPerfDiagnostics } from "./utils/perfDiagnostics";
 import type { Stop } from "./scene/types";
 
 const CAMERA_HEIGHT = 3;
@@ -101,7 +102,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
   initMobileControls();
 
   // ── Scene (synchronous — no awaits needed) ──────────────────────────────
-  const { scene, camera, renderer, composer } = createScene(container);
+  const { scene, camera, renderer, render: renderScene } = createScene(container);
   const ground = createGround(scene);
   const spawnPad = createSpawnPad(scene, {
     onBikeLoaded: (group) => {
@@ -629,7 +630,8 @@ export async function initApp(container: HTMLElement): Promise<void> {
     }
 
     updateWorldTooltip(camera, renderer.domElement);
-    composer.render();
+    renderScene();
+    logPerfDiagnostics(renderer, scene);
   }
 
   animate(performance.now());

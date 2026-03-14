@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { Scene } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { isMobile } from "../utils/mobileDetect";
 import {
   BRIDGE_WIDTH,
   BRIDGE_LENGTH,
@@ -381,44 +382,53 @@ export function createSpawnPad(scene: Scene, options?: SpawnPadOptions): SpawnPa
   spawnGlowMesh.position.y = -(PLATFORM_DEPTH + UNDERGLOW_OFFSET);
   spawnGroup.add(spawnGlowMesh);
 
-  const spawnUnderLight = new THREE.PointLight(COL_ACCENT, 1.2, 12, 2);
+  // Fix 5: skip underside PointLight on mobile — camera never looks under the platform
+  const spawnUnderLight = new THREE.PointLight(COL_ACCENT, isMobile ? 0 : 1.2, 12, 2);
   spawnUnderLight.position.set(0, -PLATFORM_DEPTH * 0.6, 0);
   spawnGroup.add(spawnUnderLight);
 
-  /* A6. Spawn pad Edge Energy Barrier */
-  for (let i = 0; i < ARENA_SIDES; i++) {
-    const [sx1, sy1] = hexVertex(i, ARENA_SIDES, SPAWN_SIZE * 0.99);
-    const [sx2, sy2] = hexVertex((i + 1) % ARENA_SIDES, ARENA_SIDES, SPAWN_SIZE * 0.99);
-    const wx1 = sx1, wz1 = -sy1;
-    const wx2 = sx2, wz2 = -sy2;
-    const positions = new Float32Array([
-      wx1, 0, wz1, wx2, 0, wz2, wx2, BARRIER_HEIGHT, wz2,
-      wx1, 0, wz1, wx2, BARRIER_HEIGHT, wz2, wx1, BARRIER_HEIGHT, wz1,
-    ]);
-    const uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1]);
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geom.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-    geom.computeVertexNormals();
-    spawnGroup.add(new THREE.Mesh(geom, barrierMat));
+  /* A6. Spawn pad Edge Energy Barrier — Fix 3: merged into 1 draw call */
+  {
+    const VERTS_PER_QUAD = 6;
+    const allBarrierPos = new Float32Array(ARENA_SIDES * VERTS_PER_QUAD * 3);
+    const allBarrierUvs = new Float32Array(ARENA_SIDES * VERTS_PER_QUAD * 2);
+    for (let i = 0; i < ARENA_SIDES; i++) {
+      const [sx1, sy1] = hexVertex(i, ARENA_SIDES, SPAWN_SIZE * 0.99);
+      const [sx2, sy2] = hexVertex((i + 1) % ARENA_SIDES, ARENA_SIDES, SPAWN_SIZE * 0.99);
+      const wx1 = sx1, wz1 = -sy1, wx2 = sx2, wz2 = -sy2;
+      allBarrierPos.set([
+        wx1, 0, wz1, wx2, 0, wz2, wx2, BARRIER_HEIGHT, wz2,
+        wx1, 0, wz1, wx2, BARRIER_HEIGHT, wz2, wx1, BARRIER_HEIGHT, wz1,
+      ], i * VERTS_PER_QUAD * 3);
+      allBarrierUvs.set([0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1], i * VERTS_PER_QUAD * 2);
+    }
+    const barrierGeom = new THREE.BufferGeometry();
+    barrierGeom.setAttribute("position", new THREE.BufferAttribute(allBarrierPos, 3));
+    barrierGeom.setAttribute("uv", new THREE.BufferAttribute(allBarrierUvs, 2));
+    barrierGeom.computeVertexNormals();
+    spawnGroup.add(new THREE.Mesh(barrierGeom, barrierMat));
   }
 
-  /* A7. Spawn pad Void Cascade */
-  for (let i = 0; i < ARENA_SIDES; i++) {
-    const [sx1, sy1] = hexVertex(i, ARENA_SIDES, SPAWN_SIZE * 1.01);
-    const [sx2, sy2] = hexVertex((i + 1) % ARENA_SIDES, ARENA_SIDES, SPAWN_SIZE * 1.01);
-    const wx1 = sx1, wz1 = -sy1;
-    const wx2 = sx2, wz2 = -sy2;
-    const positions = new Float32Array([
-      wx1, 0, wz1, wx2, 0, wz2, wx2, -VOID_CASCADE_HEIGHT, wz2,
-      wx1, 0, wz1, wx2, -VOID_CASCADE_HEIGHT, wz2, wx1, -VOID_CASCADE_HEIGHT, wz1,
-    ]);
-    const uvs = new Float32Array([0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0]);
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geom.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-    geom.computeVertexNormals();
-    spawnGroup.add(new THREE.Mesh(geom, voidCascadeMat));
+  /* A7. Spawn pad Void Cascade — Fix 3: merged into 1 draw call */
+  {
+    const VERTS_PER_QUAD = 6;
+    const allCascadePos = new Float32Array(ARENA_SIDES * VERTS_PER_QUAD * 3);
+    const allCascadeUvs = new Float32Array(ARENA_SIDES * VERTS_PER_QUAD * 2);
+    for (let i = 0; i < ARENA_SIDES; i++) {
+      const [sx1, sy1] = hexVertex(i, ARENA_SIDES, SPAWN_SIZE * 1.01);
+      const [sx2, sy2] = hexVertex((i + 1) % ARENA_SIDES, ARENA_SIDES, SPAWN_SIZE * 1.01);
+      const wx1 = sx1, wz1 = -sy1, wx2 = sx2, wz2 = -sy2;
+      allCascadePos.set([
+        wx1, 0, wz1, wx2, 0, wz2, wx2, -VOID_CASCADE_HEIGHT, wz2,
+        wx1, 0, wz1, wx2, -VOID_CASCADE_HEIGHT, wz2, wx1, -VOID_CASCADE_HEIGHT, wz1,
+      ], i * VERTS_PER_QUAD * 3);
+      allCascadeUvs.set([0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0], i * VERTS_PER_QUAD * 2);
+    }
+    const cascadeGeom = new THREE.BufferGeometry();
+    cascadeGeom.setAttribute("position", new THREE.BufferAttribute(allCascadePos, 3));
+    cascadeGeom.setAttribute("uv", new THREE.BufferAttribute(allCascadeUvs, 2));
+    cascadeGeom.computeVertexNormals();
+    spawnGroup.add(new THREE.Mesh(cascadeGeom, voidCascadeMat));
   }
 
   /* A8. Spawn pad ambient rising particles */
@@ -884,7 +894,8 @@ export function createSpawnPad(scene: Scene, options?: SpawnPadOptions): SpawnPa
   bridgeGlowMesh.position.y = -(BRIDGE_DEPTH + UNDERGLOW_OFFSET);
   bridgeEffectsGroup.add(bridgeGlowMesh);
 
-  const bridgeUnderLight = new THREE.PointLight(COL_ACCENT, 1.2, 16, 2);
+  // Fix 5: skip underside light on mobile — not visible from above, wasted shader cost
+  const bridgeUnderLight = new THREE.PointLight(COL_ACCENT, isMobile ? 0 : 1.2, 16, 2);
   bridgeUnderLight.position.set(0, -(BRIDGE_DEPTH * 0.5 + 0.3), 0);
   bridgeEffectsGroup.add(bridgeUnderLight);
 
@@ -895,24 +906,29 @@ export function createSpawnPad(scene: Scene, options?: SpawnPadOptions): SpawnPa
   const runwayMesh = new THREE.Mesh(runwayGeom, runwayStripMat);
   bridgeEffectsGroup.add(runwayMesh);
 
-  /* B4c. Multiple edge lights along bridge (pathway feel) */
+  /* B4c. Multiple edge lights along bridge (pathway feel)
+   * Fix 5: skip on mobile — 4 lights × shader cost, purely aesthetic */
   const bridgeEdgeLights: THREE.PointLight[] = [];
-  for (let i = 0; i < BRIDGE_EDGE_LIGHT_COUNT; i++) {
-    const t = (i + 0.5) / BRIDGE_EDGE_LIGHT_COUNT;
-    const z = -halfLen + t * BRIDGE_LENGTH;
-    const light = new THREE.PointLight(COL_ACCENT, 0.8, 6, 2);
-    light.position.set(halfWidth * 0.85, 0.15, z);
-    bridgeEffectsGroup.add(light);
-    bridgeEdgeLights.push(light);
+  if (!isMobile) {
+    for (let i = 0; i < BRIDGE_EDGE_LIGHT_COUNT; i++) {
+      const t = (i + 0.5) / BRIDGE_EDGE_LIGHT_COUNT;
+      const z = -halfLen + t * BRIDGE_LENGTH;
+      const light = new THREE.PointLight(COL_ACCENT, 0.8, 6, 2);
+      light.position.set(halfWidth * 0.85, 0.15, z);
+      bridgeEffectsGroup.add(light);
+      bridgeEdgeLights.push(light);
+    }
   }
   const bridgeEdgeLightsLeft: THREE.PointLight[] = [];
-  for (let i = 0; i < BRIDGE_EDGE_LIGHT_COUNT; i++) {
-    const t = (i + 0.5) / BRIDGE_EDGE_LIGHT_COUNT;
-    const z = -halfLen + t * BRIDGE_LENGTH;
-    const light = new THREE.PointLight(COL_ACCENT, 0.8, 6, 2);
-    light.position.set(-halfWidth * 0.85, 0.15, z);
-    bridgeEffectsGroup.add(light);
-    bridgeEdgeLightsLeft.push(light);
+  if (!isMobile) {
+    for (let i = 0; i < BRIDGE_EDGE_LIGHT_COUNT; i++) {
+      const t = (i + 0.5) / BRIDGE_EDGE_LIGHT_COUNT;
+      const z = -halfLen + t * BRIDGE_LENGTH;
+      const light = new THREE.PointLight(COL_ACCENT, 0.8, 6, 2);
+      light.position.set(-halfWidth * 0.85, 0.15, z);
+      bridgeEffectsGroup.add(light);
+      bridgeEdgeLightsLeft.push(light);
+    }
   }
 
   /* B5. Destination glow — brighter strip at arena end (invitation to enter) */

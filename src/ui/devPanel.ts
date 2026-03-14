@@ -132,8 +132,8 @@ function injectStyles(): void {
     /* ── Panel ── */
     #dp-panel {
       position: fixed;
-      top: 12px;
-      left: 12px;
+      top: 36px;
+      left: 10px;
       width: 300px;
       max-height: calc(100dvh - 24px);
       display: flex;
@@ -329,29 +329,31 @@ function injectStyles(): void {
     /* ── Mobile FAB ── */
     #dp-fab {
       position: fixed;
-      bottom: 16px;
-      left: 16px;
+      top: 10px;
+      left: 10px;
       z-index: 9998;
-      background: rgba(8, 10, 18, 0.82);
-      border: 1px solid rgba(0, 229, 204, 0.22);
-      border-radius: 20px;
-      color: ${ACCENT};
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      color: rgba(255, 255, 255, 0.2);
       font-family: 'Cascadia Code', 'Fira Code', monospace;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      padding: 6px 12px;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      padding: 3px 7px;
       cursor: pointer;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
-      opacity: 0.55;
-    }
-    #dp-fab:hover, #dp-fab:active { opacity: 1; background: rgba(0, 229, 204, 0.12); }
-    #dp-fab.dp-fab-active {
+      transition: color 0.2s, border-color 0.2s, background 0.2s;
       opacity: 1;
-      background: rgba(0, 229, 204, 0.14);
-      border-color: rgba(0, 229, 204, 0.45);
+    }
+    #dp-fab:hover, #dp-fab:active {
+      color: ${ACCENT};
+      border-color: rgba(0, 229, 204, 0.35);
+      background: rgba(0, 229, 204, 0.06);
+    }
+    #dp-fab.dp-fab-active {
+      color: ${ACCENT};
+      border-color: rgba(0, 229, 204, 0.4);
+      background: rgba(0, 229, 204, 0.08);
     }
 
     /* ── Fly-To section ── */
