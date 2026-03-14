@@ -43,6 +43,7 @@ src/
 │   ├── createScene.ts      # Scene, camera, renderer, lighting
 │   ├── createGround.ts     # Arena hex platform (hub, barriers, particles)
 │   ├── createSpawnPad.ts   # Spawn pad + Timeline Bridge
+│   ├── createCommandSpire.ts # Center tower VFX (beacon, particles, rings, ripple)
 │   ├── createArenaProps.ts # Arena discovery objects (LEGO, kettlebell, drawing)
 │   ├── discoverableGlow.ts # Ambient beacon FX for discoverable objects
 │   ├── emissiveUtils.ts    # boostEmissive / restoreEmissive helpers
@@ -82,7 +83,7 @@ Main orchestrator. Initializes scene, characters, stops. Manages animation loop,
 
 **Camera**: `HEIGHT=3, DISTANCE=5, OFFSET_X=3, LERP=0.045`
 
-**Assets**: 11+ total (player: 5, dog: 2, portal: 1, arena props: 3) loaded in parallel.
+**Assets**: 12+ total (player: 5, dog: 2, portal: 1, arena props: 3, spire: 1) loaded in parallel.
 
 **Interaction flow**: Player approaches gate → gate panel appears → E key or click → `markStopCompleted()` → if first time: `pulseGateOnUnlock()` + `playCinematicUnlock()` after 900ms → cinematic overlay opens.
 
@@ -183,6 +184,28 @@ Ambient visual cues for all 7 discoverable objects. Ground glow disc (amber, bre
 
 3 GLBs at desk-toy scale (0.3–0.45). LEGO at (4.5,0,-2), drawing at (-3.5,0,-4), kettlebell at (7.5,0,3.5). Walk-through only, no collision. Warm accent PointLights.
 
+### Command Spire (`scene/createCommandSpire.ts`)
+
+Center tower VFX system — the arena's visual centerpiece at (0,0,0). GLB model (`Meshy_AI_Cyan_Ring_Spire`) scaled to height 4, wrapped in 6 layered effects:
+
+1. **Beacon Ray**: Two crossed vertical quads (height 6) with custom ShaderMaterial — vertical gradient, horizontal soft-edge, upward energy pulses, breathing, width shimmer. Visible from spawn pad through fog. 1 draw call.
+2. **Rising Particles**: 40 GPU-animated points spiraling upward through the tower body. All animation in vertex shader (zero JS per-particle updates). 1 draw call.
+3. **Emissive Pulse**: Breathing emissiveIntensity on tower's cyan meshes + tip PointLight (0x00e5cc, range 8). No extra draw calls.
+4. **Holographic Rings**: 3 horizontal RingGeometry planes at different heights, independent rotation speeds/directions, shared scanline ShaderMaterial. 3 draw calls.
+5. **Ground Ripple**: Expanding radar-ping ring, only visible when player is nearby (`proximity * 0.5` alpha). 1 draw call.
+6. **Data Fragments**: 10 ambient floating point sprites orbiting the tower at low opacity. 1 draw call.
+
+**Total: 7 draw calls, ~530 vertices.** All transparent/additive meshes use `depthWrite: false`. No shadow casters.
+
+**Proximity UX arc** (continuous 0–1 via `computeProximityFactor(distance, 8.0, 2.0)`):
+- Far: beacon at 60% + idle heartbeat
+- Mid: rings speed up, ground ripple activates, particles accelerate
+- Close: everything at peak, PointLight illuminates player
+
+**Collision**: radius 1.2 at center, added to `collisionStops` in App.ts.
+
+Returns `CommandSpireContext` with `update(time, playerPosition)` called each frame.
+
 ### CV Panel (`ui/cvPanel.ts`)
 
 Tabbed résumé modal. 4 tabs: **Overview** (hero, summary, skills, availability, contact, progress), **Journey** (experience timeline with dot-nav, photos), **Stack** (competency map, 5 categories), **About** (working style, education, interests grid with photo panel).
@@ -230,6 +253,7 @@ Ambient (0.4) + Directional sun (0.6, warm) + Fill (0.2, blue) + Hemisphere (0.2
 | CV panel content | `ui/cvPanel.ts` |
 | Gate interaction | `ui/transition.ts` |
 | Portal model | `createTimelineCheckpoint.ts` (`PORTAL_MODEL_PATH`) |
+| Center tower VFX | `scene/createCommandSpire.ts` |
 
 ## Dev Commands
 

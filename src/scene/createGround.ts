@@ -9,7 +9,6 @@ import {
 } from "./hexUtils";
 import {
   createNoiseRoughnessMap,
-  createRadialGlowTexture,
   createDotTexture,
 } from "./textureUtils";
 
@@ -361,27 +360,6 @@ export function createGround(scene: Scene): GroundContext {
     ),
   );
 
-  const centerGlowTex = createRadialGlowTexture({
-    size: 256,
-    r: 0,
-    g: 229,
-    b: 204,
-    peakAlpha: 0.32,
-  });
-  const centerGlowMat = new THREE.MeshBasicMaterial({
-    map: centerGlowTex,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
-  const centerGlowGeom = new THREE.PlaneGeometry(
-    HUB_RADIUS * 3.0,
-    HUB_RADIUS * 3.0,
-  );
-  centerGlowGeom.rotateX(-Math.PI / 2);
-  const centerGlow = new THREE.Mesh(centerGlowGeom, centerGlowMat);
-  centerGlow.position.y = HUB_HEIGHT + 0.003;
-  group.add(centerGlow);
 
   /* ──────────────────────────────────────────────────────────
    * 9. Edge Energy Barrier — one merged mesh for all 6 hex edges
@@ -611,7 +589,6 @@ export function createGround(scene: Scene): GroundContext {
     barrierMat.uniforms.time.value = time;
     voidCascadeMat.uniforms.time.value = time;
 
-    centerGlowMat.opacity = 0.4 + Math.sin(time * 0.6) * 0.1;
     underLight.intensity = 1.5 + Math.sin(time * 0.4) * 0.3;
 
     const posAttr = particleGeom.getAttribute(

@@ -4,6 +4,7 @@ import { createScene } from "./scene/createScene";
 import { createGround } from "./scene/createGround";
 import { createSpawnPad } from "./scene/createSpawnPad";
 import { createArenaProps } from "./scene/createArenaProps";
+import { createCommandSpire, type CommandSpireContext } from "./scene/createCommandSpire";
 import { boostEmissive, restoreEmissive } from "./scene/emissiveUtils";
 import { PlayerCharacter, DogCompanion } from "./scene/characters";
 import { IntroSequence } from "./scene/introSequence";
@@ -88,14 +89,15 @@ export async function initApp(container: HTMLElement): Promise<void> {
   ];
   const ALL_IMAGES = [...timelineImages, ...miscImages];
 
-  // Calculate total assets: Player (5) + Dog (2) + Portal (1) + ArenaProps (3) + images
+  // Calculate total assets: Player (5) + Dog (2) + Portal (1) + ArenaProps (3) + Spire (1) + images
   const PLAYER_ASSETS = 5; // idle model + idle anim + walk + run + wave
   const DOG_ASSETS = 2; // model + walk animation
   const PORTAL_ASSETS = 1; // portal GLB (loaded once, cloned per checkpoint)
-  const ARENA_PROP_ASSETS = 4; // LEGO, kettlebell, framed drawing, center spire
+  const ARENA_PROP_ASSETS = 3; // LEGO, kettlebell, framed drawing
+  const SPIRE_ASSETS = 1; // command spire tower
   const IMAGE_ASSETS = ALL_IMAGES.length;
   const TOTAL_ASSETS =
-    PLAYER_ASSETS + DOG_ASSETS + PORTAL_ASSETS + ARENA_PROP_ASSETS + IMAGE_ASSETS;
+    PLAYER_ASSETS + DOG_ASSETS + PORTAL_ASSETS + ARENA_PROP_ASSETS + SPIRE_ASSETS + IMAGE_ASSETS;
 
   // Set total and create elegant progress indicator
   setTotalAssets(TOTAL_ASSETS);
@@ -201,6 +203,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
   // Mutable arrays — populated as async loads complete, read each frame
   let character: PlayerCharacter | null = null;
   let dog: DogCompanion | null = null;
+  let spire: CommandSpireContext | null = null;
   let timelineStops: Stop[] = [];
   let collisionStops: Stop[] = [...mockStops, bikeStop, mtbStop];
   // Timeline gates use proximity-based floating panel; only building stops use E-key
@@ -255,11 +258,9 @@ export async function initApp(container: HTMLElement): Promise<void> {
       })
     : Promise.resolve();
 
-  // 5. Arena props (LEGO, kettlebell, framed drawing, center spire)
+  // 5. Arena props (LEGO, kettlebell, framed drawing)
   const arenaPropsPromise = createArenaProps(scene, assetLoaded).then(
     (arenaProps) => {
-      const spireStop = { group: arenaProps.spireGroup } as unknown as Stop;
-      collisionStops = [...collisionStops, spireStop];
       registerTooltipTarget({
         object: arenaProps.legoGroup,
         title: "LEGO Collection",
@@ -306,6 +307,14 @@ export async function initApp(container: HTMLElement): Promise<void> {
     },
   );
 
+  // 6. Command Spire (center tower + VFX)
+  const spirePromise = createCommandSpire(scene, assetLoaded).then((ctx) => {
+    spire = ctx;
+    const spireStop = { group: ctx.group } as unknown as Stop;
+    collisionStops = [...collisionStops, spireStop];
+    return ctx;
+  });
+
   // Intro: shows loading text on black screen until ALL assets are ready,
   // then hides the progress bar before the black overlay ever fades.
   const heroReadyPromise = Promise.all([
@@ -314,6 +323,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
     dogPromise,
     timelinePromise,
     arenaPropsPromise,
+    spirePromise,
   ]).then(async () => {
     if (character) intro.setCharacter(character);
     await hideProgressIndicator(); // "Ready" → fade out → THEN reveal 3D world
@@ -431,6 +441,9 @@ export async function initApp(container: HTMLElement): Promise<void> {
     }
     ground.update(time * 0.001);
     spawnPad.update(time * 0.001);
+    if (spire && character) {
+      spire.update(time * 0.001, character.group.position);
+    }
     if (character) {
       updateDiscoverableBeacons(time * 0.001, character.group.position);
     }
