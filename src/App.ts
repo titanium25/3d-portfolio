@@ -92,7 +92,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
   const PLAYER_ASSETS = 5; // idle model + idle anim + walk + run + wave
   const DOG_ASSETS = 2; // model + walk animation
   const PORTAL_ASSETS = 1; // portal GLB (loaded once, cloned per checkpoint)
-  const ARENA_PROP_ASSETS = 3; // LEGO, kettlebell, framed drawing
+  const ARENA_PROP_ASSETS = 4; // LEGO, kettlebell, framed drawing, center spire
   const IMAGE_ASSETS = ALL_IMAGES.length;
   const TOTAL_ASSETS =
     PLAYER_ASSETS + DOG_ASSETS + PORTAL_ASSETS + ARENA_PROP_ASSETS + IMAGE_ASSETS;
@@ -173,11 +173,11 @@ export async function initApp(container: HTMLElement): Promise<void> {
     onClick: () => markDiscovered("monogram"),
     onHoverStart: () => {
       const mat = ground.monogramMesh.material as THREE.MeshBasicMaterial;
-      if (mat) mat.opacity = 0.45;
+      if (mat) mat.opacity = 0.7;
     },
     onHoverEnd: () => {
       const mat = ground.monogramMesh.material as THREE.MeshBasicMaterial;
-      if (mat) mat.opacity = 0.10;
+      if (mat) mat.opacity = 0.42;
     },
   });
   registerDiscoverableBeacon({
@@ -251,13 +251,15 @@ export async function initApp(container: HTMLElement): Promise<void> {
   const timelinePromise = ENABLE_TIMELINE_STOPS
     ? createTimelineStops(scene, assetLoaded).then((stops) => {
         timelineStops = stops;
-        collisionStops = [...mockStops, bikeStop, mtbStop, ...stops];
+        collisionStops = [...collisionStops, ...stops];
       })
     : Promise.resolve();
 
-  // 5. Arena props (LEGO, kettlebell, framed drawing)
+  // 5. Arena props (LEGO, kettlebell, framed drawing, center spire)
   const arenaPropsPromise = createArenaProps(scene, assetLoaded).then(
     (arenaProps) => {
+      const spireStop = { group: arenaProps.spireGroup } as unknown as Stop;
+      collisionStops = [...collisionStops, spireStop];
       registerTooltipTarget({
         object: arenaProps.legoGroup,
         title: "LEGO Collection",
@@ -401,9 +403,9 @@ export async function initApp(container: HTMLElement): Promise<void> {
 
     const introActive = intro.update(deltaSec);
 
-    // When intro just ended: dog goes behind character in idle + start keyboard tutorial
+    // When intro just ended: dog moves to guide position in front of player, facing gates
     if (wasIntroActive && !introActive) {
-      if (dog) dog.resetToIdleBehindPlayer();
+      if (dog) dog.resetToGuideInFront();
       startOnboarding();
     }
     wasIntroActive = introActive;
@@ -478,7 +480,8 @@ export async function initApp(container: HTMLElement): Promise<void> {
       if (isWaving) {
         // Hold camera at intro closeup position (character-relative)
         const cp = character.group.position;
-        camera.position.set(cp.x + 1.5, 1.8, cp.z + 3);
+        // Front of character (character faces -Z toward bridge)
+        camera.position.set(cp.x + 1.5, 1.8, cp.z - 3);
         camera.lookAt(cp.x, 0.5, cp.z);
       } else if (postWaveElapsed < POST_WAVE_DURATION) {
         // Smooth, natural transition from wave camera to gameplay camera

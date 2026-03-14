@@ -96,6 +96,9 @@ export abstract class BaseCharacter {
 
   protected constructor(group: THREE.Group, config: CharacterConfig) {
     this.group = group;
+    // Sync targetRotationY with whatever rotation the group already has,
+    // so the lerp in updateRotationAndLean doesn't fight against a pre-set spawn rotation.
+    this.targetRotationY = group.rotation.y;
     this.radius = config.radius;
     this.walkSpeed = config.walkSpeed;
     this.runSpeed = config.runSpeed;

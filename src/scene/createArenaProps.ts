@@ -19,10 +19,15 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 const KETTLEBELL_PATH = "/models/Meshy_AI_32_Kg_Cast_Iron_Kettl_0308133600_texture.glb";
 const LEGO_PATH = "/models/Meshy_AI_Lego_bloks_0308133652_texture.glb";
 const DRAWING_PATH = "/models/Meshy_AI_Sunny_Family_on_the_H_0308134126_texture.glb";
+const SPIRE_PATH = "/models/Meshy_AI_Cyan_Ring_Spire_0314184308_texture.glb";
 
 /* ══════════════════════════════════════════════════════════════
  *  Placement (arena hex centered at 0,0,0, radius 12)
  * ════════════════════════════════════════════════════════════ */
+
+const SPIRE_POS: [number, number, number] = [0, 0, 0];
+const SPIRE_TARGET_HEIGHT = 5.6; /* 2× original 2.8 */
+const SPIRE_ROT_Y = 0;
 
 const LEGO_POS: [number, number, number] = [4.5, 0, -2.0];
 const LEGO_ROT_Y = 0.3;
@@ -50,6 +55,7 @@ const COL_WARM = 0xffa844;
 
 export interface ArenaPropsContext {
   group: THREE.Group;
+  spireGroup: THREE.Group;
   legoGroup: THREE.Group;
   kettlebellGroup: THREE.Group;
   drawingGroup: THREE.Group;
@@ -118,7 +124,16 @@ export async function createArenaProps(
 
   const loader = new GLTFLoader();
 
-  const [legoGroup, kettlebellGroup, drawingGroup] = await Promise.all([
+  const [spireGroup, legoGroup, kettlebellGroup, drawingGroup] = await Promise.all([
+    loadProp(
+      loader,
+      SPIRE_PATH,
+      SPIRE_TARGET_HEIGHT,
+      SPIRE_POS,
+      SPIRE_ROT_Y,
+      group,
+      onAssetLoaded,
+    ),
     loadProp(
       loader,
       LEGO_PATH,
@@ -152,11 +167,18 @@ export async function createArenaProps(
   addPropLight(kettlebellGroup);
   // Softer neutral light so crayon colors read true (no warm tint, lower intensity)
   addPropLight(drawingGroup, 0xfff8f0, 0.12);
+  // Cyan accent for center spire (matches arena palette)
+  addPropLight(spireGroup, 0x00e5cc, 0.5);
+
+  // Collision: character and dog cannot pass through the tower
+  spireGroup.userData.collisionPoints = [[0, 0]];
+  spireGroup.userData.collisionRadius = 1.2;
 
   scene.add(group);
 
   return {
     group,
+    spireGroup,
     legoGroup,
     kettlebellGroup,
     drawingGroup,

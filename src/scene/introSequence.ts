@@ -23,7 +23,8 @@ const CAMERA_OFFSET_X = 3;
 const CAMERA_HEIGHT = 3;
 const CAMERA_DISTANCE = 6;
 
-const CLOSEUP_POS = new THREE.Vector3(1.5, 1.8, SPAWN_CENTER_Z + 3);
+// Camera sits in FRONT of the character (character faces -Z toward bridge)
+const CLOSEUP_POS = new THREE.Vector3(1.5, 1.8, SPAWN_CENTER_Z - 3);
 const CLOSEUP_LOOK = new THREE.Vector3(SPAWN_CENTER_X, 0.5, SPAWN_CENTER_Z);
 
 export interface IntroState {
@@ -241,7 +242,11 @@ export class IntroSequence {
 
       case "pullback": {
         const pullbackT = Math.min(1, t / PULLBACK_DURATION);
-        const easeOut = 1 - Math.pow(1 - pullbackT, 2);
+        // Cubic ease-in-out: lingers on the character's face, then sweeps away,
+        // then decelerates smoothly into the gameplay camera position.
+        const eased = pullbackT < 0.5
+          ? 4 * pullbackT * pullbackT * pullbackT
+          : 1 - Math.pow(-2 * pullbackT + 2, 3) / 2;
 
         const startPos = CLOSEUP_POS.clone();
         const endPos = new THREE.Vector3(
@@ -249,7 +254,7 @@ export class IntroSequence {
           CAMERA_HEIGHT,
           SPAWN_CENTER_Z + CAMERA_DISTANCE,
         );
-        this.camera.position.lerpVectors(startPos, endPos, easeOut);
+        this.camera.position.lerpVectors(startPos, endPos, eased);
 
         const startLook = CLOSEUP_LOOK.clone();
         const endLook = new THREE.Vector3(
@@ -257,7 +262,7 @@ export class IntroSequence {
           0.5,
           SPAWN_CENTER_Z + CAMERA_DISTANCE * 0.2,
         );
-        const look = startLook.clone().lerp(endLook, easeOut);
+        const look = startLook.clone().lerp(endLook, eased);
         this.camera.lookAt(look);
 
         if (t >= 0.3 && this.introIdent?.parentNode) {

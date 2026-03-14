@@ -19,6 +19,12 @@ const DOG_MODEL_HEIGHT = 0.38;
 // ── Follow behaviour ─────────────────────────────────────────────────
 const FOLLOW_OFFSET_SIDE = -0.5; // lateral offset so dog isn't directly in line
 const FOLLOW_OFFSET_BEHIND = 2.2; // distance behind player — keeps dog out from under feet
+
+// ── Guide behaviour (initial position — in front, facing gates) ──────
+const GUIDE_OFFSET_FRONT  = 2.5;  // units ahead of player toward gates
+const GUIDE_OFFSET_SIDE   = 0.4;  // slight lateral so player can see ahead
+const GUIDE_GLANCE_PERIOD = 5.5;  // seconds between look-back glances
+const GUIDE_GLANCE_ARC    = 0.72; // head Y rotation in radians for the glance
 const ARRIVE_RADIUS = 0.5; // stop moving when this close to target
 const MIN_DISTANCE_FROM_PLAYER = 1.0; // never aim closer than this (avoids "under feet")
 const CATCH_UP_RADIUS = 3.5; // start sprinting when this far
@@ -114,8 +120,8 @@ export class DogCompanion extends BaseCharacter {
   private prevTargetX = 0;
   private prevTargetZ = 0;
 
-  // ── Resting / following / settling state machine ───────────────────
-  private dogState: "resting" | "following" | "settling" = "resting";
+  // ── Resting / following / settling / guide state machine ─────────────
+  private dogState: "resting" | "following" | "settling" | "guide" = "resting";
   private playerTravelAccum = 0;
   private playerMovingTime = 0;
   private playerIdleTime = 0;
@@ -181,8 +187,8 @@ export class DogCompanion extends BaseCharacter {
       hasInput: false,
     };
 
-    // ── Resting: dog stays put ───────────────────────────────────────
-    if (this.dogState === "resting") {
+    // ── Resting / Guide: dog stays put ──────────────────────────────
+    if (this.dogState === "resting" || this.dogState === "guide") {
       return noInput;
     }
 
@@ -289,6 +295,29 @@ export class DogCompanion extends BaseCharacter {
       this.target.position.z -
       cos * FOLLOW_OFFSET_BEHIND -
       sin * FOLLOW_OFFSET_SIDE;
+
+    return this.clampPointInsideMap(
+      desiredX,
+      desiredZ,
+      this.target.position.x,
+      this.target.position.z,
+    );
+  }
+
+  /** Compute the "in front of the player" world position (toward the gates). */
+  private getFrontOfPlayerPosition(): { x: number; z: number } {
+    const rotY = this.target.rotation.y;
+    const cos  = Math.cos(rotY);
+    const sin  = Math.sin(rotY);
+    // Mirror of getBehindPosition: negate the forward component to go in front
+    const desiredX =
+      this.target.position.x +
+      sin * GUIDE_OFFSET_FRONT -
+      cos * GUIDE_OFFSET_SIDE;
+    const desiredZ =
+      this.target.position.z +
+      cos * GUIDE_OFFSET_FRONT +
+      sin * GUIDE_OFFSET_SIDE;
 
     return this.clampPointInsideMap(
       desiredX,
@@ -465,7 +494,7 @@ export class DogCompanion extends BaseCharacter {
       this.reactionDelayTimer = 0; // Player stopped – dog "changes mind" about getting up
     }
 
-    if (this.dogState === "resting") {
+    if (this.dogState === "resting" || this.dogState === "guide") {
       // ── Decide whether the player has committed to walking away ──
       const commitTime = this.playerIsRunning
         ? COMMIT_TIME_RUNNING
@@ -479,6 +508,8 @@ export class DogCompanion extends BaseCharacter {
         this.reactionDelayTimer += deltaSec;
         if (this.reactionDelayTimer >= REACTION_DELAY) {
           this.dogState = "following";
+          // Sync lastMovingRotY so the initial follow target is correct
+          this.lastMovingRotY = this.target.rotation.y;
           this.reactionDelayTimer = 0;
         }
       } else if (!committed) {
@@ -652,8 +683,9 @@ export class DogCompanion extends BaseCharacter {
       this.applyProceduralIdle(this.idleBlend);
     }
 
-    // ── When settling only: face the player's direction (so dog faces forward when it stops)
-    // When resting: do NOT update rotation — avoids dog wiggling when player taps A/D
+    // ── Rotation overrides per state ─────────────────────────────────
+    // Settling: face the player's direction (so dog faces forward when it stops)
+    // Resting / Guide: do NOT update rotation — avoids jitter and preserves gate-facing
     if (this.dogState === "settling") {
       const targetRotY = this.target.rotation.y;
       const rotDiff = this.shortestAngleDist(this.group.rotation.y, targetRotY);
@@ -801,6 +833,24 @@ export class DogCompanion extends BaseCharacter {
       _qProc.setFromEuler(_euler);
       bone.quaternion.multiply(_qProc);
     }
+
+    // ── Guide state: periodic over-the-shoulder glance back at player ─
+    if (this.dogState === "guide" && this.headBones.length > 0) {
+      const cycle     = t % GUIDE_GLANCE_PERIOD;
+      const lookStart = GUIDE_GLANCE_PERIOD * 0.55;
+      const lookWidth = GUIDE_GLANCE_PERIOD * 0.28; // glance occupies 28% of cycle
+      if (cycle > lookStart && cycle < lookStart + lookWidth) {
+        const localT   = (cycle - lookStart) / lookWidth;
+        const glanceYaw = Math.sin(localT * Math.PI) * GUIDE_GLANCE_ARC * blend;
+        if (Math.abs(glanceYaw) > 0.001) {
+          for (const { bone } of this.headBones) {
+            _euler.set(0, glanceYaw, 0);
+            _qProc.setFromEuler(_euler);
+            bone.quaternion.multiply(_qProc);
+          }
+        }
+      }
+    }
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -887,6 +937,41 @@ export class DogCompanion extends BaseCharacter {
     this.forceRestingIdle();
   }
 
+  /**
+   * Position the dog in front of the player facing the gates.
+   * The dog enters "guide" state: idle, facing the destination,
+   * with periodic look-back glances toward the player.
+   * Transitions to "following" once the player commits to walking.
+   */
+  resetToGuideInFront(): void {
+    const front = this.getFrontOfPlayerPosition();
+    this.group.position.x = front.x;
+    this.group.position.z = front.z;
+    this.group.position.y = this.baseY;
+    this.velocityX = 0;
+    this.velocityZ = 0;
+    this.posHistory.length = 0;
+
+    // Face same direction as player — toward the gates
+    this.group.rotation.y = this.target.rotation.y;
+    this.targetRotationY  = this.target.rotation.y;
+
+    this.dogState = "guide";
+    this.idleBlend = 1;
+    this.runGaitBlend = 0;
+    this.idleTime = 0; // reset so first glance is timed from now
+    this.playerTravelAccum = 0;
+    this.playerMovingTime = 0;
+    this.playerIdleTime = 0;
+    this.reactionDelayTimer = 0;
+    this.lastMovingRotY = this.target.rotation.y;
+
+    if (this.walkAction) {
+      this.walkAction.setEffectiveTimeScale(0);
+      this.walkAction.paused = true;
+    }
+  }
+
   /** Force resting state and full procedural idle (used after intro). */
   private forceRestingIdle(): void {
     this.dogState = "resting";
@@ -913,8 +998,9 @@ export class DogCompanion extends BaseCharacter {
 
     const companion = new DogCompanion(group, playerGroup);
 
-    // Start the dog next to the player
-    companion.snapToPlayer();
+    // Guide position from the very start — no teleport ever.
+    // walkAction is null here; resetToGuideInFront() guards against that.
+    companion.resetToGuideInFront();
 
     const loader = new GLTFLoader();
 

@@ -546,7 +546,7 @@ export function createGround(scene: Scene): GroundContext {
   });
   group.add(new THREE.Points(particleGeom, particleMat));
 
-  /* ── AL Monogram — abstract sigil on hub floor ───────────── */
+  /* ── AL Monogram — abstract sigil, random offset from center ───────────── */
 
   const monoSize = 512;
   const monoCanvas = document.createElement("canvas");
@@ -558,8 +558,8 @@ export function createGround(scene: Scene): GroundContext {
   const mc = monoSize / 2;
   const ms = monoSize * 0.25;
 
-  monoCtx.strokeStyle = "rgba(0, 229, 204, 0.55)";
-  monoCtx.lineWidth = 9;
+  monoCtx.strokeStyle = "rgba(0, 229, 204, 0.85)";
+  monoCtx.lineWidth = 11;
   monoCtx.lineCap = "round";
   monoCtx.lineJoin = "round";
 
@@ -571,13 +571,13 @@ export function createGround(scene: Scene): GroundContext {
   monoCtx.lineTo(mc + ms * 0.3, mc + ms * 0.05);
   monoCtx.stroke();
 
-  monoCtx.lineWidth = 5;
+  monoCtx.lineWidth = 6;
   monoCtx.beginPath();
   monoCtx.moveTo(mc - ms * 0.12, mc + ms * 0.05);
   monoCtx.lineTo(mc + ms * 0.12, mc + ms * 0.05);
   monoCtx.stroke();
 
-  monoCtx.strokeStyle = "rgba(0, 229, 204, 0.15)";
+  monoCtx.strokeStyle = "rgba(0, 229, 204, 0.35)";
   monoCtx.lineWidth = 2;
   monoCtx.beginPath();
   monoCtx.arc(mc, mc, ms * 0.85, 0, Math.PI * 2);
@@ -589,12 +589,13 @@ export function createGround(scene: Scene): GroundContext {
   const monogramMesh = new THREE.Mesh(monoGeom, new THREE.MeshBasicMaterial({
     map: monoTex,
     transparent: true,
-    opacity: 0.10,
+    opacity: 0.42,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     side: THREE.DoubleSide,
   }));
-  monogramMesh.position.set(0, HUB_HEIGHT + 0.002, 0);
+  // Fixed position in arena, away from center and other props
+  monogramMesh.position.set(-5.5, HUB_HEIGHT + 0.002, 3.5);
   group.add(monogramMesh);
 
   /* ── Add to scene ────────────────────────────────────────── */
