@@ -26,7 +26,7 @@ const SPIRE_PATH = "/models/Meshy_AI_Cyan_Ring_Spire_0314184308_texture.glb";
  * ════════════════════════════════════════════════════════════ */
 
 const SPIRE_POS: [number, number, number] = [0, 0, 0];
-const SPIRE_TARGET_HEIGHT = 5.6; /* 2× original 2.8 */
+const SPIRE_TARGET_HEIGHT = 4; /* 2× original 2.8 */
 const SPIRE_ROT_Y = 0;
 
 const LEGO_POS: [number, number, number] = [4.5, 0, -2.0];
