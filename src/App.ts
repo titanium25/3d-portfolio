@@ -41,7 +41,12 @@ import {
 import { initCVPanel } from "./ui/cvPanel";
 import { initGateUnlockAnimation, playCinematicUnlock } from "./ui/gateUnlockAnimation";
 import { startOnboarding, updateOnboarding } from "./ui/onboardingHints";
-import { initMobileControls } from "./ui/mobileControls";
+import {
+  initMobileControls,
+  showMobileInteract,
+  hideMobileInteract,
+} from "./ui/mobileControls";
+import { initMobileTapHint, updateMobileTapHint } from "./ui/mobileTapHint";
 import {
   initWorldTooltip,
   registerTooltipTarget,
@@ -100,6 +105,7 @@ export async function initApp(container: HTMLElement): Promise<void> {
   initGateUnlockAnimation();
   initWorldTooltip();
   initMobileControls();
+  initMobileTapHint();
 
   // ── Scene (synchronous — no awaits needed) ──────────────────────────────
   const { scene, camera, renderer, render: renderScene } = createScene(container);
@@ -589,11 +595,17 @@ export async function initApp(container: HTMLElement): Promise<void> {
           totalStops: TIMELINE_STOPS.length,
           isCompleted: isStopCompleted(nearbyGate.stop.data.id),
         });
+        if (canInteract) {
+          showMobileInteract(openGateOverlay);
+        } else {
+          hideMobileInteract();
+        }
         if (canInteract && eJustPressed) {
           openGateOverlay();
         }
       } else {
         updateGatePanel(null, 0);
+        hideMobileInteract();
       }
 
       // Building stops: E-key interaction with cinematic overlay
@@ -630,6 +642,9 @@ export async function initApp(container: HTMLElement): Promise<void> {
     }
 
     updateWorldTooltip(camera, renderer.domElement);
+    if (character) {
+      updateMobileTapHint(camera, character.group.position, renderer.domElement);
+    }
     renderScene();
     logPerfDiagnostics(renderer, scene);
   }

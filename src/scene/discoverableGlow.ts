@@ -68,6 +68,14 @@ export interface BeaconOpts {
   y?: number;
 }
 
+/** Returns a lightweight view of all registered beacons for proximity queries. */
+export function getDiscoverableBeaconInfos(): Array<{
+  object: THREE.Object3D;
+  discoveryId: string;
+}> {
+  return beacons.map((b) => ({ object: b.object, discoveryId: b.discoveryId }));
+}
+
 export function registerDiscoverableBeacon(opts: BeaconOpts): void {
   if (!sharedDot) sharedDot = createDotTexture(32);
   if (!sharedGlow) {

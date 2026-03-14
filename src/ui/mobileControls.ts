@@ -1,10 +1,11 @@
 import { setTouchDirection, setVirtualKey } from "../controls/keyboardController";
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Mobile Controls  —  Virtual joystick + Sprint button
+//  Mobile Controls  —  Virtual joystick + Sprint button + Interact button
 //
 //  Design:  Tactical HUD aesthetic matching the scene's cyan / amber palette.
 //  Layout:  Joystick zone — bottom-left.  Sprint — bottom-right.
+//           Interact — above Sprint, appears only near timeline gates.
 //  Pattern: Static joystick; entire zone is the touch surface.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -40,16 +41,23 @@ const joy: JoyState = { active: false, centerX: 0, centerY: 0, touchId: null };
 let firstMoveFired  = false;
 let firstSprintFired = false;
 
-let containerEl: HTMLDivElement  | null = null;
-let joyZoneEl:   HTMLDivElement  | null = null;
-let joyBaseEl:   HTMLDivElement  | null = null;
-let thumbEl:     HTMLDivElement  | null = null;
-let sprintEl:    HTMLButtonElement | null = null;
+let containerEl:   HTMLDivElement    | null = null;
+let joyZoneEl:     HTMLDivElement    | null = null;
+let joyBaseEl:     HTMLDivElement    | null = null;
+let thumbEl:       HTMLDivElement    | null = null;
+let sprintEl:      HTMLButtonElement | null = null;
+let sprintLabelEl: HTMLSpanElement   | null = null;
+let interactEl:    HTMLButtonElement | null = null;
+
+let _interactCallback: (() => void) | null = null;
 
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ─── SVG icons ─────────────────────────────────────────────────────────────
 const LIGHTNING_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+
+// "Enter/explore" icon: log-in arrow pointing right into a frame
+const ENTER_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>`;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 function injectStyles(): void {
@@ -218,6 +226,7 @@ function injectStyles(): void {
       letter-spacing: 0.1em;
       color: rgba(255, 185, 80, 0.65);
       text-transform: uppercase;
+      transition: color 0.15s;
     }
 
     #mc-sprint.mc-sprint-active {
@@ -228,6 +237,11 @@ function injectStyles(): void {
         0 4px 24px rgba(255, 145, 30, 0.4),
         0 0 18px rgba(255, 165, 50, 0.2) inset;
       transform: scale(0.94);
+    }
+
+    #mc-sprint.mc-sprint-active .mc-btn-label {
+      color: rgba(255, 210, 120, 1);
+      letter-spacing: 0.05em;
     }
 
     /* Sonar ring on sprint activate */
@@ -249,6 +263,74 @@ function injectStyles(): void {
     @keyframes sprintSonar {
       from { opacity: 0.7; transform: scale(1); }
       to   { opacity: 0;   transform: scale(1.7); }
+    }
+
+    /* Idle pulsing ring before first sprint use */
+    #mc-sprint.mc-sprint-hint::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 165, 50, 0.55);
+      pointer-events: none;
+      animation: sprintIdleRing 2.5s ease-out infinite;
+    }
+
+    @keyframes sprintIdleRing {
+      0%   { transform: scale(1);    opacity: 0.65; }
+      65%  { transform: scale(1.6);  opacity: 0; }
+      100% { transform: scale(1.6);  opacity: 0; }
+    }
+
+    /* ── Interact button (above Sprint, gate proximity) ── */
+    #mc-interact {
+      position: absolute;
+      bottom: calc(18px + 64px + 10px);
+      right: 18px;
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(0, 229, 204, 0.5);
+      background: rgba(0, 229, 204, 0.1);
+      color: rgba(0, 229, 204, 0.9);
+      box-shadow:
+        0 4px 18px rgba(0, 229, 204, 0.18),
+        0 0 0 1px rgba(0, 229, 204, 0.06) inset;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      cursor: pointer;
+      outline: none;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      pointer-events: none;
+      transform: scale(0);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      will-change: transform;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #mc-interact.mc-interact-visible {
+      pointer-events: auto;
+      transform: scale(1);
+    }
+
+    #mc-interact:active {
+      transform: scale(0.92) !important;
+      background: rgba(0, 229, 204, 0.22);
+    }
+
+    #mc-interact .mc-btn-label {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.44rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: rgba(0, 229, 204, 0.65);
+      text-transform: uppercase;
     }
 
     /* ── Idle fade-out (after 5s no input) ─────── */
@@ -320,12 +402,32 @@ function buildDOM(): void {
   sprintEl = document.createElement("button");
   sprintEl.id = "mc-sprint";
   sprintEl.type = "button";
-  sprintEl.innerHTML = `${LIGHTNING_SVG}<span class="mc-btn-label">Sprint</span>`;
+  sprintEl.classList.add("mc-sprint-hint"); // idle hint ring until first use
+
+  sprintLabelEl = document.createElement("span");
+  sprintLabelEl.className = "mc-btn-label";
+  sprintLabelEl.textContent = "HOLD";
+
+  sprintEl.innerHTML = LIGHTNING_SVG;
+  sprintEl.appendChild(sprintLabelEl);
 
   actionsEl.appendChild(sprintEl);
 
+  // ── Interact button (above sprint, hidden until near a gate) ───────────────
+  interactEl = document.createElement("button");
+  interactEl.id = "mc-interact";
+  interactEl.type = "button";
+
+  const interactLabel = document.createElement("span");
+  interactLabel.className = "mc-btn-label";
+  interactLabel.textContent = "EXPLORE";
+
+  interactEl.innerHTML = ENTER_SVG;
+  interactEl.appendChild(interactLabel);
+
   containerEl.appendChild(joyZoneEl);
   containerEl.appendChild(actionsEl);
+  containerEl.appendChild(interactEl);
   document.body.appendChild(containerEl);
 }
 
@@ -422,10 +524,12 @@ function onSprintTouchStart(e: TouchEvent): void {
   resetIdleTimer();
   setVirtualKey("ShiftLeft", true);
   sprintEl?.classList.add("mc-sprint-active");
+  if (sprintLabelEl) sprintLabelEl.textContent = "RUNNING";
   if (navigator.vibrate) navigator.vibrate(12);
 
   if (!firstSprintFired) {
     firstSprintFired = true;
+    sprintEl?.classList.remove("mc-sprint-hint");
     _onFirstSprintPress?.();
   }
 }
@@ -434,7 +538,15 @@ function onSprintTouchEnd(e: TouchEvent): void {
   e.preventDefault();
   setVirtualKey("ShiftLeft", false);
   sprintEl?.classList.remove("mc-sprint-active");
+  if (sprintLabelEl) sprintLabelEl.textContent = "HOLD";
   resetIdleTimer();
+}
+
+function onInteractTouchStart(e: TouchEvent): void {
+  e.preventDefault();
+  resetIdleTimer();
+  if (navigator.vibrate) navigator.vibrate(15);
+  _interactCallback?.();
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -457,6 +569,10 @@ export function initMobileControls(): void {
   sprintEl!.addEventListener("touchend",    onSprintTouchEnd,   { passive: false });
   sprintEl!.addEventListener("touchcancel", onSprintTouchEnd,   { passive: false });
 
+  // Interact events
+  interactEl!.addEventListener("touchstart", onInteractTouchStart, { passive: false });
+  interactEl!.addEventListener("touchend",   (e) => e.preventDefault(), { passive: false });
+
   // Start idle-fade timer
   resetIdleTimer();
 }
@@ -465,4 +581,24 @@ export function initMobileControls(): void {
 export function setMobileControlsVisible(visible: boolean): void {
   if (!containerEl) return;
   containerEl.style.display = visible ? "" : "none";
+}
+
+/**
+ * Show the contextual gate interact button above the sprint zone.
+ * Pass the callback to invoke when the user taps it.
+ * No-op on non-touch devices (button was never created).
+ */
+export function showMobileInteract(callback: () => void): void {
+  if (!interactEl) return;
+  _interactCallback = callback;
+  interactEl.classList.add("mc-interact-visible");
+}
+
+/**
+ * Hide the gate interact button.
+ * No-op on non-touch devices.
+ */
+export function hideMobileInteract(): void {
+  if (!interactEl) return;
+  interactEl.classList.remove("mc-interact-visible");
 }

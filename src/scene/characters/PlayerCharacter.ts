@@ -143,6 +143,7 @@ export class PlayerCharacter extends BaseCharacter {
     group.position.set(SPAWN_CENTER_X, 0, SPAWN_CENTER_Z);
     // YZX order: yaw (Y) applied first, then lean/roll (Z) in character-local space
     group.rotation.order = "YZX";
+    group.rotation.y = Math.PI; // Face -Z toward Timeline Bridge on spawn
     scene.add(group);
 
     const controller = new PlayerCharacter(group);

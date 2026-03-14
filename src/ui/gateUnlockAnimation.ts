@@ -962,9 +962,7 @@ function playAbsorption(_stopId: string): Promise<void> {
       return;
     }
 
-    btn.classList.add("cv-btn-absorbing");
-    setTimeout(() => btn.classList.remove("cv-btn-absorbing"), 500);
-
+    // Sonar ring only — button stays inert (no pop/glow to avoid false-notification feel)
     const center = getButtonCenter();
     const sonar = document.createElement("div");
     sonar.className = "unlock-sonar";
@@ -973,27 +971,8 @@ function playAbsorption(_stopId: string): Promise<void> {
     document.body.appendChild(sonar);
     setTimeout(() => sonar.remove(), 650);
 
-    // Brief badge flash then update count
-    const badge = getBadgeEl();
-    if (badge) {
-      badge.style.background = "rgba(255,255,255,0.9)";
-      badge.style.color = "#000";
-      setTimeout(() => {
-        badge.style.background = "";
-        badge.style.color = "";
-        refreshProgressDots();
-      }, 150);
-    } else {
-      refreshProgressDots();
-    }
-
-    btn.style.boxShadow =
-      "0 0 32px rgba(0,229,204,0.5), 0 0 56px rgba(0,229,204,0.2)";
-    btn.style.borderColor = "rgba(0,229,204,0.8)";
-    setTimeout(() => {
-      btn.style.boxShadow = "";
-      btn.style.borderColor = "";
-    }, 2500);
+    // Quietly update badge count
+    refreshProgressDots();
 
     setTimeout(resolve, 450);
   });
