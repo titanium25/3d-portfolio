@@ -1,0 +1,61 @@
+# Alexander Lazarovich — Senior Full-Stack Engineer
+
+> Senior Full-Stack Engineer (TypeScript) building Nx microservices and high-traffic React dashboards for a trading platform with 100K+ users.
+
+## Summary
+
+Alexander Lazarovich is a Senior Full-Stack Engineer based in Ra'anana, Israel. He specializes in TypeScript end-to-end, building scalable microservices and high-traffic React dashboards. He currently works at The5ers, a proprietary trading firm, where he owns core platform integrations serving 100K+ users.
+
+## Current Role
+
+**The5ers** — Full Stack Engineer (2024–Present)
+- Owns central dashboards for 100K+ users (70K active) with smart polling aligned to 30s backend sync
+- Introduced and standardized React Query company-wide (query patterns, cache strategy, invalidation rules)
+- Eliminated production rate-limit failures and reduced external API costs to 30–40% via Redis cache layer
+- Delivered architecture/training sessions for 6 teams (~18–24 developers)
+- Works across 20+ microservices and 100+ shared libraries in an Nx monorepo
+
+## Previous Experience
+
+**Triolla** — Full Stack Engineer (2023–2024)
+- Delivered client systems across frontend and backend (React, Node/Nest/Express, Laravel)
+- Modernized deployments with Docker/AWS
+
+**Restigo** — Full Stack Engineer (2022–2023)
+- Led team of 3 developers; drove CI/CD adoption
+- Modernized legacy UI: jQuery → React; designed new SQL schemas
+
+**ASML** — Field Service Engineer at Intel (2018–2022)
+- Supported mission-critical semiconductor production environments
+- Built systematic troubleshooting mindset under uptime constraints
+
+## Tech Stack
+
+**Frontend**: React, TypeScript, React Query (TanStack), MUI, AntD, Storybook, i18n
+**Backend**: Node.js, NestJS, REST, BullMQ, Redis, Microservices, Nx
+**Infrastructure**: Docker, GitHub Actions CI/CD, Grafana, Prometheus, Sentry, Coralogix
+**Data**: MongoDB, SQL, Redis
+**AI Tools**: Cursor, Claude Code (agent workflows for planning, refactors, code review)
+**Quality**: SOLID, Clean Architecture, Jest, Agile/Scrum
+
+## Education
+
+B.Sc. Electrical & Electronics Engineering — Ariel University
+
+## Contact
+
+- Email: alex.lazarovichh@gmail.com
+- Phone: +972-54-4567302
+- LinkedIn: https://linkedin.com/in/alexander-lazarovich
+- Portfolio: https://alexlaz.dev
+- 3D Portfolio: https://alexlaz.dev/explore
+- Location: Ra'anana, Israel
+
+## Key Strengths
+
+- Owned 3 microservices end-to-end (design → implementation → production)
+- Standardized React Query across an entire engineering organization
+- Reduced external API costs by 60–70% through Redis cache-first architecture
+- Trained 6 teams (~18–24 developers) on company standards and best practices
+- Experienced collaborating with international teams across time zones
+- Strong problem solver with hardware-discipline background from ASML/Intel
