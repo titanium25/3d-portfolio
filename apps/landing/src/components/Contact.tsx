@@ -81,7 +81,7 @@ export default function Contact() {
           animate={isInView ? { opacity: 1 } : {}}
           transition={{ duration: 0.6, delay: 0.3, ease }}
         >
-          054-4567302 &middot; Ra&apos;anana, Israel
+          <a href="tel:+972544567302" className="hover:text-accent-cyan transition-colors">054-4567302</a> &middot; Ra&apos;anana, Israel
         </motion.p>
       </div>
     </section>
