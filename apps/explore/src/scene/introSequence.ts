@@ -2,9 +2,10 @@ import * as THREE from "three";
 import type { PerspectiveCamera, Scene } from "three";
 import type { PlayerCharacter } from "./characters";
 import { SPAWN_CENTER_X, SPAWN_CENTER_Z } from "./layoutConstants";
+import { assetPath } from "../utils/assetPath";
 
 const INTRO_IMAGE_PATH =
-  "/img/Screenshot_20260209_175259_Photos-removebg-preview.png";
+  assetPath("/img/Screenshot_20260209_175259_Photos-removebg-preview.png");
 const INTRO_LINES = [
   "Hi, I'm Alex.",
   "Welcome to Software City.",

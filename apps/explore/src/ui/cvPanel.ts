@@ -4,6 +4,7 @@ import { initPhotoLightbox, attachZoomHint, openLightboxAlbum, LightboxPhoto } f
 import { highlight, injectHighlightStyles } from "./highlightUtils";
 import { refreshProgressDots, applyAboutTabNewToDom, clearAboutTabNew, applyJourneyTabNewToDom, clearJourneyTabNew } from "./gateUnlockAnimation";
 import { isDiscovered } from "./discoveryTracker";
+import { assetPath } from "../utils/assetPath";
 
 let panelEl: HTMLDivElement | null = null;
 let isOpen = false;
@@ -17,26 +18,26 @@ interface PhotoEntry { src: string; caption: string; objectPosition?: string; }
 
 const CARD_PHOTOS: Record<string, PhotoEntry[]> = {
   bmw: [
-    { src: "/img/discoveries/bmw-real-1.png", caption: "Tel Aviv nightride · 199hp of \"I should not be doing this on a Tuesday\"", objectPosition: "bottom 15%" },
-    { src: "/img/discoveries/bmw-real-2.png", caption: "The Shark wrap · yes, the dentist asked if I have a death wish",            objectPosition: "center center" },
+    { src: assetPath("/img/discoveries/bmw-real-1.png"), caption: "Tel Aviv nightride · 199hp of \"I should not be doing this on a Tuesday\"", objectPosition: "bottom 15%" },
+    { src: assetPath("/img/discoveries/bmw-real-2.png"), caption: "The Shark wrap · yes, the dentist asked if I have a death wish",            objectPosition: "center center" },
   ],
   mtb: [
-    { src: "/img/discoveries/mtb-riding.png", caption: "05:30 AM · 80 km done before my first standup",                              objectPosition: "center 75%" },
-    { src: "/img/discoveries/mtb-bike.png",   caption: "Full-carbon · weighs less than my node_modules folder",              objectPosition: "center 60%" },
-    { src: "/img/discoveries/mtb-road.png",   caption: "Road ride · Ra'anana promenade",                                              objectPosition: "center 40%" },
+    { src: assetPath("/img/discoveries/mtb-riding.png"), caption: "05:30 AM · 80 km done before my first standup",                              objectPosition: "center 75%" },
+    { src: assetPath("/img/discoveries/mtb-bike.png"),   caption: "Full-carbon · weighs less than my node_modules folder",              objectPosition: "center 60%" },
+    { src: assetPath("/img/discoveries/mtb-road.png"),   caption: "Road ride · Ra'anana promenade",                                              objectPosition: "center 40%" },
   ],
   lego: [
-    { src: "/img/discoveries/lego-building.png", caption: "Mid-build chaos — sorted by part type, RGB ambiance mandatory",              objectPosition: "center center" },
-    { src: "/img/discoveries/lego-bmw.png",      caption: "BMW M1000RR Technic · 1,920 pieces · 0 leftover (I counted twice)",         objectPosition: "center center" },
-    { src: "/img/discoveries/lego-yamaha.png",   caption: "Yamaha MT-10 Technic · built with the twins, they did the stickers",         objectPosition: "center center" },
+    { src: assetPath("/img/discoveries/lego-building.png"), caption: "Mid-build chaos — sorted by part type, RGB ambiance mandatory",              objectPosition: "center center" },
+    { src: assetPath("/img/discoveries/lego-bmw.png"),      caption: "BMW M1000RR Technic · 1,920 pieces · 0 leftover (I counted twice)",         objectPosition: "center center" },
+    { src: assetPath("/img/discoveries/lego-yamaha.png"),   caption: "Yamaha MT-10 Technic · built with the twins, they did the stickers",         objectPosition: "center center" },
   ],
   meny: [
-    { src: "/img/discoveries/meny-1.png", caption: "Meny (Manfred) at the park · 45 kg of Ice Age energy and zero personal space",    objectPosition: "center 20%" },
-    { src: "/img/discoveries/meny-2.png", caption: "Posing for the camera · he knows exactly what he's doing",                         objectPosition: "center 15%" },
+    { src: assetPath("/img/discoveries/meny-1.png"), caption: "Meny (Manfred) at the park · 45 kg of Ice Age energy and zero personal space",    objectPosition: "center 20%" },
+    { src: assetPath("/img/discoveries/meny-2.png"), caption: "Posing for the camera · he knows exactly what he's doing",                         objectPosition: "center 15%" },
   ],
   twins: [
-    { src: "/img/discoveries/twins-stroller.png", caption: "Leading the way · Tomer & Alma with Meny on the path", objectPosition: "center center" },
-    { src: "/img/discoveries/twins-walking.png", caption: "Jacaranda season · purple petals and tiny explorers", objectPosition: "center center" },
+    { src: assetPath("/img/discoveries/twins-stroller.png"), caption: "Leading the way · Tomer & Alma with Meny on the path", objectPosition: "center center" },
+    { src: assetPath("/img/discoveries/twins-walking.png"), caption: "Jacaranda season · purple petals and tiny explorers", objectPosition: "center center" },
   ],
 };
 
@@ -2439,7 +2440,7 @@ function createCVPanel(): void {
   const footer = document.createElement("div");
   footer.id = "cv-footer";
   footer.innerHTML = `
-    <a id="cv-footer-dl" href="/AL_CV_TH5_v2.pdf" download="Alexander_Lazarovich_CV.pdf">
+    <a id="cv-footer-dl" href="${assetPath("/AL_CV_TH5_v2.pdf")}" download="Alexander_Lazarovich_CV.pdf">
       <div class="cv-dl-left">
         <div class="cv-dl-icon-box">
           <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
@@ -2470,7 +2471,7 @@ function createCVPanel(): void {
   const avatarWrap = panel.querySelector<HTMLDivElement>("#cv-avatar-wrap")!;
   attachZoomHint(
     avatarWrap,
-    () => "/img/alex-headshot.png",
+    () => assetPath("/img/alex-headshot.png"),
     { shape: "circle", caption: "Alexander Lazarovich · Full Stack Engineer", hintSize: 18 },
   );
 
@@ -2515,7 +2516,7 @@ function buildOverviewTab(): HTMLDivElement {
     <div id="cv-hero-cover-fade"></div>
     <div id="cv-hero-row">
       <div id="cv-avatar-wrap">
-        <img id="cv-avatar" src="/img/alex-headshot.png" alt="Alexander Lazarovich" draggable="false" />
+        <img id="cv-avatar" src="${assetPath("/img/alex-headshot.png")}" alt="Alexander Lazarovich" draggable="false" />
       </div>
       <div id="cv-hero-info">
         <h1 id="cv-name">Alexander Lazarovich</h1>

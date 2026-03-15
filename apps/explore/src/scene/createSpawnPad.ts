@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { Scene } from "three";
 import { gltfLoader } from "./loaderSetup";
+import { assetPath } from "../utils/assetPath";
 import { isMobile } from "../utils/mobileDetect";
 import {
   BRIDGE_WIDTH,
@@ -611,7 +612,7 @@ export function createSpawnPad(scene: Scene, options?: SpawnPadOptions): SpawnPa
   spawnGroup.add(bikeDisc);
 
   gltfLoader.load(
-    "/models/optimized/Meshy_AI_BMW_Sharkmouth_Racer_0307150145_texture.glb",
+    assetPath("/models/optimized/Meshy_AI_BMW_Sharkmouth_Racer_0307150145_texture.glb"),
     (gltf) => {
       const bike = gltf.scene;
 
@@ -713,7 +714,7 @@ export function createSpawnPad(scene: Scene, options?: SpawnPadOptions): SpawnPa
   spawnGroup.add(mtbDisc);
 
   gltfLoader.load(
-    "/models/optimized/Meshy_AI_Neon_Platform_MTB_0307152614_texture.glb",
+    assetPath("/models/optimized/Meshy_AI_Neon_Platform_MTB_0307152614_texture.glb"),
     (gltf) => {
       const mtb = gltf.scene;
 

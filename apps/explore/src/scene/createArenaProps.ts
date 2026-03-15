@@ -12,14 +12,15 @@
 import * as THREE from "three";
 import type { Scene } from "three";
 import { gltfLoader } from "./loaderSetup";
+import { assetPath } from "../utils/assetPath";
 
 /* ══════════════════════════════════════════════════════════════
  *  Model paths (exact filenames from /public/models/)
  * ════════════════════════════════════════════════════════════ */
 
-const KETTLEBELL_PATH = "/models/optimized/Meshy_AI_32_Kg_Cast_Iron_Kettl_0308133600_texture.glb";
-const LEGO_PATH = "/models/optimized/Meshy_AI_Lego_bloks_0308133652_texture.glb";
-const DRAWING_PATH = "/models/optimized/Meshy_AI_Sunny_Family_on_the_H_0308134126_texture.glb";
+const KETTLEBELL_PATH = assetPath("/models/optimized/Meshy_AI_32_Kg_Cast_Iron_Kettl_0308133600_texture.glb");
+const LEGO_PATH = assetPath("/models/optimized/Meshy_AI_Lego_bloks_0308133652_texture.glb");
+const DRAWING_PATH = assetPath("/models/optimized/Meshy_AI_Sunny_Family_on_the_H_0308134126_texture.glb");
 
 /* ══════════════════════════════════════════════════════════════
  *  Placement (arena hex centered at 0,0,0, radius 12)

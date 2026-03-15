@@ -1,3 +1,5 @@
+import { assetPath } from "../../utils/assetPath";
+
 export interface TimelineStopData {
   id: string;
   year: number;
@@ -47,8 +49,8 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
       "Semiconductor Manufacturing",
       "Technical Training",
     ],
-    logo: "/img/asml-logo.png",
-    image: "/img/asml-cleanroom.png",
+    logo: assetPath("/img/asml-logo.png"),
+    image: assetPath("/img/asml-cleanroom.png"),
     imageCaption: "Intel fab · Kiryat Gat, Israel · 2020",
     narrativeNote:
       'The discipline of debugging <span>million-dollar lithography machines under fab-uptime pressure</span> shaped an engineering mindset that carries into every system I build today — <span>methodical root-cause analysis</span>, documentation-first, and zero tolerance for flaky systems.',
@@ -80,12 +82,12 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
       "Team Leadership",
       "Agile / Scrum",
     ],
-    logo: "/img/restigo-logo.png",
-    image: "/img/restigo-office.png",
+    logo: assetPath("/img/restigo-logo.png"),
+    image: assetPath("/img/restigo-office.png"),
     imageCaption: "Restigo HQ · Herzliya, Israel · 2022",
     journeyImages: [
-      { src: "/img/restigo-office.png", caption: "Restigo HQ · Herzliya, Israel · 2022" },
-      { src: "/img/restigo-working.png", caption: "Late-night coding session · Herzliya, 2022" },
+      { src: assetPath("/img/restigo-office.png"), caption: "Restigo HQ · Herzliya, Israel · 2022" },
+      { src: assetPath("/img/restigo-working.png"), caption: "Late-night coding session · Herzliya, 2022" },
     ],
     narrativeNote:
       'First software role — picked a <span>high-velocity SaaS startup</span> powering <span>Burger King, Shake Shack, and Papa Johns</span> kitchens. Went from IC to <span>Team Lead in 9 months</span> by building the engineering culture nobody asked for but everyone needed — CI/CD pipelines, code reviews, and a ship-daily mindset.',
@@ -119,13 +121,13 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
       "AWS",
       "Figma",
     ],
-    logo: "/img/triolla-logo.png",
-    image: "/img/triolla-office.png",
+    logo: assetPath("/img/triolla-logo.png"),
+    image: assetPath("/img/triolla-office.png"),
     imageCaption: "Triolla HQ · Raanana, Israel",
     journeyImages: [
-      { src: "/img/triolla-office.png", caption: "Triolla HQ · Raanana, Israel" },
-      { src: "/img/alex-teaching.png", caption: "Architecture training session · Triolla, 2023" },
-      { src: "/img/triolla-srlp.png", caption: "Presenting Smart Referral Link Platform (SRLP) · Triolla, 2023" },
+      { src: assetPath("/img/triolla-office.png"), caption: "Triolla HQ · Raanana, Israel" },
+      { src: assetPath("/img/alex-teaching.png"), caption: "Architecture training session · Triolla, 2023" },
+      { src: assetPath("/img/triolla-srlp.png"), caption: "Presenting Smart Referral Link Platform (SRLP) · Triolla, 2023" },
     ],
     narrativeNote:
       'A <span>product studio under SQLink (2,800+ engineers)</span> building for <span>JFrog, Playtika, and IronSource</span>-caliber clients — new domain, new stack, new deadline every quarter. The fastest path to a <span>battle-tested full-stack generalist</span> is shipping 8 products in 18 months for clients who don\'t tolerate learning curves.',
@@ -161,14 +163,14 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
       "Figma",
       "Frontend Architecture",
     ],
-    logo: "/img/the5ers-logo.png",
-    image: "/img/the5ers-hq.png",
+    logo: assetPath("/img/the5ers-logo.png"),
+    image: assetPath("/img/the5ers-hq.png"),
     imageCaption: "The5ers HQ · Raanana — yes, Meny visited the office",
     journeyImages: [
-      { src: "/img/the5ers-hq.png", caption: "The5ers HQ · Raanana — yes, Meny visited the office", objectPosition: "center 30%" },
-      { src: "/img/alex-office.png", caption: "Office candid · The5ers Raanana", objectPosition: "center 30%" },
-      { src: "/img/the5ers-dashboard.png", caption: "Dashboard I built — funded account view, scale-up milestones, balance chart" },
-      { src: "/img/the5ers-trading.png", caption: "The5ers trading platform · 2024" },
+      { src: assetPath("/img/the5ers-hq.png"), caption: "The5ers HQ · Raanana — yes, Meny visited the office", objectPosition: "center 30%" },
+      { src: assetPath("/img/alex-office.png"), caption: "Office candid · The5ers Raanana", objectPosition: "center 30%" },
+      { src: assetPath("/img/the5ers-dashboard.png"), caption: "Dashboard I built — funded account view, scale-up milestones, balance chart" },
+      { src: assetPath("/img/the5ers-trading.png"), caption: "The5ers trading platform · 2024" },
     ],
     narrativeNote:
       'Real capital, real traders, <span>$4M funded accounts</span> — a slow dashboard isn\'t a UX complaint, it\'s someone\'s livelihood on the line. Scaling for <span>100K+ active traders</span> proved that <span>performance is the product</span> — and standardizing architecture across 6 teams and 20+ microservices is harder than any algorithm.',

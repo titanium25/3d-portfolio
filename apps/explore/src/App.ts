@@ -65,6 +65,7 @@ import {
 } from "./scene/discoverableGlow";
 import { logPerfDiagnostics } from "./utils/perfDiagnostics";
 import type { Stop } from "./scene/types";
+import { assetPath } from "./utils/assetPath";
 
 const CAMERA_HEIGHT = 3;
 const CAMERA_DISTANCE = 6;
@@ -83,9 +84,9 @@ export async function initApp(container: HTMLElement): Promise<void> {
   ]).filter((p): p is string => Boolean(p));
   // CV panel cover + avatar, and the intro character photo
   const miscImages: string[] = [
-    "/img/alex-office.png",
-    "/img/alex-headshot.png",
-    "/img/Screenshot_20260209_175259_Photos-removebg-preview.png",
+    assetPath("/img/alex-office.png"),
+    assetPath("/img/alex-headshot.png"),
+    assetPath("/img/Screenshot_20260209_175259_Photos-removebg-preview.png"),
   ];
   const ALL_IMAGES = [...timelineImages, ...miscImages];
 

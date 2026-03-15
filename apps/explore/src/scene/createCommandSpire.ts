@@ -14,12 +14,13 @@ import * as THREE from "three";
 import { gltfLoader } from "./loaderSetup";
 import { computeProximityFactor } from "../collision/proximityUtils";
 import type { StopData } from "../scene/types";
+import { assetPath } from "../utils/assetPath";
 
 /* ══════════════════════════════════════════════════════════════
  *  Constants
  * ════════════════════════════════════════════════════════════ */
 
-const SPIRE_PATH = "/models/optimized/Meshy_AI_Cyan_Ring_Spire_0314184308_texture.glb";
+const SPIRE_PATH = assetPath("/models/optimized/Meshy_AI_Cyan_Ring_Spire_0314184308_texture.glb");
 const SPIRE_TARGET_HEIGHT = 4;
 const SPIRE_POS = new THREE.Vector3(0, 0, 0);
 

@@ -5,6 +5,7 @@ import { BaseCharacter } from "./BaseCharacter";
 import type { MovementInput } from "./types";
 import type { Stop } from "../types";
 import { isInsideMap } from "../bounds";
+import { assetPath } from "../../utils/assetPath";
 
 // ── Dog physics ──────────────────────────────────────────────────────
 const DOG_RADIUS = 0.25;
@@ -1005,7 +1006,7 @@ export class DogCompanion extends BaseCharacter {
     try {
       const model = await BaseCharacter.loadCharacterModel(
         gltfLoader,
-        "/models/optimized/Meshy_AI_model_Animation_Walking_withSkin_DOG.glb",
+        assetPath("/models/optimized/Meshy_AI_model_Animation_Walking_withSkin_DOG.glb"),
         DOG_MODEL_HEIGHT,
       );
       BaseCharacter.setupModelMaterials(model);
@@ -1026,7 +1027,7 @@ export class DogCompanion extends BaseCharacter {
         mixer,
         model,
         gltfLoader,
-        "/models/optimized/Meshy_AI_model_Animation_Walking_withSkin_DOG.glb",
+        assetPath("/models/optimized/Meshy_AI_model_Animation_Walking_withSkin_DOG.glb"),
         "dog-walk",
         "remove", // remove ALL position tracks – dog grounding is fully managed by code
       );

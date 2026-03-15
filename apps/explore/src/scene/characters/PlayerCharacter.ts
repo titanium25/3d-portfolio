@@ -11,6 +11,7 @@ import {
   SPAWN_CENTER_X,
   SPAWN_CENTER_Z,
 } from "../layoutConstants";
+import { assetPath } from "../../utils/assetPath";
 
 // ── Player-specific constants ────────────────────────────────────────
 export const PLAYER_RADIUS = 0.5;
@@ -152,7 +153,7 @@ export class PlayerCharacter extends BaseCharacter {
       // Load and set up the base model (idle pose)
       const model = await BaseCharacter.loadCharacterModel(
         gltfLoader,
-        "/models/optimized/Meshy_AI_Animation_Idle_11_withSkin.glb",
+        assetPath("/models/optimized/Meshy_AI_Animation_Idle_11_withSkin.glb"),
         0.4,
       );
       BaseCharacter.setupModelMaterials(model);
@@ -183,19 +184,19 @@ export class PlayerCharacter extends BaseCharacter {
       };
 
       controller.idleAction = await load(
-        "/models/optimized/Meshy_AI_Animation_Idle_11_withSkin.glb",
+        assetPath("/models/optimized/Meshy_AI_Animation_Idle_11_withSkin.glb"),
         "idle",
       );
       controller.walkAction = await load(
-        "/models/optimized/Meshy_AI_Animation_Walking_withSkin.glb",
+        assetPath("/models/optimized/Meshy_AI_Animation_Walking_withSkin.glb"),
         "walk",
       );
       controller.runAction = await load(
-        "/models/optimized/Meshy_AI_Animation_Running_withSkin.glb",
+        assetPath("/models/optimized/Meshy_AI_Animation_Running_withSkin.glb"),
         "run",
       );
       controller.waveAction = await load(
-        "/models/optimized/Meshy_AI_Animation_Wave_One_Hand_withSkin.glb",
+        assetPath("/models/optimized/Meshy_AI_Animation_Wave_One_Hand_withSkin.glb"),
         "wave",
       );
 

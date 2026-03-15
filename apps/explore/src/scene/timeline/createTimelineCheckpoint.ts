@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { gltfLoader } from "../loaderSetup";
 import { createRadialGlowTexture } from "../textureUtils";
+import { assetPath } from "../../utils/assetPath";
 
 /* ── Palette (matches megastructure platform) ─────────────────── */
 
@@ -11,7 +12,7 @@ const COL_ACCENT = 0x00e5cc; // cyan emissive
 /* ── Portal model ─────────────────────────────────────────────── */
 
 const PORTAL_MODEL_PATH =
-  "/models/optimized/Meshy_AI_Neon_Quantum_Portal_0216123143_texture.glb";
+  assetPath("/models/optimized/Meshy_AI_Neon_Quantum_Portal_0216123143_texture.glb");
 const MODEL_TARGET_HEIGHT = 2.9;
 
 /* ── Floor pad ────────────────────────────────────────────────── */
