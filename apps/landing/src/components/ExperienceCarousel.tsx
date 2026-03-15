@@ -91,19 +91,19 @@ function DesktopCarousel() {
   const railX = useTransform(smoothProgress, [0.05, 0.95], [0, -maxTranslate]);
 
   const wireScaleX = useSpring(
-    useTransform(scrollYProgress, [0, 0.15], [0, 1]),
+    useTransform(scrollYProgress, [0, 0.1], [0, 1]),
     { stiffness: 80, damping: 25 }
   );
   const headerOpacity = useSpring(
-    useTransform(scrollYProgress, [0, 0.06], [0, 1]),
+    useTransform(scrollYProgress, [0, 0.03], [0, 1]),
     { stiffness: 100, damping: 30 }
   );
   const headerX = useSpring(
-    useTransform(scrollYProgress, [0, 0.06], [-60, 0]),
+    useTransform(scrollYProgress, [0, 0.03], [-40, 0]),
     { stiffness: 100, damping: 30 }
   );
   const progressScaleX = useSpring(
-    useTransform(scrollYProgress, [0.05, 0.95], [0, 1]),
+    useTransform(scrollYProgress, [0.02, 0.98], [0, 1]),
     { stiffness: 80, damping: 25 }
   );
   const activeStep = useTransform(smoothProgress, (p) =>
@@ -114,7 +114,7 @@ function DesktopCarousel() {
     <section
       id="experience"
       ref={sectionRef}
-      className="relative h-[250vh] overflow-hidden hidden md:block"
+      className="relative h-[200vh] overflow-hidden hidden md:block"
     >
       <div className="sticky top-0 h-screen overflow-hidden flex flex-col justify-center">
         <div className="absolute top-[30%] left-[5%] w-[400px] h-[400px] rounded-full bg-accent-cyan/[0.02] blur-[100px] pointer-events-none" />

@@ -122,25 +122,25 @@ export default function Hero() {
     offset: ["start start", "end start"],
   });
 
-  // Scroll-driven pullback
+  // Scroll-driven pullback — tighter ranges for 120vh section (20vh travel)
   const contentY = useSpring(
-    useTransform(scrollYProgress, [0.3, 1], [0, -80]),
+    useTransform(scrollYProgress, [0.2, 1], [0, -60]),
     springConfig
   );
   const contentScale = useSpring(
-    useTransform(scrollYProgress, [0.3, 1], [1, 0.95]),
+    useTransform(scrollYProgress, [0.2, 1], [1, 0.96]),
     springConfig
   );
   const contentOpacity = useSpring(
-    useTransform(scrollYProgress, [0.35, 0.85], [1, 0]),
+    useTransform(scrollYProgress, [0.3, 1], [1, 0]),
     springConfig
   );
   const canvasOpacity = useSpring(
-    useTransform(scrollYProgress, [0.3, 0.8], [1, 0]),
+    useTransform(scrollYProgress, [0.2, 1], [1, 0]),
     springConfig
   );
   const glowScale = useSpring(
-    useTransform(scrollYProgress, [0, 0.3, 0.8], [1, 1.15, 0.8]),
+    useTransform(scrollYProgress, [0, 0.3, 1], [1, 1.1, 0.8]),
     springConfig
   );
   const scrollHintOpacity = useTransform(
@@ -150,7 +150,7 @@ export default function Hero() {
   );
 
   return (
-    <section ref={sectionRef} className="relative h-[150vh] overflow-hidden">
+    <section ref={sectionRef} className="relative h-[120vh] overflow-hidden">
       <div className="sticky top-0 h-screen overflow-hidden">
         {/* ── Layer 1: Interactive dot grid ── */}
         <DotGrid />

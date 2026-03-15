@@ -37,7 +37,7 @@ function AboutDesktop() {
   const chipStagger = 0.03;
 
   return (
-    <section id="about" ref={sectionRef} className="relative h-[160vh] hidden md:block">
+    <section id="about" ref={sectionRef} className="relative h-[130vh] hidden md:block">
       <div className="sticky top-0 h-screen overflow-hidden flex items-center">
         <div className="absolute top-[20%] right-[10%] w-[400px] h-[400px] rounded-full bg-accent-cyan/[0.03] blur-[100px] pointer-events-none" />
 
