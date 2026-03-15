@@ -1,14 +1,30 @@
 import { useRef, useState, useCallback } from "react";
 import { motion, useScroll, useTransform, useSpring, useInView } from "framer-motion";
+import {
+  Bike,
+  Gauge,
+  ToyBrick,
+  Camera,
+  Bird,
+  Globe,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Reveal from "./Reveal";
 
-const INTERESTS = [
-  { icon: "🏍️", label: "BMW S1000RR", detail: "199hp weekend therapy", accent: "#ef4444" },
-  { icon: "🚴", label: "Cycling", detail: "80km Friday morning rides", accent: "#22c55e" },
-  { icon: "🧱", label: "LEGO", detail: "Building cities with the twins", accent: "#f59e0b" },
-  { icon: "📷", label: "Photography", detail: "Landscapes & photo editing", accent: "#8b5cf6" },
-  { icon: "🐦", label: "Birding", detail: "White Wagtails & Bulbuls", accent: "#06b6d4" },
-  { icon: "🌏", label: "Travel", detail: "Thailand, northern Israel", accent: "#ec4899" },
+interface Interest {
+  icon: LucideIcon;
+  label: string;
+  detail: string;
+  accent: string;
+}
+
+const INTERESTS: Interest[] = [
+  { icon: Gauge, label: "BMW S1000RR", detail: "199hp weekend therapy", accent: "#ef4444" },
+  { icon: Bike, label: "Cycling", detail: "80km Friday morning rides", accent: "#22c55e" },
+  { icon: ToyBrick, label: "LEGO", detail: "Building cities with the twins", accent: "#f59e0b" },
+  { icon: Camera, label: "Photography", detail: "Landscapes & photo editing", accent: "#8b5cf6" },
+  { icon: Bird, label: "Birding", detail: "White Wagtails & Bulbuls", accent: "#06b6d4" },
+  { icon: Globe, label: "Travel", detail: "Thailand, northern Israel", accent: "#ec4899" },
 ];
 
 const spring = { stiffness: 80, damping: 25 };
@@ -23,7 +39,6 @@ function ParallaxPhoto() {
   const imgY = useSpring(useTransform(scrollYProgress, [0, 1], [40, -40]), spring);
   const imgScale = useSpring(useTransform(scrollYProgress, [0, 0.5, 1], [1.15, 1.05, 1]), spring);
   const overlayOpacity = useTransform(scrollYProgress, [0, 0.4], [0.4, 0]);
-
   const isInView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
@@ -34,13 +49,11 @@ function ParallaxPhoto() {
       animate={isInView ? { opacity: 1, x: 0, scale: 1 } : {}}
       transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
     >
-      {/* Corner accents */}
       <div className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-accent-cyan/40 rounded-tl-xl z-10" />
       <div className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-accent-cyan/20 rounded-tr-xl z-10" />
       <div className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-accent-cyan/20 rounded-bl-xl z-10" />
       <div className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-accent-cyan/40 rounded-br-xl z-10" />
 
-      {/* Parallax image */}
       <motion.div className="absolute inset-0" style={{ y: imgY, scale: imgScale }}>
         <img
           src="/img/alex-office.png"
@@ -53,112 +66,133 @@ function ParallaxPhoto() {
         />
       </motion.div>
 
-      {/* Cinematic overlay that fades on scroll */}
-      <motion.div
-        className="absolute inset-0 bg-bg-primary pointer-events-none"
-        style={{ opacity: overlayOpacity }}
-      />
-
-      {/* Bottom gradient */}
+      <motion.div className="absolute inset-0 bg-bg-primary pointer-events-none" style={{ opacity: overlayOpacity }} />
       <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-bg-primary/70 to-transparent z-[1]" />
-
-      {/* Location tag */}
       <p className="absolute bottom-3 left-3 md:bottom-4 md:left-4 font-mono text-xs text-accent-cyan/80 z-10">
         Ra&apos;anana, Israel
       </p>
-
-      {/* Subtle scanlines */}
       <div className="absolute inset-0 z-[2] pointer-events-none opacity-[0.03]"
-        style={{
-          backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,204,0.1) 2px, rgba(0,229,204,0.1) 4px)",
-        }}
+        style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,204,0.1) 2px, rgba(0,229,204,0.1) 4px)" }}
       />
     </motion.div>
   );
 }
 
-/* ── Interest chip with spotlight hover ────────── */
-function InterestChip({
-  item,
-  index,
-}: {
-  item: (typeof INTERESTS)[number];
-  index: number;
-}) {
+/* ── Premium interest card ─────────────────────── */
+function InterestCard({ item, index }: { item: Interest; index: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      const rect = ref.current?.getBoundingClientRect();
-      if (!rect) return;
-      setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    },
-    []
-  );
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const rect = ref.current?.getBoundingClientRect();
+    if (!rect) return;
+    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }, []);
 
-  const accent = item.accent;
+  const { accent } = item;
+  const Icon = item.icon;
 
   return (
-    <Reveal delay={0.15 + index * 0.06} y={20}>
+    <Reveal delay={0.15 + index * 0.07} y={24}>
       <div
         ref={ref}
-        className="group relative rounded-xl border border-border-subtle bg-bg-card/60 px-3 md:px-4 py-3 md:py-3.5 overflow-hidden transition-all duration-300 hover:-translate-y-1"
+        className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1.5 cursor-default"
         onMouseMove={handleMouseMove}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         style={{
-          borderColor: isHovered ? `${accent}30` : undefined,
+          background: "linear-gradient(135deg, #131729 0%, #0f1320 100%)",
+          border: `1px solid ${isHovered ? `${accent}35` : "#1e234050"}`,
         }}
       >
-        {/* Spotlight */}
+        {/* Mouse-tracking spotlight */}
         <div
           className="pointer-events-none absolute -inset-px transition-opacity duration-300"
           style={{
             opacity: isHovered ? 1 : 0,
-            background: `radial-gradient(120px circle at ${mousePos.x}px ${mousePos.y}px, ${accent}18, transparent 60%)`,
+            background: `radial-gradient(180px circle at ${mousePos.x}px ${mousePos.y}px, ${accent}15, transparent 60%)`,
+          }}
+        />
+
+        {/* Conic gradient border on hover */}
+        <div
+          className="pointer-events-none absolute -inset-[1px] rounded-2xl transition-opacity duration-500"
+          style={{
+            opacity: isHovered ? 1 : 0,
+            background: `conic-gradient(from ${Math.atan2(mousePos.y - 40, mousePos.x - 80) * (180 / Math.PI)}deg at ${mousePos.x}px ${mousePos.y}px, ${accent}30, transparent 25%, transparent 75%, ${accent}30)`,
+            mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+            maskComposite: "exclude",
+            WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+            WebkitMaskComposite: "xor",
+            padding: "1px",
+            borderRadius: "1rem",
           }}
         />
 
         {/* Top accent line */}
+        <div className="absolute top-0 inset-x-0 h-px" style={{
+          background: `linear-gradient(90deg, transparent, ${accent}${isHovered ? "70" : "25"} 50%, transparent)`,
+          transition: "all 0.3s",
+        }} />
+
+        {/* Shine sweep */}
         <div
-          className="absolute top-0 inset-x-0 h-px transition-opacity duration-300"
+          className="absolute inset-0 -translate-x-full group-hover:translate-x-[200%] transition-transform duration-[1000ms] ease-in-out pointer-events-none"
           style={{
-            opacity: isHovered ? 1 : 0,
-            background: `linear-gradient(90deg, transparent, ${accent}50 50%, transparent)`,
+            background: `linear-gradient(105deg, transparent 40%, ${accent}08 45%, ${accent}12 50%, ${accent}08 55%, transparent 60%)`,
           }}
         />
 
-        <div className="relative flex items-start gap-2.5">
-          <span className="text-xl md:text-2xl mt-0.5 transition-transform duration-300 group-hover:scale-110">
-            {item.icon}
-          </span>
-          <div className="min-w-0">
-            <span className="text-xs md:text-sm text-text-primary font-medium block">
+        {/* Content */}
+        <div className="relative p-4 md:p-5 flex items-start gap-3.5">
+          {/* Icon container */}
+          <div
+            className="shrink-0 w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center transition-all duration-300"
+            style={{
+              background: `${accent}${isHovered ? "18" : "0c"}`,
+              border: `1px solid ${accent}${isHovered ? "30" : "15"}`,
+              boxShadow: isHovered ? `0 0 16px ${accent}15` : "none",
+            }}
+          >
+            <Icon
+              size={18}
+              style={{ color: accent }}
+              className="transition-transform duration-300 group-hover:scale-110"
+            />
+          </div>
+
+          {/* Text */}
+          <div className="min-w-0 pt-0.5">
+            <p className="font-display font-semibold text-sm text-text-primary mb-0.5 tracking-tight">
               {item.label}
-            </span>
-            <p className="text-[10px] md:text-xs text-text-dim mt-0.5 leading-relaxed">
+            </p>
+            <p className="text-[11px] md:text-xs text-text-dim leading-relaxed">
               {item.detail}
             </p>
           </div>
         </div>
+
+        {/* Corner brackets */}
+        <div className="absolute top-0 left-0 w-4 h-4 pointer-events-none transition-opacity duration-500"
+          style={{ opacity: isHovered ? 1 : 0, borderTop: `1.5px solid ${accent}30`, borderLeft: `1.5px solid ${accent}30`, borderTopLeftRadius: "1rem" }} />
+        <div className="absolute bottom-0 right-0 w-4 h-4 pointer-events-none transition-opacity duration-500"
+          style={{ opacity: isHovered ? 1 : 0, borderBottom: `1.5px solid ${accent}30`, borderRight: `1.5px solid ${accent}30`, borderBottomRightRadius: "1rem" }} />
+
+        {/* Bottom glow */}
+        <div
+          className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-2/3 h-4 rounded-full blur-xl pointer-events-none transition-opacity duration-500"
+          style={{ background: accent, opacity: isHovered ? 0.06 : 0 }}
+        />
       </div>
     </Reveal>
   );
 }
 
-/* ── Highlighted prose text ─────────────────────── */
-function Prose({
-  children,
-  delay,
-}: {
-  children: React.ReactNode;
-  delay: number;
-}) {
+/* ── Highlighted prose ──────────────────────────── */
+function Prose({ children, delay }: { children: React.ReactNode; delay: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-60px" });
-
   return (
     <motion.div
       ref={ref}
@@ -175,12 +209,10 @@ function Prose({
 export default function About() {
   return (
     <section id="about" className="relative py-16 md:py-24 px-4 md:px-6 overflow-hidden">
-      {/* Ambient glows */}
       <div className="absolute top-[20%] right-[5%] w-[50vw] max-w-[400px] h-[50vw] max-h-[400px] rounded-full bg-accent-cyan/[0.025] blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[10%] left-[10%] w-[40vw] max-w-[300px] h-[40vw] max-h-[300px] rounded-full bg-[#8b5cf6]/[0.02] blur-[80px] pointer-events-none" />
 
       <div className="mx-auto max-w-6xl">
-        {/* Header */}
         <Reveal x={-40}>
           <div className="flex items-center gap-4 mb-3">
             <h2 className="font-display font-bold text-3xl md:text-4xl text-text-primary whitespace-nowrap">
@@ -196,29 +228,22 @@ export default function About() {
         </Reveal>
 
         <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-start">
-          {/* Photo with parallax */}
           <ParallaxPhoto />
 
-          {/* Content */}
           <div>
             <Prose delay={0.1}>
               <p className="text-sm md:text-base text-text-secondary leading-relaxed mb-5 md:mb-6">
                 I&apos;m a full-stack engineer based in{" "}
-                <span className="font-medium text-text-primary border-b border-accent-cyan/30">
-                  Ra&apos;anana, Israel
-                </span>
-                , balancing high-traffic platforms during the week with{" "}
-                <span className="font-medium text-text-primary">80km cycling rides</span>{" "}
-                on Friday mornings before the world wakes up.
+                <span className="font-medium text-text-primary border-b border-accent-cyan/30">Ra&apos;anana, Israel</span>,
+                balancing high-traffic platforms during the week with{" "}
+                <span className="font-medium text-text-primary">80km cycling rides</span> on Friday mornings.
               </p>
             </Prose>
 
             <Prose delay={0.2}>
               <p className="text-sm md:text-base text-text-secondary leading-relaxed mb-5 md:mb-6">
                 Father of twins who builds LEGO cities with them, rides a{" "}
-                <span className="font-medium text-text-primary border-b border-accent-cyan/30">
-                  2014 BMW S1000RR
-                </span>{" "}
+                <span className="font-medium text-text-primary border-b border-accent-cyan/30">2014 BMW S1000RR</span>{" "}
                 on weekends, and spots White Wagtails from a park bench with good coffee.
               </p>
             </Prose>
@@ -233,7 +258,6 @@ export default function About() {
               </p>
             </Prose>
 
-            {/* Divider before chips */}
             <Reveal delay={0.35}>
               <div className="flex items-center gap-3 mb-6">
                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border-subtle to-transparent" />
@@ -242,10 +266,9 @@ export default function About() {
               </div>
             </Reveal>
 
-            {/* Interest chips */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {INTERESTS.map((item, i) => (
-                <InterestChip key={item.label} item={item} index={i} />
+                <InterestCard key={item.label} item={item} index={i} />
               ))}
             </div>
           </div>
