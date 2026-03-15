@@ -48,6 +48,15 @@ body {
   background: var(--color-text-dim);
 }
 
+/* Hide scrollbar on horizontal scroll containers */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* ── Section divider ──────────────────────────────── */
 .section-divider {
   height: 1px;
