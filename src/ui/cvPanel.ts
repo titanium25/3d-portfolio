@@ -2232,6 +2232,7 @@ const SKILL_CATEGORIES: { label: string; context: string; skills: { name: string
       { name: "Express.js" },
       { name: "REST APIs" },
       { name: "Microservices", core: true },
+      { name: "BullMQ" },
       { name: "GraphQL" },
     ],
   },
@@ -2271,6 +2272,14 @@ const SKILL_CATEGORIES: { label: string; context: string; skills: { name: string
       { name: "Figma" },
       { name: "API Integration" },
       { name: "Performance Optimization" },
+    ],
+  },
+  {
+    label: "AI & Productivity",
+    context: "Cursor + Claude Code in daily engineering workflow",
+    skills: [
+      { name: "Cursor", core: true },
+      { name: "Claude Code", core: true },
     ],
   },
 ];
@@ -2516,9 +2525,8 @@ function buildOverviewTab(): HTMLDivElement {
           Open to opportunities &nbsp;·&nbsp; Full-time / Contract
         </div>
         <p id="cv-summary">
-          Full-stack engineer across semiconductor (<span class="hl-key">ASML/Intel</span>), <span class="hl-key">B2B SaaS</span>, and <span class="hl-key">proprietary trading</span>.
-          <span class="hl-key">Led teams</span>, shipped <span class="hl-key">AI platforms</span>, and architected microservices serving <span class="hl-metric">100K+ active users</span>.
-          Deep <span class="hl-key">React &amp; TypeScript</span> expertise paired with strong backend and cloud infra.
+          Mid→Senior Full-Stack Engineer (<span class="hl-key">TypeScript</span>) building <span class="hl-key">Nx microservices</span> + high-traffic <span class="hl-key">React dashboards</span> for a trading platform (<span class="hl-metric">100K+ users / 70K active</span>).
+          Strong problem solver, experienced collaborating with <span class="hl-key">international teams</span> across time zones.
         </p>
         <div id="cv-sig-skills">
           <p id="cv-sig-skills-label">Signature Stack</p>
@@ -2748,6 +2756,7 @@ const CATEGORY_META: Record<string, { icon: string; color: string; colorBg: stri
   "Data & Storage":          { icon: "◎", color: "#a78bfa", colorBg: "rgba(167,139,250,0.07)",colorBorder: "rgba(167,139,250,0.22)" },
   "DevOps & Infra":          { icon: "⬢", color: "#fbbf24", colorBg: "rgba(251,191,36,0.07)", colorBorder: "rgba(251,191,36,0.22)" },
   "Engineering & Leadership":{ icon: "✦", color: "#4ade80", colorBg: "rgba(74,222,128,0.07)", colorBorder: "rgba(74,222,128,0.22)" },
+  "AI & Productivity":       { icon: "◇", color: "#f472b6", colorBg: "rgba(244,114,182,0.07)",colorBorder: "rgba(244,114,182,0.22)" },
 };
 
 function buildStackTab(): HTMLDivElement {

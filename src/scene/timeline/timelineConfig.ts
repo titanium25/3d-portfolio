@@ -138,12 +138,14 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
     companyContext:
       "The5ers is a global proprietary trading firm that funds talented traders with real capital — no personal risk. The platform serves 100K+ registered traders worldwide with evaluation programs, live funded accounts, and real-time performance dashboards.",
     bullets: [
-      "Core engineer on the platform team — building the trading system at scale (integrations, microservices, dashboards)",
-      "Worked across 20+ microservices and 100+ shared libraries in an Nx monorepo",
-      "Owned central dashboards for 100K+ users (70K active); smart polling + Redis cache → 30–40% API cost reduction",
-      "Introduced and standardized React Query company-wide (patterns, cache strategy, invalidation rules, defaults)",
-      "Implemented MUI component foundation and Storybook documentation aligned to Figma design system",
-      "Led internal training for 6 teams (~18–24 devs) on frontend architecture and standards",
+      "Core engineer in platform team owning core integrations and dashboards in an Nx-based microservices platform at scale",
+      "Worked across 20+ microservices and 100+ shared libraries in an Nx monorepo; co-developed and owned at least 3 microservices end-to-end (design → implementation → production)",
+      "Owned central dashboards for 100K+ users (70K active)",
+      "Trade Score scalability: eliminated production rate-limit failures and reduced external market-data API cost by 30–40% by implementing a Redis cache layer for candle data (cache-first retrieval during score calculations)",
+      "Introduced and standardized React Query company-wide (query patterns, cache strategy, invalidation rules, defaults)",
+      "Implemented the MUI foundation: theme + tokens, component patterns, and Storybook-based documentation to align engineering with Figma and accelerate delivery across teams",
+      "Delivered architecture/training sessions for 6 teams (~18–24 developers) on company standards (structure, rules, theming, i18n, UX states) and best practices",
+      "Frequently collaborated with international teams across time zones; stepped in outside regular hours during critical efforts",
     ],
     skills: [
       "React",
