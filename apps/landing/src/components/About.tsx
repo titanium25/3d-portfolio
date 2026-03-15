@@ -94,10 +94,10 @@ function InterestCard({ item, index }: { item: Interest; index: number }) {
   const Icon = item.icon;
 
   return (
-    <Reveal delay={0.15 + index * 0.07} y={24}>
+    <Reveal delay={0.15 + index * 0.07} y={24} className="h-full">
       <div
         ref={ref}
-        className="group relative rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1.5 cursor-default"
+        className="group relative h-full rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1.5 cursor-default"
         onMouseMove={handleMouseMove}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -144,11 +144,11 @@ function InterestCard({ item, index }: { item: Interest; index: number }) {
           }}
         />
 
-        {/* Content */}
-        <div className="relative p-4 md:p-5 flex items-start gap-3.5">
-          {/* Icon container */}
+        {/* Content — vertical layout for breathing room */}
+        <div className="relative p-4 flex flex-col items-center text-center h-full">
+          {/* Icon */}
           <div
-            className="shrink-0 w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center transition-all duration-300"
+            className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-all duration-300"
             style={{
               background: `${accent}${isHovered ? "18" : "0c"}`,
               border: `1px solid ${accent}${isHovered ? "30" : "15"}`,
@@ -163,14 +163,12 @@ function InterestCard({ item, index }: { item: Interest; index: number }) {
           </div>
 
           {/* Text */}
-          <div className="min-w-0 pt-0.5">
-            <p className="font-display font-semibold text-sm text-text-primary mb-0.5 tracking-tight">
-              {item.label}
-            </p>
-            <p className="text-[11px] md:text-xs text-text-dim leading-relaxed">
-              {item.detail}
-            </p>
-          </div>
+          <p className="font-display font-semibold text-sm text-text-primary mb-1 tracking-tight">
+            {item.label}
+          </p>
+          <p className="text-[11px] text-text-dim leading-relaxed">
+            {item.detail}
+          </p>
         </div>
 
         {/* Corner brackets */}
@@ -266,7 +264,7 @@ export default function About() {
               </div>
             </Reveal>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
               {INTERESTS.map((item, i) => (
                 <InterestCard key={item.label} item={item} index={i} />
               ))}
