@@ -11,15 +11,15 @@
 
 import * as THREE from "three";
 import type { Scene } from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { gltfLoader } from "./loaderSetup";
 
 /* ══════════════════════════════════════════════════════════════
  *  Model paths (exact filenames from /public/models/)
  * ════════════════════════════════════════════════════════════ */
 
-const KETTLEBELL_PATH = "/models/Meshy_AI_32_Kg_Cast_Iron_Kettl_0308133600_texture.glb";
-const LEGO_PATH = "/models/Meshy_AI_Lego_bloks_0308133652_texture.glb";
-const DRAWING_PATH = "/models/Meshy_AI_Sunny_Family_on_the_H_0308134126_texture.glb";
+const KETTLEBELL_PATH = "/models/optimized/Meshy_AI_32_Kg_Cast_Iron_Kettl_0308133600_texture.glb";
+const LEGO_PATH = "/models/optimized/Meshy_AI_Lego_bloks_0308133652_texture.glb";
+const DRAWING_PATH = "/models/optimized/Meshy_AI_Sunny_Family_on_the_H_0308134126_texture.glb";
 
 /* ══════════════════════════════════════════════════════════════
  *  Placement (arena hex centered at 0,0,0, radius 12)
@@ -68,7 +68,6 @@ function addPropLight(
 }
 
 async function loadProp(
-  loader: GLTFLoader,
   path: string,
   targetHeight: number,
   position: [number, number, number],
@@ -76,7 +75,7 @@ async function loadProp(
   parent: THREE.Group,
   onLoaded?: () => void,
 ): Promise<THREE.Group> {
-  const gltf = await loader.loadAsync(path);
+  const gltf = await gltfLoader.loadAsync(path);
   const model = gltf.scene;
 
   // Scale to target height
@@ -117,11 +116,8 @@ export async function createArenaProps(
   const group = new THREE.Group();
   group.name = "ArenaProps";
 
-  const loader = new GLTFLoader();
-
   const [legoGroup, kettlebellGroup, drawingGroup] = await Promise.all([
     loadProp(
-      loader,
       LEGO_PATH,
       LEGO_TARGET_HEIGHT,
       LEGO_POS,
@@ -130,7 +126,6 @@ export async function createArenaProps(
       onAssetLoaded,
     ),
     loadProp(
-      loader,
       KETTLEBELL_PATH,
       KETTLEBELL_TARGET_HEIGHT,
       KETTLEBELL_POS,
@@ -139,7 +134,6 @@ export async function createArenaProps(
       onAssetLoaded,
     ),
     loadProp(
-      loader,
       DRAWING_PATH,
       DRAWING_TARGET_HEIGHT,
       DRAWING_POS,

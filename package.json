@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "optimize-models": "bash scripts/optimize-models.sh"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

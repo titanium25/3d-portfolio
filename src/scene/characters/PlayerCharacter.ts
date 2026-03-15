@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { gltfLoader } from "../loaderSetup";
 import type { AnimationAction, Scene } from "three";
 import {
   getInputDirection,
@@ -147,13 +147,12 @@ export class PlayerCharacter extends BaseCharacter {
     scene.add(group);
 
     const controller = new PlayerCharacter(group);
-    const loader = new GLTFLoader();
 
     try {
       // Load and set up the base model (idle pose)
       const model = await BaseCharacter.loadCharacterModel(
-        loader,
-        "/models/Meshy_AI_Animation_Idle_11_withSkin.glb",
+        gltfLoader,
+        "/models/optimized/Meshy_AI_Animation_Idle_11_withSkin.glb",
         0.4,
       );
       BaseCharacter.setupModelMaterials(model);
@@ -174,7 +173,7 @@ export class PlayerCharacter extends BaseCharacter {
         const action = await BaseCharacter.loadAnimationClip(
           mixer,
           model,
-          loader,
+          gltfLoader,
           url,
           name,
           "stripY", // flatten Y in position tracks – grounding is managed by code
@@ -184,19 +183,19 @@ export class PlayerCharacter extends BaseCharacter {
       };
 
       controller.idleAction = await load(
-        "/models/Meshy_AI_Animation_Idle_11_withSkin.glb",
+        "/models/optimized/Meshy_AI_Animation_Idle_11_withSkin.glb",
         "idle",
       );
       controller.walkAction = await load(
-        "/models/Meshy_AI_Animation_Walking_withSkin.glb",
+        "/models/optimized/Meshy_AI_Animation_Walking_withSkin.glb",
         "walk",
       );
       controller.runAction = await load(
-        "/models/Meshy_AI_Animation_Running_withSkin.glb",
+        "/models/optimized/Meshy_AI_Animation_Running_withSkin.glb",
         "run",
       );
       controller.waveAction = await load(
-        "/models/Meshy_AI_Animation_Wave_One_Hand_withSkin.glb",
+        "/models/optimized/Meshy_AI_Animation_Wave_One_Hand_withSkin.glb",
         "wave",
       );
 

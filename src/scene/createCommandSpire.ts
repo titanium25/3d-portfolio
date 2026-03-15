@@ -11,7 +11,7 @@
  */
 
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { gltfLoader } from "./loaderSetup";
 import { computeProximityFactor } from "../collision/proximityUtils";
 import type { StopData } from "../scene/types";
 
@@ -19,7 +19,7 @@ import type { StopData } from "../scene/types";
  *  Constants
  * ════════════════════════════════════════════════════════════ */
 
-const SPIRE_PATH = "/models/Meshy_AI_Cyan_Ring_Spire_0314184308_texture.glb";
+const SPIRE_PATH = "/models/optimized/Meshy_AI_Cyan_Ring_Spire_0314184308_texture.glb";
 const SPIRE_TARGET_HEIGHT = 4;
 const SPIRE_POS = new THREE.Vector3(0, 0, 0);
 
@@ -115,8 +115,7 @@ export async function createCommandSpire(
 
   /* ── Load tower GLB ──────────────────────────────────────── */
 
-  const loader = new GLTFLoader();
-  const gltf = await loader.loadAsync(SPIRE_PATH);
+  const gltf = await gltfLoader.loadAsync(SPIRE_PATH);
   const model = gltf.scene;
 
   const box = new THREE.Box3().setFromObject(model);

@@ -1,8 +1,6 @@
 import * as THREE from "three";
-import {
-  GLTFLoader,
-  type GLTF,
-} from "three/examples/jsm/loaders/GLTFLoader.js";
+import { type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { gltfLoader } from "../loaderSetup";
 import { createRadialGlowTexture } from "../textureUtils";
 
 /* ── Palette (matches megastructure platform) ─────────────────── */
@@ -13,7 +11,7 @@ const COL_ACCENT = 0x00e5cc; // cyan emissive
 /* ── Portal model ─────────────────────────────────────────────── */
 
 const PORTAL_MODEL_PATH =
-  "/models/Meshy_AI_Neon_Quantum_Portal_0216123143_texture.glb";
+  "/models/optimized/Meshy_AI_Neon_Quantum_Portal_0216123143_texture.glb";
 const MODEL_TARGET_HEIGHT = 2.9;
 
 /* ── Floor pad ────────────────────────────────────────────────── */
@@ -47,9 +45,8 @@ let portalCache: PortalCache | null = null;
 export async function loadPortalModel(): Promise<void> {
   if (portalCache) return;
 
-  const loader = new GLTFLoader();
   const gltf = await new Promise<GLTF>((resolve, reject) =>
-    loader.load(PORTAL_MODEL_PATH, resolve, undefined, reject),
+    gltfLoader.load(PORTAL_MODEL_PATH, resolve, undefined, reject),
   );
 
   const scene = gltf.scene;

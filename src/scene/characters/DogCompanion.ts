@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { gltfLoader } from "../loaderSetup";
 import type { Scene } from "three";
 import { BaseCharacter } from "./BaseCharacter";
 import type { MovementInput } from "./types";
@@ -1002,12 +1002,10 @@ export class DogCompanion extends BaseCharacter {
     // walkAction is null here; resetToGuideInFront() guards against that.
     companion.resetToGuideInFront();
 
-    const loader = new GLTFLoader();
-
     try {
       const model = await BaseCharacter.loadCharacterModel(
-        loader,
-        "/models/Meshy_AI_model_Animation_Walking_withSkin_DOG.glb",
+        gltfLoader,
+        "/models/optimized/Meshy_AI_model_Animation_Walking_withSkin_DOG.glb",
         DOG_MODEL_HEIGHT,
       );
       BaseCharacter.setupModelMaterials(model);
@@ -1027,8 +1025,8 @@ export class DogCompanion extends BaseCharacter {
       companion.walkAction = await BaseCharacter.loadAnimationClip(
         mixer,
         model,
-        loader,
-        "/models/Meshy_AI_model_Animation_Walking_withSkin_DOG.glb",
+        gltfLoader,
+        "/models/optimized/Meshy_AI_model_Animation_Walking_withSkin_DOG.glb",
         "dog-walk",
         "remove", // remove ALL position tracks – dog grounding is fully managed by code
       );
