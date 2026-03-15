@@ -137,13 +137,15 @@ function DomainCard({
   const rawProgress = useTransform(scrollYProgress, [0, 1], [0, 1]);
   const progress = useSpring(rawProgress, spring);
 
+  // Reduced transforms on mobile to prevent overflow
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   const opacity = useTransform(progress, [0, 0.5, 1], [0, 0.6, 1]);
-  const y = useTransform(progress, [0, 1], [60, 0]);
-  const x = useTransform(progress, [0, 1], [fromLeft ? -40 : 40, 0]);
-  const scale = useTransform(progress, [0, 0.5, 1], [0.92, 0.97, 1]);
-  const blur = useTransform(progress, [0, 0.6, 1], [8, 2, 0]);
+  const y = useTransform(progress, [0, 1], [isMobile ? 30 : 60, 0]);
+  const x = useTransform(progress, [0, 1], [isMobile ? 0 : fromLeft ? -40 : 40, 0]);
+  const scale = useTransform(progress, [0, 0.5, 1], [0.95, 0.98, 1]);
+  const blur = useTransform(progress, [0, 0.6, 1], [isMobile ? 4 : 8, 1, 0]);
   const filterBlur = useTransform(blur, (v) => `blur(${v}px)`);
-  const rotateY = useTransform(progress, [0, 1], [fromLeft ? -4 : 4, 0]);
+  const rotateY = useTransform(progress, [0, 1], [isMobile ? 0 : fromLeft ? -4 : 4, 0]);
 
   const handleMouseMove = useCallback(
     (e: MouseEvent<HTMLDivElement>) => {
@@ -327,7 +329,7 @@ export default function Stack() {
   const sectionRef = useRef<HTMLDivElement>(null);
 
   return (
-    <section id="stack" ref={sectionRef} className="relative py-28 px-6">
+    <section id="stack" ref={sectionRef} className="relative py-20 md:py-28 px-4 md:px-6 overflow-hidden">
       {/* Ambient glows */}
       <div className="absolute top-[30%] left-[10%] w-[400px] h-[300px] rounded-full bg-accent-cyan/[0.015] blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[20%] right-[10%] w-[350px] h-[250px] rounded-full bg-[#6366f1]/[0.015] blur-[80px] pointer-events-none" />
@@ -361,7 +363,7 @@ export default function Stack() {
           </div>
         </Reveal>
 
-        <div className="grid md:grid-cols-2 gap-5 max-w-5xl items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 max-w-5xl items-stretch">
           {DOMAINS.map((domain, i) => (
             <DomainCard key={domain.title} domain={domain} index={i} />
           ))}

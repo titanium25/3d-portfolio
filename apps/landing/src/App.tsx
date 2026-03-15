@@ -12,7 +12,7 @@ const ExploreButton = lazy(() => import("./components/ExploreButton"));
 
 export default function App() {
   return (
-    <div className="bg-bg-primary min-h-screen text-text-secondary">
+    <div className="bg-bg-primary min-h-screen text-text-secondary overflow-x-hidden">
       <ScrollProgress />
       <Navbar />
       <main>

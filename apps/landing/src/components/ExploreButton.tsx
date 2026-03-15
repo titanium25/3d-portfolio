@@ -172,7 +172,7 @@ export default function ExploreButton() {
 
   return (
         <motion.div
-          className="fixed bottom-6 right-6 z-40"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{
             opacity: hideForContact ? 0 : 1,
@@ -245,7 +245,7 @@ export default function ExploreButton() {
           {/* Button */}
           <a
             href="/explore"
-            className="relative block w-[72px] h-[72px] sm:w-[88px] sm:h-[88px] rounded-full overflow-hidden bg-bg-primary border border-border-subtle/60"
+            className="relative block w-[56px] h-[56px] sm:w-[72px] sm:h-[72px] md:w-[88px] md:h-[88px] rounded-full overflow-hidden bg-bg-primary border border-border-subtle/60"
             onMouseEnter={() => {
               setHovered(true);
               setShowTooltip(true);

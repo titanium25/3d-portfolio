@@ -150,7 +150,7 @@ export default function Hero() {
   );
 
   return (
-    <section ref={sectionRef} className="relative h-[200vh]">
+    <section ref={sectionRef} className="relative h-[200vh] overflow-hidden">
       <div className="sticky top-0 h-screen overflow-hidden">
         {/* ── Layer 1: Interactive dot grid ── */}
         <DotGrid />
@@ -160,9 +160,9 @@ export default function Hero() {
           className="absolute inset-0 pointer-events-none z-[1]"
           style={{ scale: glowScale }}
         >
-          <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-accent-cyan/[0.06] blur-[120px]" />
-          <div className="absolute bottom-[-10%] right-[10%] w-[400px] h-[400px] rounded-full bg-accent-cyan/[0.04] blur-[100px]" />
-          <div className="absolute top-[30%] right-[20%] w-[300px] h-[300px] rounded-full bg-[#0066ff]/[0.03] blur-[80px]" />
+          <div className="absolute top-[-10%] left-0 w-[60vw] max-w-[500px] h-[60vw] max-h-[500px] rounded-full bg-accent-cyan/[0.06] blur-[120px]" />
+          <div className="absolute bottom-[-10%] right-0 w-[50vw] max-w-[400px] h-[50vw] max-h-[400px] rounded-full bg-accent-cyan/[0.04] blur-[100px]" />
+          <div className="absolute top-[30%] right-[10%] w-[40vw] max-w-[300px] h-[40vw] max-h-[300px] rounded-full bg-[#0066ff]/[0.03] blur-[80px]" />
         </motion.div>
 
         {/* ── Layer 3: Three.js canvas ── */}
