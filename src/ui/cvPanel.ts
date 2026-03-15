@@ -2430,7 +2430,7 @@ function createCVPanel(): void {
   const footer = document.createElement("div");
   footer.id = "cv-footer";
   footer.innerHTML = `
-    <a id="cv-footer-dl" href="/AL_CV_TH5_v1.pdf" download="Alexander_Lazarovich_CV.pdf">
+    <a id="cv-footer-dl" href="/AL_CV_TH5_v2.pdf" download="Alexander_Lazarovich_CV.pdf">
       <div class="cv-dl-left">
         <div class="cv-dl-icon-box">
           <svg width="16" height="16" viewBox="0 0 14 14" fill="none">

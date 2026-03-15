@@ -98,11 +98,11 @@ export const TIMELINE_STOPS: TimelineStopData[] = [
     companyContext:
       "Triolla (acquired by SQLink, one of Israel's Big Five integrators) is a software development studio delivering end-to-end product engineering for startups and scale-ups — full-stack systems, UX/UI, and AI platforms across fintech, healthtech, and enterprise verticals.",
     bullets: [
+      "Delivered client systems across frontend and backend using TypeScript/JavaScript (React, Node/Nest/Express, Laravel)",
+      "Delivered a complex Contest Leaderboard/Podium component with 16+ UX/UI states (contest lifecycle → user status), responsive mobile/desktop layouts, dark/light modes, and design-system compliance",
       "Built AI chat systems, a complex insurance platform (8+ API integrations), and mobile geolocation & tracking apps",
-      "Tech stack: PHP Laravel, Node.js, NestJS, React, Vue, MySQL, MongoDB, Redis, Redux, AWS — chosen per project needs",
-      "Developed and maintained API connections across multiple client companies for reliable data exchange",
+      "Modernized legacy UI (jQuery → React), executed data migrations, and designed new SQL schemas for product features",
       "Partnered closely with Figma designers, PMs, and clients to deliver solutions that exceeded expectations",
-      "Led front-end performance work with strong UX focus, especially for mobile-based applications",
     ],
     skills: [
       "React",
