@@ -2,14 +2,14 @@ import { useRef, useState, useEffect } from "react";
 import { motion, useScroll, useTransform, useSpring, type MotionValue } from "framer-motion";
 import { GraduationCap, Zap, BookOpen, Cpu } from "lucide-react";
 import RoleCard, { type RoleData } from "./RoleCard";
+import Reveal from "./Reveal";
 
 const ROLES: RoleData[] = [
   {
     company: "The5ers",
     title: "Full Stack Engineer",
     period: "2024 – PRESENT",
-    context:
-      "Core engineer in platform team · Nx monorepo · 100K+ user trading platform",
+    context: "Core engineer in platform team · Nx monorepo · 100K+ user trading platform",
     bullets: [
       "Owned dashboards for 100K+ users with smart polling aligned to 30s backend sync.",
       "Introduced React Query company-wide — patterns, cache strategy, invalidation rules.",
@@ -23,8 +23,7 @@ const ROLES: RoleData[] = [
     company: "Triolla",
     title: "Full Stack Engineer",
     period: "2023 – 2024",
-    context:
-      "Client systems across frontend and backend · REST/SOAP integrations",
+    context: "Client systems across frontend and backend · REST/SOAP integrations",
     bullets: [
       "Delivered client systems across frontend and backend (React, Node/Nest/Express, Laravel).",
       "Modernized deployments with Docker/AWS.",
@@ -36,8 +35,7 @@ const ROLES: RoleData[] = [
     company: "Restigo",
     title: "Full Stack Engineer",
     period: "2022 – 2023",
-    context:
-      "Team lead for 3 developers · Legacy modernization · CI/CD adoption",
+    context: "Team lead for 3 developers · Legacy modernization · CI/CD adoption",
     bullets: [
       "Led team of 3 developers; drove CI/CD adoption.",
       "Modernized legacy UI: jQuery → React. Designed new SQL schemas.",
@@ -61,34 +59,28 @@ const ROLES: RoleData[] = [
 ];
 
 const CARD_WIDTH_DESKTOP = 440;
-const CARD_WIDTH_MOBILE = 340;
 const CARD_HEIGHT = 520;
 const CARD_GAP = 32;
 
-export default function ExperienceCarousel() {
+/* ═══════════════════════════════════════════════════
+   DESKTOP — horizontal scroll carousel (md+)
+   ═══════════════════════════════════════════════════ */
+function DesktopCarousel() {
   const sectionRef = useRef<HTMLDivElement>(null);
-  const [cardWidth, setCardWidth] = useState(CARD_WIDTH_DESKTOP);
   const [viewportWidth, setViewportWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1200
   );
 
   useEffect(() => {
-    const update = () => {
-      setViewportWidth(window.innerWidth);
-      setCardWidth(window.innerWidth < 768 ? CARD_WIDTH_MOBILE : CARD_WIDTH_DESKTOP);
-    };
+    const update = () => setViewportWidth(window.innerWidth);
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
 
   const totalCards = ROLES.length + 1;
-  const totalRailWidth = totalCards * cardWidth + (totalCards - 1) * CARD_GAP;
+  const totalRailWidth = totalCards * CARD_WIDTH_DESKTOP + (totalCards - 1) * CARD_GAP;
   const maxTranslate = Math.max(0, totalRailWidth - viewportWidth + 96);
-
-  // Section height: enough scroll travel to drive the horizontal rail comfortably
-  const isMobile = viewportWidth < 768;
-  const sectionHeight = isMobile ? 200 : 300; // vh
 
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -122,15 +114,12 @@ export default function ExperienceCarousel() {
     <section
       id="experience"
       ref={sectionRef}
-      className="relative overflow-hidden"
-      style={{ height: `${sectionHeight}vh` }}
+      className="relative h-[300vh] overflow-hidden hidden md:block"
     >
       <div className="sticky top-0 h-screen overflow-hidden flex flex-col justify-center">
-        {/* Ambient glow */}
         <div className="absolute top-[30%] left-[5%] w-[400px] h-[400px] rounded-full bg-accent-cyan/[0.02] blur-[100px] pointer-events-none" />
         <div className="absolute bottom-[20%] right-[10%] w-[300px] h-[300px] rounded-full bg-[#6366f1]/[0.02] blur-[80px] pointer-events-none" />
 
-        {/* Header */}
         <motion.div
           className="mx-auto w-full max-w-6xl px-6 mb-5"
           style={{ opacity: headerOpacity, x: headerX }}
@@ -144,12 +133,9 @@ export default function ExperienceCarousel() {
               style={{ scaleX: wireScaleX }}
             />
           </div>
-          <p className="text-text-dim text-sm font-mono">
-            Scroll to explore my journey
-          </p>
+          <p className="text-text-dim text-sm font-mono">Scroll to explore my journey</p>
         </motion.div>
 
-        {/* Step indicators */}
         <motion.div
           className="mx-auto w-full max-w-6xl px-6 mb-5"
           style={{ opacity: headerOpacity }}
@@ -167,7 +153,6 @@ export default function ExperienceCarousel() {
           </div>
         </motion.div>
 
-        {/* Card rail — fixed height for all cards */}
         <motion.div
           className="flex items-stretch will-change-transform"
           style={{
@@ -181,22 +166,19 @@ export default function ExperienceCarousel() {
               key={role.company}
               role={role}
               index={i}
-              cardWidth={cardWidth}
+              cardWidth={CARD_WIDTH_DESKTOP}
               cardHeight={CARD_HEIGHT}
               scrollProgress={smoothProgress}
               totalCards={totalCards}
             />
           ))}
-          <EducationCard
-            cardWidth={cardWidth}
-            cardHeight={CARD_HEIGHT}
+          <DesktopEducationCard
             scrollProgress={smoothProgress}
             totalCards={totalCards}
             index={ROLES.length}
           />
         </motion.div>
 
-        {/* Progress bar */}
         <div className="mx-auto w-full max-w-6xl px-6 mt-5">
           <div className="relative h-[3px] bg-border-subtle/50 rounded-full overflow-hidden">
             <motion.div
@@ -208,9 +190,7 @@ export default function ExperienceCarousel() {
             />
           </div>
           <div className="flex items-center justify-between mt-3">
-            <p className="font-mono text-[11px] text-text-dim">
-              See full details in CV →
-            </p>
+            <p className="font-mono text-[11px] text-text-dim">See full details in CV →</p>
             <p className="font-mono text-[11px] text-text-dim">
               {ROLES.length} roles · {new Date().getFullYear() - 2018}+ years
             </p>
@@ -221,7 +201,167 @@ export default function ExperienceCarousel() {
   );
 }
 
-/* ── Step dot ─────────────────────────────────── */
+/* ═══════════════════════════════════════════════════
+   MOBILE — vertical card stack (< md)
+   ═══════════════════════════════════════════════════ */
+function MobileExperience() {
+  return (
+    <section id="experience-mobile" className="relative py-20 px-4 md:hidden">
+      <div className="mx-auto max-w-lg">
+        <Reveal>
+          <div className="flex items-center gap-4 mb-2">
+            <h2 className="font-display font-bold text-3xl text-text-primary whitespace-nowrap">
+              Experience
+            </h2>
+            <div className="section-divider flex-1" />
+          </div>
+        </Reveal>
+        <Reveal delay={0.05}>
+          <p className="text-text-dim text-xs font-mono mb-8">
+            {ROLES.length} roles · {new Date().getFullYear() - 2018}+ years
+          </p>
+        </Reveal>
+
+        <div className="space-y-4">
+          {ROLES.map((role, i) => (
+            <Reveal key={role.company} delay={i * 0.08} y={24}>
+              <MobileRoleCard role={role} index={i} />
+            </Reveal>
+          ))}
+
+          {/* Education */}
+          <Reveal delay={ROLES.length * 0.08} y={24}>
+            <div
+              className="rounded-2xl border border-border-subtle/50 p-6 text-center"
+              style={{ background: "linear-gradient(135deg, #131729 0%, #0f1320 100%)" }}
+            >
+              <GraduationCap size={24} className="text-[#8b5cf6] mx-auto mb-3" />
+              <p className="text-sm text-text-primary font-medium">
+                B.Sc. Electrical &amp; Electronics Engineering
+              </p>
+              <p className="font-mono text-xs text-text-dim mt-1">Ariel University</p>
+            </div>
+          </Reveal>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Mobile role card (simplified, no Three.js overhead) ── */
+function MobileRoleCard({ role, index }: { role: RoleData; index: number }) {
+  const accent = role.accent || "#00e5cc";
+
+  return (
+    <div
+      className="rounded-2xl border overflow-hidden"
+      style={{
+        background: "linear-gradient(135deg, #131729 0%, #0f1320 100%)",
+        borderColor: `${accent}20`,
+      }}
+    >
+      {/* Top accent line */}
+      <div
+        className="h-px"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${accent}60 50%, transparent)`,
+        }}
+      />
+
+      <div className="p-5">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold font-mono"
+              style={{
+                background: `${accent}15`,
+                color: accent,
+                border: `1px solid ${accent}30`,
+              }}
+            >
+              {String(index + 1).padStart(2, "0")}
+            </div>
+            <span className="font-mono text-[10px] tracking-widest text-text-dim uppercase">
+              {role.period}
+            </span>
+          </div>
+          {role.period.includes("PRESENT") && (
+            <span className="flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider text-accent-cyan/80">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-cyan/60" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-cyan" />
+              </span>
+              Active
+            </span>
+          )}
+        </div>
+
+        <h3 className="font-display font-bold text-lg text-text-primary mb-0.5">
+          {role.company}
+        </h3>
+        <p className="text-xs text-text-secondary mb-0.5">{role.title}</p>
+        {role.context && (
+          <p className="font-mono text-[10px] text-text-dim leading-relaxed mb-3">{role.context}</p>
+        )}
+
+        <div className="h-px mb-3" style={{ background: `linear-gradient(90deg, transparent, ${accent}20, transparent)` }} />
+
+        {/* Bullets */}
+        <ul className="space-y-2 mb-3">
+          {role.bullets.map((bullet, i) => (
+            <li key={i} className="flex gap-2 text-xs text-text-secondary/90 leading-relaxed">
+              <span
+                className="mt-[4px] shrink-0 w-1 h-1 rounded-full"
+                style={{ background: accent }}
+              />
+              <span>{bullet}</span>
+            </li>
+          ))}
+        </ul>
+
+        {role.originQuote && (
+          <p
+            className="text-xs italic text-text-dim pl-3 mb-3"
+            style={{ borderLeft: `2px solid ${accent}30` }}
+          >
+            &ldquo;{role.originQuote}&rdquo;
+          </p>
+        )}
+
+        {/* Tech pills */}
+        {role.tech.length > 0 && (
+          <>
+            <div className="h-px mb-3" style={{ background: `linear-gradient(90deg, transparent, ${accent}15, transparent)` }} />
+            <div className="flex flex-wrap gap-1">
+              {role.tech.map((t) => (
+                <span
+                  key={t}
+                  className="font-mono text-[9px] leading-none px-2 py-1 rounded"
+                  style={{ color: accent, background: `${accent}0c`, border: `1px solid ${accent}15` }}
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Exported: renders both, CSS hides one ────── */
+export default function ExperienceCarousel() {
+  return (
+    <>
+      <DesktopCarousel />
+      <MobileExperience />
+    </>
+  );
+}
+
+/* ── Desktop step dot ─────────────────────────── */
 function StepDot({
   index,
   label,
@@ -258,34 +398,26 @@ function StepDot({
             boxShadow: `0 0 8px ${accent}40`,
           }}
         />
-        <span className="text-[9px] font-mono text-text-dim whitespace-nowrap hidden sm:block">
+        <span className="text-[9px] font-mono text-text-dim whitespace-nowrap">
           {label}
         </span>
       </div>
       {index < 4 && (
         <motion.div
-          className="w-8 sm:w-12 h-px origin-left"
-          style={{
-            scaleX: lineScale,
-            backgroundColor: accent,
-            opacity: dotOpacity,
-          }}
+          className="w-12 h-px origin-left"
+          style={{ scaleX: lineScale, backgroundColor: accent, opacity: dotOpacity }}
         />
       )}
     </div>
   );
 }
 
-/* ── Education card — same height, rich design ──── */
-function EducationCard({
-  cardWidth,
-  cardHeight,
+/* ── Desktop education card ───────────────────── */
+function DesktopEducationCard({
   scrollProgress,
   totalCards,
   index,
 }: {
-  cardWidth: number;
-  cardHeight: number;
   scrollProgress: ReturnType<typeof useSpring>;
   totalCards: number;
   index: number;
@@ -308,23 +440,16 @@ function EducationCard({
   return (
     <motion.div
       className="shrink-0 will-change-transform"
-      style={{ width: cardWidth, height: cardHeight, scale, opacity }}
+      style={{ width: CARD_WIDTH_DESKTOP, height: CARD_HEIGHT, scale, opacity }}
     >
       <div
-        className="relative h-full rounded-2xl border border-border-subtle/50 overflow-hidden group"
-        style={{
-          background: "linear-gradient(135deg, #131729 0%, #0f1320 50%, #131729 100%)",
-        }}
+        className="relative h-full rounded-2xl border border-border-subtle/50 overflow-hidden"
+        style={{ background: "linear-gradient(135deg, #131729 0%, #0f1320 50%, #131729 100%)" }}
       >
-        {/* Subtle top accent */}
         <div
           className="absolute top-0 inset-x-0 h-px"
-          style={{
-            background: `linear-gradient(90deg, transparent, ${eduAccent}40 50%, transparent)`,
-          }}
+          style={{ background: `linear-gradient(90deg, transparent, ${eduAccent}40 50%, transparent)` }}
         />
-
-        {/* Background pattern — faint circuit lines */}
         <div className="absolute inset-0 opacity-[0.02] pointer-events-none">
           <svg width="100%" height="100%">
             <pattern id="circuit" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
@@ -334,54 +459,31 @@ function EducationCard({
             <rect width="100%" height="100%" fill="url(#circuit)" />
           </svg>
         </div>
-
-        {/* Content */}
         <div className="relative h-full p-8 flex flex-col items-center justify-center text-center">
-          {/* Step badge */}
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold font-mono mb-6"
-            style={{
-              background: `${eduAccent}15`,
-              color: eduAccent,
-              border: `1px solid ${eduAccent}30`,
-            }}
+            style={{ background: `${eduAccent}15`, color: eduAccent, border: `1px solid ${eduAccent}30` }}
           >
             05
           </div>
-
-          {/* Icon */}
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
-            style={{
-              background: `${eduAccent}08`,
-              border: `1px solid ${eduAccent}15`,
-            }}
+            style={{ background: `${eduAccent}08`, border: `1px solid ${eduAccent}15` }}
           >
             <GraduationCap size={28} style={{ color: eduAccent }} />
           </div>
-
-          {/* Degree */}
           <h3 className="font-display font-bold text-xl text-text-primary mb-2">
             B.Sc. Electrical &amp; Electronics
           </h3>
           <p className="text-sm text-text-secondary mb-1">Engineering</p>
-          <p className="font-mono text-xs text-text-dim mb-6">
-            Ariel University
-          </p>
-
-          {/* Divider */}
+          <p className="font-mono text-xs text-text-dim mb-6">Ariel University</p>
           <div
             className="w-16 h-px mb-6"
-            style={{
-              background: `linear-gradient(90deg, transparent, ${eduAccent}30, transparent)`,
-            }}
+            style={{ background: `linear-gradient(90deg, transparent, ${eduAccent}30, transparent)` }}
           />
-
-          {/* Foundation skills */}
           <p className="font-mono text-[11px] text-text-dim mb-5 max-w-[280px]">
             The engineering foundation — signal processing, systems thinking, and mathematical rigor.
           </p>
-
           <div className="flex flex-wrap justify-center gap-3">
             {[
               { icon: Cpu, label: "Systems Thinking" },
@@ -391,23 +493,14 @@ function EducationCard({
               <div
                 key={label}
                 className="flex items-center gap-1.5 font-mono text-[10px] px-2.5 py-1.5 rounded-md"
-                style={{
-                  color: `${eduAccent}cc`,
-                  background: `${eduAccent}08`,
-                  border: `1px solid ${eduAccent}12`,
-                }}
+                style={{ color: `${eduAccent}cc`, background: `${eduAccent}08`, border: `1px solid ${eduAccent}12` }}
               >
                 <Icon size={11} />
                 {label}
               </div>
             ))}
           </div>
-
-          {/* Bottom tagline */}
-          <p
-            className="mt-auto pt-6 font-mono text-[10px] italic"
-            style={{ color: `${eduAccent}60` }}
-          >
+          <p className="mt-auto pt-6 font-mono text-[10px] italic" style={{ color: `${eduAccent}60` }}>
             Where it all began
           </p>
         </div>
