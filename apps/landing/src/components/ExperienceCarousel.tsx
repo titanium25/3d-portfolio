@@ -86,6 +86,10 @@ export default function ExperienceCarousel() {
   const totalRailWidth = totalCards * cardWidth + (totalCards - 1) * CARD_GAP;
   const maxTranslate = Math.max(0, totalRailWidth - viewportWidth + 96);
 
+  // Section height: enough scroll travel to drive the horizontal rail comfortably
+  const isMobile = viewportWidth < 768;
+  const sectionHeight = isMobile ? 200 : 300; // vh
+
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ["start start", "end end"],
@@ -115,7 +119,12 @@ export default function ExperienceCarousel() {
   );
 
   return (
-    <section id="experience" ref={sectionRef} className="relative h-[300vh] overflow-hidden">
+    <section
+      id="experience"
+      ref={sectionRef}
+      className="relative overflow-hidden"
+      style={{ height: `${sectionHeight}vh` }}
+    >
       <div className="sticky top-0 h-screen overflow-hidden flex flex-col justify-center">
         {/* Ambient glow */}
         <div className="absolute top-[30%] left-[5%] w-[400px] h-[400px] rounded-full bg-accent-cyan/[0.02] blur-[100px] pointer-events-none" />
