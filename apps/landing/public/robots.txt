@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /explore/
+
+Sitemap: https://alexlaz.dev/sitemap.xml
