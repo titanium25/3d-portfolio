@@ -150,7 +150,7 @@ export default function Hero() {
   );
 
   return (
-    <section ref={sectionRef} className="relative h-[200vh] overflow-hidden">
+    <section ref={sectionRef} className="relative h-[150vh] overflow-hidden">
       <div className="sticky top-0 h-screen overflow-hidden">
         {/* ── Layer 1: Interactive dot grid ── */}
         <DotGrid />

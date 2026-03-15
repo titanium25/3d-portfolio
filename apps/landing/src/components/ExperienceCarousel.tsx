@@ -114,7 +114,7 @@ function DesktopCarousel() {
     <section
       id="experience"
       ref={sectionRef}
-      className="relative h-[300vh] overflow-hidden hidden md:block"
+      className="relative h-[250vh] overflow-hidden hidden md:block"
     >
       <div className="sticky top-0 h-screen overflow-hidden flex flex-col justify-center">
         <div className="absolute top-[30%] left-[5%] w-[400px] h-[400px] rounded-full bg-accent-cyan/[0.02] blur-[100px] pointer-events-none" />
