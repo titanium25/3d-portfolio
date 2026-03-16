@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, type MouseEvent } from "react";
+import { useRef, useState, useCallback, type MouseEvent as ReactMouseEvent } from "react";
 import {
   motion,
   useScroll,
@@ -83,11 +83,7 @@ const DOMAINS: Domain[] = [
 ];
 
 /* ── Highlight keywords ────────────────────────── */
-function highlightText(
-  text: string,
-  patterns: string,
-  color: string
-): React.ReactNode {
+function highlightText(text: string, patterns: string, color: string): React.ReactNode {
   const parts = patterns.split("|").filter(Boolean);
   if (parts.length === 0) return text;
   const regex = new RegExp(
@@ -99,9 +95,7 @@ function highlightText(
     <>
       {segments.map((seg, i) =>
         parts.some((p) => p.toLowerCase() === seg.toLowerCase()) ? (
-          <span key={i} className="font-medium" style={{ color }}>
-            {seg}
-          </span>
+          <span key={i} className="font-medium" style={{ color }}>{seg}</span>
         ) : (
           seg
         )
@@ -113,31 +107,32 @@ function highlightText(
 /* ── Spring config ─────────────────────────────── */
 const spring = { stiffness: 80, damping: 25 };
 
-/* ── Scroll-driven Domain Card ─────────────────── */
-function DomainCard({
+/* ═══════════════════════════════════════════════════
+   MagicBento Card — receives mouse position from parent
+   ═══════════════════════════════════════════════════ */
+function MagicCard({
   domain,
   index,
+  mouseX,
+  mouseY,
 }: {
   domain: Domain;
   index: number;
+  mouseX: number;
+  mouseY: number;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [isHovered, setIsHovered] = useState(false);
   const fromLeft = index % 2 === 0;
 
-  // Scroll-driven entrance: each card tracks its own position
+  // Scroll-driven entrance
   const { scrollYProgress } = useScroll({
     target: cardRef,
     offset: ["start end", "end 0.85"],
   });
-
-  // Smooth scroll-linked values
   const rawProgress = useTransform(scrollYProgress, [0, 1], [0, 1]);
   const progress = useSpring(rawProgress, spring);
 
-  // Reduced transforms on mobile to prevent overflow
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   const opacity = useTransform(progress, [0, 0.5, 1], [0, 0.6, 1]);
   const y = useTransform(progress, [0, 1], [isMobile ? 30 : 60, 0]);
@@ -147,14 +142,13 @@ function DomainCard({
   const filterBlur = useTransform(blur, (v) => `blur(${v}px)`);
   const rotateY = useTransform(progress, [0, 1], [isMobile ? 0 : fromLeft ? -4 : 4, 0]);
 
-  const handleMouseMove = useCallback(
-    (e: MouseEvent<HTMLDivElement>) => {
-      const rect = innerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    },
-    []
-  );
+  // Calculate mouse position relative to THIS card
+  const rect = innerRef.current?.getBoundingClientRect();
+  const localX = rect ? mouseX - rect.left : 0;
+  const localY = rect ? mouseY - rect.top : 0;
+  const isNear = rect
+    ? localX > -100 && localX < rect.width + 100 && localY > -100 && localY < rect.height + 100
+    : false;
 
   const Icon = domain.icon;
   const accent = domain.accent;
@@ -163,42 +157,32 @@ function DomainCard({
     <motion.div
       ref={cardRef}
       className="h-full"
-      style={{
-        opacity,
-        y,
-        x,
-        scale,
-        filter: filterBlur,
-        rotateY,
-        perspective: 800,
-      }}
+      style={{ opacity, y, x, scale, filter: filterBlur, rotateY, perspective: 800 }}
     >
       <div
         ref={innerRef}
         className="group relative h-full rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1"
-        onMouseMove={handleMouseMove}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
         style={{
           background: "linear-gradient(135deg, #131729 0%, #0f1320 50%, #131729 100%)",
-          border: `1px solid ${isHovered ? `${accent}30` : "#1e234050"}`,
+          border: `1px solid ${isNear ? `${accent}25` : "#1e234050"}`,
+          transition: "border-color 0.4s",
         }}
       >
-        {/* Mouse-tracking spotlight */}
+        {/* ── MagicBento spotlight — tracks parent mouse across all cards ── */}
         <div
-          className="pointer-events-none absolute -inset-px transition-opacity duration-300"
+          className="pointer-events-none absolute -inset-px transition-opacity duration-500"
           style={{
-            opacity: isHovered ? 1 : 0,
-            background: `radial-gradient(500px circle at ${mousePos.x}px ${mousePos.y}px, ${accent}12, transparent 50%)`,
+            opacity: isNear ? 1 : 0,
+            background: `radial-gradient(600px circle at ${localX}px ${localY}px, ${accent}12, transparent 40%)`,
           }}
         />
 
-        {/* Gradient border glow */}
+        {/* ── MagicBento border glow — shared flashlight border effect ── */}
         <div
           className="pointer-events-none absolute -inset-[1px] rounded-2xl transition-opacity duration-500"
           style={{
-            opacity: isHovered ? 1 : 0,
-            background: `conic-gradient(from ${Math.atan2(mousePos.y - 100, mousePos.x - 200) * (180 / Math.PI)}deg at ${mousePos.x}px ${mousePos.y}px, ${accent}35, transparent 20%, transparent 80%, ${accent}35)`,
+            opacity: isNear ? 1 : 0,
+            background: `radial-gradient(400px circle at ${localX}px ${localY}px, ${accent}30, transparent 40%)`,
             mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
             maskComposite: "exclude",
             WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
@@ -209,15 +193,10 @@ function DomainCard({
         />
 
         {/* Top accent line */}
-        <div className="absolute top-0 inset-x-0 h-px">
-          <div
-            className="h-full transition-opacity duration-500"
-            style={{
-              opacity: isHovered ? 1 : 0.3,
-              background: `linear-gradient(90deg, transparent, ${accent}${isHovered ? "80" : "30"} 50%, transparent)`,
-            }}
-          />
-        </div>
+        <div className="absolute top-0 inset-x-0 h-px" style={{
+          background: `linear-gradient(90deg, transparent, ${accent}${isNear ? "60" : "20"} 50%, transparent)`,
+          transition: "all 0.4s",
+        }} />
 
         {/* Shine sweep */}
         <div
@@ -228,36 +207,22 @@ function DomainCard({
         />
 
         {/* Corner brackets */}
-        <div
-          className="absolute top-0 left-0 w-6 h-6 pointer-events-none transition-opacity duration-500"
-          style={{
-            opacity: isHovered ? 1 : 0,
-            borderTop: `1.5px solid ${accent}40`,
-            borderLeft: `1.5px solid ${accent}40`,
-            borderTopLeftRadius: "1rem",
-          }}
-        />
-        <div
-          className="absolute bottom-0 right-0 w-6 h-6 pointer-events-none transition-opacity duration-500"
-          style={{
-            opacity: isHovered ? 1 : 0,
-            borderBottom: `1.5px solid ${accent}40`,
-            borderRight: `1.5px solid ${accent}40`,
-            borderBottomRightRadius: "1rem",
-          }}
-        />
+        <div className="absolute top-0 left-0 w-6 h-6 pointer-events-none transition-opacity duration-500"
+          style={{ opacity: isNear ? 0.8 : 0, borderTop: `1.5px solid ${accent}35`, borderLeft: `1.5px solid ${accent}35`, borderTopLeftRadius: "1rem" }} />
+        <div className="absolute bottom-0 right-0 w-6 h-6 pointer-events-none transition-opacity duration-500"
+          style={{ opacity: isNear ? 0.8 : 0, borderBottom: `1.5px solid ${accent}35`, borderRight: `1.5px solid ${accent}35`, borderBottomRightRadius: "1rem" }} />
 
         {/* Card content */}
-        <div className="relative p-6 flex flex-col h-full">
+        <div className="relative p-5 md:p-6 flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300"
                 style={{
-                  background: `${accent}10`,
-                  border: `1px solid ${accent}${isHovered ? "35" : "18"}`,
-                  boxShadow: isHovered ? `0 0 16px ${accent}15, 0 0 4px ${accent}10` : "none",
+                  background: `${accent}${isNear ? "18" : "0c"}`,
+                  border: `1px solid ${accent}${isNear ? "30" : "15"}`,
+                  boxShadow: isNear ? `0 0 20px ${accent}15` : "none",
                 }}
               >
                 <Icon
@@ -273,9 +238,9 @@ function DomainCard({
             <span
               className="font-mono text-[10px] px-2 py-0.5 rounded-full transition-all duration-300"
               style={{
-                color: `${accent}${isHovered ? "cc" : "80"}`,
-                background: `${accent}${isHovered ? "15" : "08"}`,
-                border: `1px solid ${accent}${isHovered ? "25" : "10"}`,
+                color: `${accent}${isNear ? "cc" : "80"}`,
+                background: `${accent}${isNear ? "15" : "08"}`,
+                border: `1px solid ${accent}${isNear ? "25" : "10"}`,
               }}
             >
               {domain.techs.length}
@@ -288,12 +253,8 @@ function DomainCard({
           </p>
 
           {/* Divider */}
-          <div
-            className="h-px mb-4 mt-auto"
-            style={{
-              background: `linear-gradient(90deg, transparent, ${accent}18, transparent)`,
-            }}
-          />
+          <div className="h-px mb-4 mt-auto"
+            style={{ background: `linear-gradient(90deg, transparent, ${accent}18, transparent)` }} />
 
           {/* Tech pills */}
           <div className="flex flex-wrap gap-1.5">
@@ -316,28 +277,35 @@ function DomainCard({
         {/* Bottom glow */}
         <div
           className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-3/4 h-8 rounded-full blur-2xl pointer-events-none transition-opacity duration-500"
-          style={{ background: accent, opacity: isHovered ? 0.06 : 0 }}
+          style={{ background: accent, opacity: isNear ? 0.05 : 0 }}
         />
       </div>
     </motion.div>
   );
 }
 
-/* ── Stack section ─────────────────────────────── */
+/* ═══════════════════════════════════════════════════
+   Stack section — MagicBento grid with shared mouse
+   ═══════════════════════════════════════════════════ */
 export default function Stack() {
-  // Section-level scroll for header animation
   const sectionRef = useRef<HTMLDivElement>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  // Single mousemove handler on the grid — the "magic" of MagicBento
+  const handleMouseMove = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
+    setMousePos({ x: e.clientX, y: e.clientY });
+  }, []);
 
   return (
     <section id="stack" ref={sectionRef} className="relative py-20 md:py-28 px-4 md:px-6 overflow-hidden">
       {/* Ambient glows */}
-      <div className="absolute top-[30%] left-[10%] w-[400px] h-[300px] rounded-full bg-accent-cyan/[0.015] blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[20%] right-[10%] w-[350px] h-[250px] rounded-full bg-[#6366f1]/[0.015] blur-[80px] pointer-events-none" />
+      <div className="absolute top-[30%] left-[10%] w-[50vw] max-w-[400px] h-[50vw] max-h-[300px] rounded-full bg-accent-cyan/[0.015] blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[20%] right-[10%] w-[45vw] max-w-[350px] h-[45vw] max-h-[250px] rounded-full bg-[#6366f1]/[0.015] blur-[80px] pointer-events-none" />
 
       <div className="relative mx-auto max-w-6xl">
         <Reveal x={60}>
           <div className="flex items-center gap-4 mb-4">
-            <h2 className="font-display font-bold text-4xl text-text-primary whitespace-nowrap">
+            <h2 className="font-display font-bold text-3xl md:text-4xl text-text-primary whitespace-nowrap">
               Tech Stack
             </h2>
             <div className="section-divider flex-1" />
@@ -345,13 +313,13 @@ export default function Stack() {
         </Reveal>
 
         <Reveal delay={0.1}>
-          <p className="text-text-secondary mb-4 max-w-lg">
+          <p className="text-text-secondary text-sm mb-4 max-w-lg">
             Not what I know — what I&apos;ve built with it.
           </p>
         </Reveal>
 
         <Reveal delay={0.15}>
-          <div className="flex items-center gap-3 mb-12">
+          <div className="flex items-center gap-3 mb-10 md:mb-12">
             <div className="flex items-center gap-1.5 font-mono text-xs text-text-dim">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-cyan" />
               {DOMAINS.reduce((sum, d) => sum + d.techs.length, 0)} technologies
@@ -363,9 +331,19 @@ export default function Stack() {
           </div>
         </Reveal>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 max-w-5xl items-stretch">
+        {/* MagicBento grid — single mousemove on container */}
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 max-w-5xl items-stretch"
+          onMouseMove={handleMouseMove}
+        >
           {DOMAINS.map((domain, i) => (
-            <DomainCard key={domain.title} domain={domain} index={i} />
+            <MagicCard
+              key={domain.title}
+              domain={domain}
+              index={i}
+              mouseX={mousePos.x}
+              mouseY={mousePos.y}
+            />
           ))}
         </div>
       </div>
