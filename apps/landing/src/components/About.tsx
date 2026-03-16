@@ -7,6 +7,10 @@ import {
   Camera,
   Bird,
   Globe,
+  Compass,
+  FileText,
+  Users,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Reveal from "./Reveal";
@@ -187,6 +191,68 @@ function InterestCard({ item, index }: { item: Interest; index: number }) {
   );
 }
 
+/* ── Engineering DNA traits ─────────────────────── */
+const TRAITS = [
+  {
+    icon: Compass,
+    title: "End-to-End Ownership",
+    desc: "Full lifecycle — architecture, production, postmortems. Owned 3 microservices from design to production.",
+    accent: "#00e5cc",
+  },
+  {
+    icon: FileText,
+    title: "Document Before Build",
+    desc: "Every system has a README before code. API contracts before implementations.",
+    accent: "#4f8fff",
+  },
+  {
+    icon: Users,
+    title: "Mentor by Pairing",
+    desc: "Led 6 teams at The5ers, promoted to lead in 9 months at Restigo. Show, don't tell.",
+    accent: "#a78bfa",
+  },
+  {
+    icon: Zap,
+    title: "Ship, Then Improve",
+    desc: "Ship, measure, iterate. Performance is the product — proved it at The5ers with 100K+ users.",
+    accent: "#f59e0b",
+  },
+];
+
+function TraitCard({ trait, index }: { trait: (typeof TRAITS)[number]; index: number }) {
+  const { accent } = trait;
+  const Icon = trait.icon;
+
+  return (
+    <Reveal delay={0.1 + index * 0.08} y={20} className="h-full">
+      <div
+        className="group relative h-full rounded-xl overflow-hidden p-4 transition-all duration-300 hover:-translate-y-1"
+        style={{
+          background: "linear-gradient(135deg, #131729 0%, #0f1320 100%)",
+          border: `1px solid ${accent}18`,
+        }}
+      >
+        {/* Top accent */}
+        <div className="absolute top-0 inset-x-0 h-px" style={{
+          background: `linear-gradient(90deg, transparent, ${accent}40 50%, transparent)`,
+        }} />
+
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center mb-3 transition-all duration-300 group-hover:scale-110"
+          style={{
+            background: `${accent}10`,
+            border: `1px solid ${accent}20`,
+          }}
+        >
+          <Icon size={16} style={{ color: accent }} />
+        </div>
+        <p className="font-display font-semibold text-sm text-text-primary mb-1">{trait.title}</p>
+        <p className="text-[11px] text-text-dim leading-relaxed">{trait.desc}</p>
+      </div>
+    </Reveal>
+  );
+}
+
 /* ── Highlighted prose ──────────────────────────── */
 function Prose({ children, delay }: { children: React.ReactNode; delay: number }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -256,8 +322,24 @@ export default function About() {
               </p>
             </Prose>
 
+            {/* Engineering DNA */}
             <Reveal delay={0.35}>
-              <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border-subtle to-transparent" />
+                <span className="font-mono text-[10px] text-text-dim uppercase tracking-wider">Engineering DNA</span>
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border-subtle to-transparent" />
+              </div>
+            </Reveal>
+
+            <div className="grid grid-cols-2 gap-3 mb-8">
+              {TRAITS.map((trait, i) => (
+                <TraitCard key={trait.title} trait={trait} index={i} />
+              ))}
+            </div>
+
+            {/* Interests */}
+            <Reveal delay={0.55}>
+              <div className="flex items-center gap-3 mb-5">
                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border-subtle to-transparent" />
                 <span className="font-mono text-[10px] text-text-dim uppercase tracking-wider">Interests</span>
                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border-subtle to-transparent" />
